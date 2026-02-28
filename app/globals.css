@@ -1,26 +1,702 @@
-@import "tailwindcss";
+/* =========================
+   RESET + THEME
+========================= */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --bg: #050505;
+  --text: rgba(255, 255, 255, 0.92);
+  --muted: rgba(255, 255, 255, 0.6);
+
+  --card: rgba(255, 255, 255, 0.03);
+  --card-2: rgba(255, 255, 255, 0.04);
+  --stroke: rgba(255, 255, 255, 0.08);
+  --stroke-2: rgba(255, 255, 255, 0.12);
+
+  --accent-1: rgba(214, 164, 94, 0.95);
+  --accent-2: rgba(160, 120, 60, 0.95);
+
+  --danger-bg: rgba(200, 70, 70, 0.14);
+  --danger-br: rgba(200, 70, 70, 0.28);
+  --danger-tx: rgba(255, 140, 140, 0.95);
+
+  --radius-xl: 22px;
+  --radius-lg: 18px;
+  --radius-pill: 999px;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+html,
+body {
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display",
+    "SF Pro Text", Inter, system-ui, sans-serif;
+
+  background: radial-gradient(
+      1000px 600px at 20% 0%,
+      rgba(214, 164, 94, 0.08),
+      transparent
+    ),
+    radial-gradient(
+      1200px 800px at 80% 20%,
+      rgba(60, 120, 255, 0.06),
+      transparent
+    ),
+    var(--bg);
+
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+button {
+  background: none;
+  border: none;
+}
+
+/* =========================
+   DASHBOARD SHELL (layout)
+========================= */
+
+.ds-root {
+  min-height: 100vh;
+  display: flex;
+}
+
+.ds-sidebar {
+  width: 280px;
+  padding: 22px;
+  border-right: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.01);
+  backdrop-filter: blur(14px);
+}
+
+.ds-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 10px 18px;
+}
+
+.ds-logo {
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: linear-gradient(
+    135deg,
+    rgba(214, 164, 94, 0.22),
+    rgba(255, 255, 255, 0.06)
+  );
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+.ds-brand-title {
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  font-size: 12px;
+}
+
+.ds-brand-sub {
+  font-size: 12px;
+  opacity: 0.6;
+  margin-top: 2px;
+}
+
+.ds-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.ds-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  background: rgba(255, 255, 255, 0.02);
+  transition: 0.15s ease;
+}
+
+.ds-nav-item:hover {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.ds-nav-item.active {
+  background: linear-gradient(
+    135deg,
+    rgba(214, 164, 94, 0.14),
+    rgba(255, 255, 255, 0.03)
+  );
+  border-color: rgba(214, 164, 94, 0.20);
+}
+
+.ds-nav-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.ds-nav-item.active .ds-nav-dot {
+  background: rgba(214, 164, 94, 0.85);
+}
+
+.ds-nav-label {
+  font-weight: 600;
+  opacity: 0.92;
+}
+
+.ds-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ds-topbar {
+  height: 74px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 26px;
+}
+
+.ds-profile {
+  width: 40px;
+  height: 40px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  cursor: pointer;
+}
+
+.ds-profile:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.ds-content {
+  padding: 48px 60px;
+}
+
+/* =========================
+   IMPORT PAGE (existing)
+========================= */
+
+.page {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.crumb {
+  font-size: 13px;
+  opacity: 0.6;
+  margin-bottom: 10px;
+}
+
+.page-title {
+  font-size: 56px;
+  font-weight: 700;
+  letter-spacing: -1px;
+}
+
+.page-subtitle {
+  margin-top: 8px;
+  opacity: 0.6;
+  font-size: 15px;
+}
+
+.card {
+  background: var(--card);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-xl);
+  backdrop-filter: blur(14px);
+  padding: 22px;
+}
+
+.section-card {
+  margin-top: 28px;
+}
+
+.section-title {
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.section-subtitle {
+  font-size: 13px;
+  opacity: 0.6;
+  margin-top: 4px;
+}
+
+.stats-grid {
+  margin-top: 28px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+}
+
+.stat-card {
+  padding: 26px;
+}
+
+.stat-label {
+  font-size: 13px;
+  opacity: 0.6;
+}
+
+.stat-value {
+  font-size: 34px;
+  font-weight: 600;
+  margin-top: 6px;
+}
+
+.btn {
+  border-radius: 999px;
+  padding: 10px 18px;
+  font-size: 14px;
+  border: none;
+  cursor: pointer;
+  transition: 0.15s ease;
+  color: var(--text);
+}
+
+.btn-soft {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+.btn-soft:hover {
+  background: rgba(255, 255, 255, 0.10);
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+  color: black;
+  font-weight: 700;
+}
+
+.btn-primary:hover {
+  opacity: 0.9;
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.btn-danger {
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-br);
+  color: var(--danger-tx);
+}
+
+.btn-danger:hover {
+  background: rgba(200, 70, 70, 0.22);
+}
+
+.import-row {
+  margin-top: 20px;
+  display: flex;
+  gap: 16px;
+  align-items: center;
+}
+
+.file-input {
+  display: none;
+}
+
+.file-pill {
+  padding: 10px 16px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 13px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  min-width: 340px;
+}
+
+.file-title {
+  font-weight: 600;
+}
+
+.file-sub {
+  opacity: 0.6;
+  font-size: 12px;
+}
+
+/* =========================
+   CLIENTS PAGE (ds-*)
+========================= */
+
+.ds-page {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.ds-topline {
+  font-size: 13px;
+  opacity: 0.6;
+  margin-bottom: 10px;
+}
+
+.ds-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.ds-title {
+  font-size: 56px;
+  line-height: 1;
+  margin: 0;
+  letter-spacing: -1px;
+}
+
+.ds-subtitle {
+  margin: 10px 0 0;
+  opacity: 0.6;
+  font-size: 15px;
+}
+
+.ds-right-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ds-pill {
+  padding: 10px 14px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 13px;
+  opacity: 0.85;
+}
+
+.ds-search {
+  margin-top: 22px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: var(--radius-lg);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.ds-search-icon {
+  opacity: 0.65;
+  font-size: 14px;
+}
+
+.ds-search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-size: 14px;
+}
+
+.ds-search-clear {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  padding: 6px 8px;
+  border-radius: 10px;
+}
+
+.ds-search-clear:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.ds-stats-grid {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 22px;
+}
+
+.ds-stat-card {
+  background: var(--card);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-xl);
+  backdrop-filter: blur(14px);
+  padding: 26px;
+}
+
+.ds-stat-label {
+  font-size: 13px;
+  opacity: 0.6;
+}
+
+.ds-stat-value {
+  font-size: 34px;
+  font-weight: 700;
+  margin-top: 6px;
+}
+
+.ds-card {
+  margin-top: 22px;
+  background: var(--card);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-xl);
+  backdrop-filter: blur(14px);
+  padding: 18px;
+}
+
+.ds-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 6px 6px 14px;
+}
+
+.ds-card-title {
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.ds-card-sub {
+  margin-top: 4px;
+  font-size: 13px;
+  opacity: 0.6;
+}
+
+.ds-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.ds-btn {
+  border-radius: var(--radius-pill);
+  padding: 10px 14px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: 0.15s ease;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+.ds-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.ds-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.ds-btn-ghost {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.10);
+}
+
+.ds-btn-soft {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.ds-btn-danger {
+  background: var(--danger-bg);
+  border: 1px solid var(--danger-br);
+  color: var(--danger-tx);
+}
+
+.ds-btn-danger:hover {
+  background: rgba(200, 70, 70, 0.22);
+}
+
+.ds-btn-danger-xs {
+  padding: 9px 12px;
+  border-radius: var(--radius-pill);
+  background: rgba(200, 70, 70, 0.16);
+  border: 1px solid rgba(200, 70, 70, 0.28);
+  color: rgba(255, 170, 170, 0.95);
+}
+
+.ds-btn-danger-xs:hover {
+  background: rgba(200, 70, 70, 0.24);
+}
+
+.ds-table-wrap {
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.ds-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ds-table th,
+.ds-table td {
+  padding: 16px;
+  text-align: left;
+  font-size: 14px;
+}
+
+.ds-table th {
+  background: rgba(255, 255, 255, 0.04);
+  opacity: 0.75;
+  font-weight: 600;
+}
+
+.ds-table tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.ds-table tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.ds-right {
+  text-align: right;
+}
+
+.ds-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+.ds-empty {
+  padding: 26px 6px 10px;
+  text-align: center;
+}
+
+.ds-empty-title {
+  font-weight: 700;
+}
+
+.ds-empty-sub {
+  margin-top: 6px;
+  font-size: 13px;
+  opacity: 0.6;
+}
+
+/* =========================
+   CHECKBOX (clic OK + style)
+========================= */
+
+.ds-col-check {
+  width: 56px;
+}
+
+.ds-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  position: relative;
+  cursor: pointer;
+}
+
+.ds-check input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+  z-index: 2; /* IMPORTANT: clic assuré */
+}
+
+.ds-check-ui {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.05);
+  transition: 0.15s ease;
+  position: relative;
+  z-index: 1;
+  pointer-events: none; /* IMPORTANT: évite que le span "mange" le clic */
+}
+
+.ds-check:hover .ds-check-ui {
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.ds-check input:checked + .ds-check-ui {
+  background: linear-gradient(135deg, var(--accent-1), var(--accent-2));
+  border-color: transparent;
+}
+
+.ds-check input:checked + .ds-check-ui::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: #0b0b0b;
+  transform: translate(-50%, -50%);
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media (max-width: 1100px) {
+  .ds-content {
+    padding: 34px 26px;
+  }
+  .page-title,
+  .ds-title {
+    font-size: 44px;
+  }
+  .stats-grid,
+  .ds-stats-grid {
+    grid-template-columns: 1fr;
+  }
+  .import-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .file-pill {
+    min-width: 0;
   }
 }
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+@media (max-width: 880px) {
+  .ds-root {
+    flex-direction: column;
+  }
+  .ds-sidebar {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
 }

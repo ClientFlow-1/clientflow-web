@@ -1,65 +1,154 @@
-import Image from "next/image";
+// app/page.tsx
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
-export default function Home() {
+import { supabase } from "@/lib/supabaseClient";
+
+type Profile = {
+  id: string;
+  created_at: string;
+  email: string | null;
+  is_active: boolean | null;
+};
+
+function formatDateFR(iso: string) {
+  try {
+    const d = new Date(iso);
+    return new Intl.DateTimeFormat("fr-FR", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    }).format(d);
+  } catch {
+    return iso;
+  }
+}
+
+export default async function Home() {
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id, created_at, email, is_active")
+    .order("created_at", { ascending: false });
+
+  const profiles: Profile[] = (data ?? []) as Profile[];
+
+  const total = profiles.length;
+  const actifs = profiles.filter((p) => p.is_active === true).length;
+  const inactifs = total - actifs;
+
+  // Bandeau “système”
+  const systemLabel = error
+    ? `Supabase: ERREUR (${error.code ?? "unknown"})`
+    : "Supabase: OK (lecture profils)";
+  const systemSub = error ? error.message : "RLS/SELECT: autorisé";
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="wrap">
+      <div className="header">
+        <div>
+          <h1 className="title">Dashboard</h1>
+          <div className="subtitle">Vue rapide des profils (Supabase)</div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        <div className="pill">
+          <span className={`dot ${error ? "dotRed" : "dotGreen"}`} />
+          {error ? "Déconnecté" : "Connecté"}
         </div>
-      </main>
+      </div>
+
+      <div className="stats">
+        <div className="statCard">
+          <div className="statLabel">Total profils</div>
+          <div className="statValue">{total}</div>
+        </div>
+        <div className="statCard">
+          <div className="statLabel">Actifs</div>
+          <div className="statValue">{actifs}</div>
+        </div>
+        <div className="statCard">
+          <div className="statLabel">Inactifs</div>
+          <div className="statValue">{inactifs}</div>
+        </div>
+      </div>
+
+      <div className="tableCard">
+        <div className="tableHead" style={{ display: "grid", gap: 10 }}>
+          <div>
+            <h2 className="tableTitle">Profils</h2>
+            <div className="tableSub">Contrôle rapide avant import / usage</div>
+          </div>
+
+          <div
+            className="pill"
+            style={{
+              justifyContent: "space-between",
+              width: "fit-content",
+              maxWidth: "100%",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span className={`dot ${error ? "dotRed" : "dotGreen"}`} />
+              <div style={{ display: "grid", lineHeight: 1.2 }}>
+                <span style={{ fontWeight: 600, fontSize: 13 }}>
+                  {systemLabel}
+                </span>
+                <span className="muted" style={{ fontSize: 12 }}>
+                  {systemSub}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="tableWrap">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Email</th>
+                <th>Statut</th>
+                <th>Créé le</th>
+              </tr>
+            </thead>
+            <tbody>
+              {profiles.map((p) => {
+                const shortId =
+                  p.id && p.id.length > 12 ? `${p.id.slice(0, 8)}…${p.id.slice(-4)}` : p.id;
+
+                const isActive = p.is_active === true;
+
+                return (
+                  <tr key={p.id}>
+                    <td className="mono">{shortId}</td>
+                    <td>{p.email ?? <span className="muted">—</span>}</td>
+                    <td>
+                      <span
+                        className={[
+                          "badge",
+                          isActive ? "badgeGreen" : "badgeGray",
+                        ].join(" ")}
+                      >
+                        {isActive ? "Actif" : "Inactif"}
+                      </span>
+                    </td>
+                    <td>{formatDateFR(p.created_at)}</td>
+                  </tr>
+                );
+              })}
+
+              {!profiles.length && (
+                <tr>
+                  <td colSpan={4} className="muted" style={{ padding: "18px 20px" }}>
+                    Aucun profil trouvé.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
