@@ -59,6 +59,79 @@ const STATUS_OPTIONS: { value: StatusOverride; label: string; emoji: string; col
   { value: "new",      label: "Nouveau",  emoji: "✨", color: "#4ecdc4",                bg: "rgba(78,205,196,0.1)",    border: "rgba(78,205,196,0.3)" },
 ];
 
+// ─── InfoRow ──────────────────────────────────────────────────────────────────
+function InfoRow({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, padding: "10px 14px", borderRadius: 10, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+      <span style={{ fontSize: 12, color: "rgba(255,255,255,0.40)", fontWeight: 600 }}>{label}</span>
+      <span style={{ fontSize: 13, fontWeight: 800, color: accent ? "rgba(120,160,255,0.95)" : "rgba(255,255,255,0.88)", textAlign: "right" }}>{value}</span>
+    </div>
+  );
+}
+
+// ─── Mobile Client Card ───────────────────────────────────────────────────────
+function MobileClientCard({ c, total, onEdit, onDelete, loading }: {
+  c: ClientRow; total: number; onEdit: () => void; onDelete: () => void; loading: boolean;
+}) {
+  const [popupOpen, setPopupOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)", gap: 10 }}>
+      <div style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(99,120,255,0.15)", border: "1px solid rgba(99,120,255,0.25)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: "rgba(120,160,255,0.9)" }}>
+        {(c.prenom?.[0] ?? c.email?.[0] ?? "?").toUpperCase()}
+      </div>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontWeight: 800, fontSize: 14, color: "rgba(255,255,255,0.92)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          {`${c.prenom ?? ""} ${c.nom ?? ""}`.trim() || c.email || "—"}
+        </div>
+        <div style={{ fontSize: 12, color: "rgba(120,160,255,0.85)", fontWeight: 700, marginTop: 2 }}>{formatEUR(total)}</div>
+      </div>
+      <button type="button" onClick={() => setPopupOpen(true)}
+        style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.5)", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>···</button>
+      <button type="button" onClick={onEdit}
+        style={{ height: 32, padding: "0 12px", borderRadius: 9, border: "1px solid rgba(99,120,255,0.25)", background: "rgba(99,120,255,0.10)", color: "rgba(120,160,255,0.9)", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>✏️</button>
+      <button type="button" onClick={onDelete} disabled={loading}
+        style={{ height: 32, padding: "0 10px", borderRadius: 9, border: "1px solid rgba(255,80,80,0.20)", background: "rgba(255,80,80,0.06)", color: "rgba(255,120,120,0.85)", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>🗑</button>
+
+      {popupOpen && mounted && createPortal(
+        <div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "flex-end", justifyContent: "center", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}
+          onMouseDown={e => { if (e.target === e.currentTarget) setPopupOpen(false); }}>
+          <div style={{ width: "100%", maxWidth: 480, borderRadius: "20px 20px 0 0", background: "linear-gradient(180deg, rgba(22,24,34,0.99), rgba(12,13,18,0.99))", border: "1px solid rgba(255,255,255,0.08)", borderBottom: "none", padding: "20px 20px 36px" }}>
+            <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 20px" }} />
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
+              <div style={{ width: 48, height: 48, borderRadius: "50%", background: "rgba(99,120,255,0.15)", border: "1px solid rgba(99,120,255,0.30)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 800, color: "rgba(120,160,255,0.9)", flexShrink: 0 }}>
+                {(c.prenom?.[0] ?? c.email?.[0] ?? "?").toUpperCase()}
+              </div>
+              <div>
+                <div style={{ fontWeight: 900, fontSize: 17, color: "rgba(255,255,255,0.95)" }}>{`${c.prenom ?? ""} ${c.nom ?? ""}`.trim() || "—"}</div>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.40)", marginTop: 2 }}>{c.email || "Pas d'email"}</div>
+              </div>
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+              <InfoRow label="CA total" value={formatEUR(total)} accent />
+              {c.email && <InfoRow label="Email" value={c.email} />}
+              {c.birthdate && <InfoRow label="Date de naissance" value={toFRDateDisplay(c.birthdate)} />}
+              {c.notes && <InfoRow label="Notes" value={c.notes} />}
+              {c.status_override && <InfoRow label="Statut forcé" value={STATUS_OPTIONS.find(s => s.value === c.status_override)?.label ?? c.status_override} />}
+            </div>
+            <div style={{ display: "flex", gap: 10 }}>
+              <button type="button" onClick={() => { setPopupOpen(false); onEdit(); }}
+                style={{ flex: 1, height: 46, borderRadius: 12, border: "1px solid rgba(99,120,255,0.30)", background: "rgba(99,120,255,0.12)", color: "rgba(120,160,255,0.95)", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>✏️ Modifier</button>
+              <button type="button" onClick={() => { setPopupOpen(false); onDelete(); }} disabled={loading}
+                style={{ flex: 1, height: 46, borderRadius: 12, border: "1px solid rgba(255,80,80,0.25)", background: "rgba(255,80,80,0.08)", color: "rgba(255,120,120,0.95)", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>🗑 Supprimer</button>
+            </div>
+            <button type="button" onClick={() => setPopupOpen(false)}
+              style={{ width: "100%", marginTop: 10, height: 44, borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "rgba(255,255,255,0.45)", fontSize: 14, cursor: "pointer" }}>Fermer</button>
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
+
 // ─── Multi-Product Picker ─────────────────────────────────────────────────────
 function MultiProductPicker({ products, selected, onChange }: {
   products: Product[]; selected: SaleProduct[]; onChange: (items: SaleProduct[]) => void;
@@ -373,20 +446,13 @@ function CalendarOverlay({ open, valueIso, onPick, onClose }: { open: boolean; v
 
 // ─── Client Edit Drawer ───────────────────────────────────────────────────────
 function ClientEditDrawer({ client, onClose, onSaved }: { client: ClientRow | null; onClose: () => void; onSaved: (updated: ClientRow) => void; }) {
-  const [prenom, setPrenom] = useState("");
-  const [nom, setNom] = useState("");
-  const [email, setEmail] = useState("");
-  const [birthdate, setBirthdate] = useState("");
-  const [notes, setNotes] = useState("");
+  const [prenom, setPrenom] = useState(""); const [nom, setNom] = useState(""); const [email, setEmail] = useState("");
+  const [birthdate, setBirthdate] = useState(""); const [notes, setNotes] = useState("");
   const [statusOverride, setStatusOverride] = useState<StatusOverride>(null);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [visible, setVisible] = useState(false);
-  const [mounted, setMounted] = useState(false);
+  const [saving, setSaving] = useState(false); const [error, setError] = useState<string | null>(null);
+  const [visible, setVisible] = useState(false); const [mounted, setMounted] = useState(false);
   const drawerRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => { setMounted(true); }, []);
-
   useEffect(() => {
     if (client) {
       setPrenom(client.prenom || ""); setNom(client.nom || ""); setEmail(client.email || "");
@@ -395,21 +461,17 @@ function ClientEditDrawer({ client, onClose, onSaved }: { client: ClientRow | nu
       requestAnimationFrame(() => setVisible(true));
     } else { setVisible(false); }
   }, [client]);
-
   useEffect(() => {
     const handleClick = (e: MouseEvent) => { if (drawerRef.current && !drawerRef.current.contains(e.target as Node)) handleClose(); };
     if (client) document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [client]);
-
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => { if (e.key === "Escape") handleClose(); };
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
   }, []);
-
   const handleClose = () => { setVisible(false); setTimeout(onClose, 280); };
-
   const handleSave = async () => {
     if (!client) return;
     if (!prenom.trim() || !nom.trim()) { setError("Le prénom et le nom sont obligatoires."); return; }
@@ -418,31 +480,21 @@ function ClientEditDrawer({ client, onClose, onSaved }: { client: ClientRow | nu
     const { error: supaErr } = await supabase.from("clients").update(updates).eq("id", client.id);
     setSaving(false);
     if (supaErr) { setError("Erreur : " + supaErr.message); return; }
-    onSaved({ ...client, ...updates });
-    handleClose();
+    onSaved({ ...client, ...updates }); handleClose();
   };
-
   if (!client || !mounted) return null;
-
   return createPortal(
     <>
       <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", backdropFilter: "blur(2px)", zIndex: 999, opacity: visible ? 1 : 0, transition: "opacity 0.28s ease" }} />
       <div ref={drawerRef} style={{ position: "fixed", top: 0, right: 0, bottom: 0, width: "min(480px, 100vw)", background: "linear-gradient(180deg, #16162a 0%, #13131f 100%)", borderLeft: "1px solid rgba(255,255,255,0.08)", zIndex: 1000, display: "flex", flexDirection: "column", transform: visible ? "translateX(0)" : "translateX(100%)", transition: "transform 0.28s cubic-bezier(0.32, 0.72, 0, 1)", boxShadow: "-24px 0 80px rgba(0,0,0,0.5)", fontFamily: "'DM Sans', sans-serif" }}>
-        {/* Header */}
         <div style={{ padding: "28px 28px 24px", borderBottom: "1px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 16, flexShrink: 0 }}>
           <div>
             <p style={{ fontSize: 12, color: "rgba(238,238,245,0.35)", letterSpacing: "0.08em", textTransform: "uppercase", marginBottom: 4 }}>Modifier le client</p>
             <h2 style={{ fontSize: 20, fontWeight: 600, color: "#eeeef5", margin: 0 }}>{client.prenom} {client.nom}</h2>
           </div>
-          <button onClick={handleClose} style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", color: "rgba(238,238,245,0.5)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}
-            onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.08)"; e.currentTarget.style.color = "#eeeef5"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; e.currentTarget.style.color = "rgba(238,238,245,0.5)"; }}>✕</button>
+          <button onClick={handleClose} style={{ width: 36, height: 36, borderRadius: 10, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", color: "rgba(238,238,245,0.5)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, flexShrink: 0 }}>✕</button>
         </div>
-
-        {/* Content */}
         <div style={{ flex: 1, overflowY: "auto", padding: "28px", display: "flex", flexDirection: "column", gap: 28 }}>
-
-          {/* Identité */}
           <div>
             <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(238,238,245,0.3)", marginBottom: 14 }}>Identité</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -454,8 +506,6 @@ function ClientEditDrawer({ client, onClose, onSaved }: { client: ClientRow | nu
               <DrawerField label="Date de naissance" value={birthdate} onChange={setBirthdate} type="date" />
             </div>
           </div>
-
-          {/* Statut */}
           <div>
             <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(238,238,245,0.3)", marginBottom: 14 }}>Statut client</p>
             <p style={{ fontSize: 13, color: "rgba(238,238,245,0.4)", marginBottom: 14, lineHeight: 1.5 }}>Par défaut, le statut est calculé automatiquement. Vous pouvez le forcer manuellement.</p>
@@ -472,8 +522,6 @@ function ClientEditDrawer({ client, onClose, onSaved }: { client: ClientRow | nu
               })}
             </div>
           </div>
-
-          {/* Notes */}
           <div>
             <p style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.1em", textTransform: "uppercase", color: "rgba(238,238,245,0.3)", marginBottom: 14 }}>Notes internes</p>
             <textarea value={notes} onChange={e => setNotes(e.target.value)} placeholder="Allergie aux produits X, préfère les RDV le matin..." rows={4}
@@ -481,20 +529,12 @@ function ClientEditDrawer({ client, onClose, onSaved }: { client: ClientRow | nu
               onFocus={e => { e.currentTarget.style.borderColor = "rgba(99,120,255,0.4)"; }}
               onBlur={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }} />
           </div>
-
           {error && <div style={{ padding: "12px 16px", borderRadius: 10, background: "rgba(255,80,80,0.1)", border: "1px solid rgba(255,80,80,0.25)", color: "#ff8080", fontSize: 13 }}>{error}</div>}
         </div>
-
-        {/* Footer */}
         <div style={{ padding: "20px 28px", borderTop: "1px solid rgba(255,255,255,0.06)", display: "flex", gap: 12, flexShrink: 0 }}>
-          <button onClick={handleClose}
-            style={{ flex: 1, padding: "12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)", color: "rgba(238,238,245,0.6)", cursor: "pointer", fontSize: 14, fontFamily: "'DM Sans', sans-serif", fontWeight: 500 }}
-            onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.08)"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}>Annuler</button>
+          <button onClick={handleClose} style={{ flex: 1, padding: "12px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(255,255,255,0.04)", color: "rgba(238,238,245,0.6)", cursor: "pointer", fontSize: 14, fontFamily: "'DM Sans', sans-serif", fontWeight: 500 }}>Annuler</button>
           <button onClick={handleSave} disabled={saving}
-            style={{ flex: 2, padding: "12px", borderRadius: 12, border: "1px solid rgba(99,120,255,0.35)", background: saving ? "rgba(99,120,255,0.15)" : "linear-gradient(135deg, rgba(99,120,255,0.25) 0%, rgba(140,99,255,0.25) 100%)", color: saving ? "rgba(99,120,255,0.5)" : "#8899ff", cursor: saving ? "not-allowed" : "pointer", fontSize: 14, fontFamily: "'DM Sans', sans-serif", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}
-            onMouseEnter={e => { if (!saving) e.currentTarget.style.background = "linear-gradient(135deg, rgba(99,120,255,0.4) 0%, rgba(140,99,255,0.4) 100%)"; }}
-            onMouseLeave={e => { if (!saving) e.currentTarget.style.background = "linear-gradient(135deg, rgba(99,120,255,0.25) 0%, rgba(140,99,255,0.25) 100%)"; }}>
+            style={{ flex: 2, padding: "12px", borderRadius: 12, border: "1px solid rgba(99,120,255,0.35)", background: saving ? "rgba(99,120,255,0.15)" : "linear-gradient(135deg, rgba(99,120,255,0.25) 0%, rgba(140,99,255,0.25) 100%)", color: saving ? "rgba(99,120,255,0.5)" : "#8899ff", cursor: saving ? "not-allowed" : "pointer", fontSize: 14, fontFamily: "'DM Sans', sans-serif", fontWeight: 600, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
             {saving ? <><span style={{ width: 14, height: 14, border: "2px solid rgba(99,120,255,0.3)", borderTopColor: "#6378ff", borderRadius: "50%", display: "inline-block", animation: "cfSpin 0.7s linear infinite" }} />Sauvegarde...</> : "Sauvegarder les modifications"}
           </button>
         </div>
@@ -515,9 +555,7 @@ function DrawerField({ label, value, onChange, placeholder, type = "text" }: { l
         onBlur={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }} />
     </div>
   );
-}
-
-// ─── Page principale ──────────────────────────────────────────────────────────
+}// ─── Page principale ──────────────────────────────────────────────────────────
 export default function ClientsPage() {
   const { activeWorkspace } = useWorkspace();
   const [clients, setClients] = useState<ClientRow[]>([]);
@@ -530,7 +568,6 @@ export default function ClientsPage() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string>("");
 
-  // ── Tri ──
   const [sortKey, setSortKey] = useState<SortKey>("date_desc");
   const [filterOpen, setFilterOpen] = useState(false);
   const filterBtnRef = useRef<HTMLButtonElement>(null);
@@ -552,10 +589,7 @@ export default function ClientsPage() {
     document.addEventListener("mousedown", h); return () => document.removeEventListener("mousedown", h);
   }, [filterOpen]);
 
-  // ── Edit client drawer ──
   const [editingClient, setEditingClient] = useState<ClientRow | null>(null);
-
-  // ── Modals ──
   const [saleOpen, setSaleOpen] = useState(false);
   const [saleMode, setSaleMode] = useState<"client" | "anonymous" | "create">("client");
   const [saleClientId, setSaleClientId] = useState<string>("");
@@ -771,7 +805,6 @@ export default function ClientsPage() {
         </div>
       </div>
 
-      {/* ── Barre recherche + bouton Filtres ── */}
       <div className="cl-search-wrap">
         <span className="cl-search-icon">⌕</span>
         <input className="cl-search-input" placeholder="Rechercher un client…" value={query} onChange={e => setQuery(e.target.value)} disabled={loading} />
@@ -832,46 +865,62 @@ export default function ClientsPage() {
             {selectedCount > 0 && <button className="cl-action-btn cl-danger" type="button" onClick={deleteSelected} disabled={loading}>Supprimer ({selectedCount})</button>}
           </div>
         </div>
+
         {loading ? (
           <div className="cl-empty"><div className="cl-empty-icon">⟳</div><div className="cl-empty-title">Chargement…</div></div>
         ) : filtered.length === 0 ? (
           <div className="cl-empty"><div className="cl-empty-icon">∅</div><div className="cl-empty-title">Aucun client trouvé</div><div className="cl-empty-sub">Importe un CSV ou crée un client manuellement.</div></div>
         ) : (
-          <div className="ds-table-wrap">
-            <table className="ds-table">
-              <thead><tr><th style={{ width: 40 }}></th><th>Email</th><th>Prénom</th><th>Nom</th><th className="ds-right">Total</th><th className="ds-right">Actions</th></tr></thead>
-              <tbody>
-                {filtered.map(c => {
-                  const checked = !!selected[c.id]; const total = perClientTotals.get(c.id) ?? 0;
-                  return (
-                    <tr key={c.id} className={checked ? "cl-row-selected" : ""}>
-                      <td><label className="cl-checkbox"><input type="checkbox" checked={checked} onChange={() => toggleOne(c.id)} /><span className="cl-checkbox-ui" /></label></td>
-                      <td className="ds-mono" style={{ color: "rgba(255,255,255,0.65)", fontSize: 13 }}>{c.email || "—"}</td>
-                      <td style={{ fontWeight: 700 }}>{c.prenom || "—"}</td>
-                      <td style={{ fontWeight: 700 }}>{c.nom || "—"}</td>
-                      <td className="ds-right" style={{ fontWeight: 800, color: "rgba(120,160,255,0.9)" }}>{formatEUR(total)}</td>
-                      <td className="ds-right">
-                        <div style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
-                          <button
-                            type="button"
-                            onClick={e => { e.stopPropagation(); setEditingClient(c); }}
-                            style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", color: "rgba(238,238,245,0.5)", cursor: "pointer", fontSize: 12, fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5, transition: "all 0.15s" }}
-                            onMouseEnter={e => { e.currentTarget.style.background = "rgba(99,120,255,0.12)"; e.currentTarget.style.color = "#8899ff"; e.currentTarget.style.borderColor = "rgba(99,120,255,0.25)"; }}
-                            onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; e.currentTarget.style.color = "rgba(238,238,245,0.5)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}
-                          >✏️ Modifier</button>
-                          <button className="cl-delete-btn" type="button" onClick={() => deleteOne(c.id)} disabled={loading}>Suppr.</button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+          <>
+            {/* Desktop : tableau */}
+            <div className="cl-desktop-table">
+              <div className="ds-table-wrap">
+                <table className="ds-table">
+                  <thead><tr><th style={{ width: 40 }}></th><th>Email</th><th>Prénom</th><th>Nom</th><th className="ds-right">Total</th><th className="ds-right">Actions</th></tr></thead>
+                  <tbody>
+                    {filtered.map(c => {
+                      const checked = !!selected[c.id]; const total = perClientTotals.get(c.id) ?? 0;
+                      return (
+                        <tr key={c.id} className={checked ? "cl-row-selected" : ""}>
+                          <td><label className="cl-checkbox"><input type="checkbox" checked={checked} onChange={() => toggleOne(c.id)} /><span className="cl-checkbox-ui" /></label></td>
+                          <td className="ds-mono" style={{ color: "rgba(255,255,255,0.65)", fontSize: 13 }}>{c.email || "—"}</td>
+                          <td style={{ fontWeight: 700 }}>{c.prenom || "—"}</td>
+                          <td style={{ fontWeight: 700 }}>{c.nom || "—"}</td>
+                          <td className="ds-right" style={{ fontWeight: 800, color: "rgba(120,160,255,0.9)" }}>{formatEUR(total)}</td>
+                          <td className="ds-right">
+                            <div style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
+                              <button type="button" onClick={e => { e.stopPropagation(); setEditingClient(c); }}
+                                style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", color: "rgba(238,238,245,0.5)", cursor: "pointer", fontSize: 12, fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5, transition: "all 0.15s" }}
+                                onMouseEnter={e => { e.currentTarget.style.background = "rgba(99,120,255,0.12)"; e.currentTarget.style.color = "#8899ff"; e.currentTarget.style.borderColor = "rgba(99,120,255,0.25)"; }}
+                                onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; e.currentTarget.style.color = "rgba(238,238,245,0.5)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}
+                              >✏️ Modifier</button>
+                              <button className="cl-delete-btn" type="button" onClick={() => deleteOne(c.id)} disabled={loading}>Suppr.</button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
 
-      {/* ── HISTORIQUE ── */}
+            {/* Mobile : cartes */}
+            <div className="cl-mobile-list">
+              {filtered.map(c => (
+                <MobileClientCard
+                  key={c.id}
+                  c={c}
+                  total={perClientTotals.get(c.id) ?? 0}
+                  onEdit={() => setEditingClient(c)}
+                  onDelete={() => deleteOne(c.id)}
+                  loading={loading}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </div>{/* ── HISTORIQUE ── */}
       {historyOpen && (
         <div className="cf-overlay" onMouseDown={e => { if (e.target === e.currentTarget) setHistoryOpen(false); }}>
           <div className="cf-modal" style={{ width: 1060 }}>
@@ -1039,7 +1088,6 @@ export default function ClientsPage() {
       <CalendarOverlay open={calendarOpen} valueIso={saleDateIso} onPick={iso => setSaleDateIso(clampToToday(iso))} onClose={() => setCalendarOpen(false)} />
       <CalendarOverlay open={editCalendarOpen} valueIso={editDateIso} onPick={iso => setEditDateIso(clampToToday(iso))} onClose={() => setEditCalendarOpen(false)} />
 
-      {/* ── DRAWER MODIFIER CLIENT ── */}
       <ClientEditDrawer
         client={editingClient}
         onClose={() => setEditingClient(null)}
@@ -1106,6 +1154,12 @@ export default function ClientsPage() {
         .cf-row.isActive { background: rgba(120,160,255,0.12); }
         .cf-rowTitle { font-weight: 800; }
         .cf-rowSub { opacity: 0.55; font-size: 12px; margin-top: 2px; }
+        .cl-desktop-table { display: block; }
+        .cl-mobile-list { display: none; }
+        @media (max-width: 768px) {
+          .cl-desktop-table { display: none; }
+          .cl-mobile-list { display: block; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); overflow: hidden; }
+        }
       `}</style>
     </div>
   );
