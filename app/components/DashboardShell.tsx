@@ -17,6 +17,18 @@ function NavItem({ href, label, icon }: { href: string; label: string; icon: str
   );
 }
 
+function BottomNavItem({ href, label, icon }: { href: string; label: string; icon: string }) {
+  const pathname = usePathname();
+  const active = pathname === href;
+  return (
+    <Link href={href} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4, padding: "8px 4px", textDecoration: "none", color: active ? "rgba(165,180,255,0.95)" : "rgba(255,255,255,0.35)", transition: "color 150ms", position: "relative" }}>
+      <span style={{ fontSize: 22, lineHeight: 1 }}>{icon}</span>
+      <span style={{ fontSize: 10, fontWeight: active ? 700 : 500, letterSpacing: 0.3, fontFamily: "DM Sans, sans-serif" }}>{label}</span>
+      {active && <span style={{ position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)", width: 24, height: 2.5, borderRadius: 2, background: "rgba(99,120,255,0.9)", boxShadow: "0 0 8px rgba(99,120,255,0.6)" }} />}
+    </Link>
+  );
+}
+
 function CustomSelect({ options, value, onChange }: {
   options: { value: string; label: string }[];
   value: string;
@@ -87,79 +99,64 @@ function DeleteWorkspaceModal({ target, workspaces, onClose, onDeleted }: { targ
     <div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(10px)" }}
       onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
       <div style={{ width: 480, maxWidth: "100%", borderRadius: 20, padding: 24, background: "linear-gradient(180deg, rgba(20,22,30,0.99), rgba(10,11,16,0.99))", border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 30px 80px rgba(0,0,0,0.7)" }}>
-        {step === "confirm" && (
-          <>
-            <div style={{ fontSize: 22, fontWeight: 900, color: "rgba(255,255,255,0.95)", marginBottom: 8 }}>🗑️ Supprimer "{target.name}" ?</div>
-            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", marginBottom: 24, lineHeight: 1.6 }}>Cette boutique sera supprimée. Vous pourrez choisir de transférer ou supprimer toutes les données associées (clients, ventes).</div>
-            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-              <button type="button" onClick={onClose} style={{ height: 40, padding: "0 18px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.10)", background: "transparent", color: "rgba(255,255,255,0.7)", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Annuler</button>
-              <button type="button" onClick={() => setStep("choice")} style={{ height: 40, padding: "0 18px", borderRadius: 10, border: "none", background: "rgba(255,80,80,0.18)", color: "rgba(255,120,100,0.95)", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>Continuer →</button>
-            </div>
-          </>
-        )}
-        {step === "choice" && (
-          <>
-            <div style={{ fontSize: 20, fontWeight: 900, color: "rgba(255,255,255,0.95)", marginBottom: 6 }}>Que faire des données ?</div>
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginBottom: 20 }}>Clients et ventes de "{target.name}"</div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
-              <label onClick={() => setChoice("transfer")} style={{ display: "flex", alignItems: "flex-start", gap: 14, padding: "14px 16px", borderRadius: 14, border: `1px solid ${choice === "transfer" ? "rgba(120,160,255,0.45)" : "rgba(255,255,255,0.08)"}`, background: choice === "transfer" ? "rgba(120,160,255,0.08)" : "rgba(255,255,255,0.02)", cursor: "pointer" }}>
-                <div style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid ${choice === "transfer" ? "rgba(120,160,255,0.9)" : "rgba(255,255,255,0.25)"}`, background: choice === "transfer" ? "rgba(120,160,255,0.9)" : "transparent", flexShrink: 0, marginTop: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  {choice === "transfer" && <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#fff" }} />}
-                </div>
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: 14, color: "rgba(255,255,255,0.92)", marginBottom: 3 }}>↗️ Transférer vers une autre boutique</div>
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>Les clients et ventes seront déplacés vers le workspace de ton choix.</div>
-                </div>
-              </label>
-              <label onClick={() => setChoice("delete")} style={{ display: "flex", alignItems: "flex-start", gap: 14, padding: "14px 16px", borderRadius: 14, border: `1px solid ${choice === "delete" ? "rgba(255,80,80,0.40)" : "rgba(255,255,255,0.08)"}`, background: choice === "delete" ? "rgba(255,80,80,0.08)" : "rgba(255,255,255,0.02)", cursor: "pointer" }}>
-                <div style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid ${choice === "delete" ? "rgba(255,100,80,0.9)" : "rgba(255,255,255,0.25)"}`, background: choice === "delete" ? "rgba(255,100,80,0.9)" : "transparent", flexShrink: 0, marginTop: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                  {choice === "delete" && <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#fff" }} />}
-                </div>
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: 14, color: "rgba(255,120,100,0.95)", marginBottom: 3 }}>🗑️ Supprimer toutes les données</div>
-                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>Clients et ventes seront définitivement supprimés. Action irréversible.</div>
-                </div>
-              </label>
-            </div>
-            {choice === "transfer" && (
-              <div style={{ marginBottom: 20 }}>
-                {others.length > 0 ? (
-                  <>
-                    <div style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.55)", marginBottom: 8 }}>Transférer vers :</div>
-                    <CustomSelect options={others.map(w => ({ value: w.id, label: w.name }))} value={transferTo} onChange={setTransferTo} />
-                  </>
-                ) : (
-                  <div style={{ padding: "12px 14px", borderRadius: 12, background: "rgba(255,180,60,0.08)", border: "1px solid rgba(255,180,60,0.20)", fontSize: 13, color: "rgba(255,200,80,0.9)", fontWeight: 700 }}>⚠️ Aucune autre boutique — tu devras en créer une pour le transfert.</div>
-                )}
+        {step === "confirm" && (<>
+          <div style={{ fontSize: 22, fontWeight: 900, color: "rgba(255,255,255,0.95)", marginBottom: 8 }}>🗑️ Supprimer "{target.name}" ?</div>
+          <div style={{ fontSize: 14, color: "rgba(255,255,255,0.55)", marginBottom: 24, lineHeight: 1.6 }}>Cette boutique sera supprimée. Vous pourrez choisir de transférer ou supprimer toutes les données associées.</div>
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+            <button type="button" onClick={onClose} style={{ height: 40, padding: "0 18px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.10)", background: "transparent", color: "rgba(255,255,255,0.7)", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Annuler</button>
+            <button type="button" onClick={() => setStep("choice")} style={{ height: 40, padding: "0 18px", borderRadius: 10, border: "none", background: "rgba(255,80,80,0.18)", color: "rgba(255,120,100,0.95)", fontSize: 13, fontWeight: 800, cursor: "pointer" }}>Continuer →</button>
+          </div>
+        </>)}
+        {step === "choice" && (<>
+          <div style={{ fontSize: 20, fontWeight: 900, color: "rgba(255,255,255,0.95)", marginBottom: 6 }}>Que faire des données ?</div>
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginBottom: 20 }}>Clients et ventes de "{target.name}"</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+            <label onClick={() => setChoice("transfer")} style={{ display: "flex", alignItems: "flex-start", gap: 14, padding: "14px 16px", borderRadius: 14, border: `1px solid ${choice === "transfer" ? "rgba(120,160,255,0.45)" : "rgba(255,255,255,0.08)"}`, background: choice === "transfer" ? "rgba(120,160,255,0.08)" : "rgba(255,255,255,0.02)", cursor: "pointer" }}>
+              <div style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid ${choice === "transfer" ? "rgba(120,160,255,0.9)" : "rgba(255,255,255,0.25)"}`, background: choice === "transfer" ? "rgba(120,160,255,0.9)" : "transparent", flexShrink: 0, marginTop: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {choice === "transfer" && <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#fff" }} />}
               </div>
-            )}
-            {error && <div style={{ fontSize: 13, color: "rgba(255,120,100,0.95)", fontWeight: 700, marginBottom: 12 }}>{error}</div>}
-            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-              <button type="button" onClick={() => setStep("confirm")} style={{ height: 40, padding: "0 18px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.10)", background: "transparent", color: "rgba(255,255,255,0.7)", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>← Retour</button>
-              <button type="button" disabled={!choice || saving}
-                onClick={() => { if (choice === "transfer" && others.length === 0) { setStep("create"); return; } handleDelete(); }}
-                style={{ height: 40, padding: "0 18px", borderRadius: 10, border: "none", background: choice === "delete" ? "rgba(255,80,80,0.18)" : "rgba(120,160,255,0.18)", color: choice === "delete" ? "rgba(255,120,100,0.95)" : "rgba(120,160,255,0.95)", fontSize: 13, fontWeight: 800, cursor: "pointer", opacity: !choice || saving ? 0.4 : 1 }}>
-                {saving ? "En cours…" : choice === "delete" ? "Supprimer définitivement" : "Transférer et supprimer"}
-              </button>
+              <div><div style={{ fontWeight: 800, fontSize: 14, color: "rgba(255,255,255,0.92)", marginBottom: 3 }}>↗️ Transférer vers une autre boutique</div><div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>Les clients et ventes seront déplacés.</div></div>
+            </label>
+            <label onClick={() => setChoice("delete")} style={{ display: "flex", alignItems: "flex-start", gap: 14, padding: "14px 16px", borderRadius: 14, border: `1px solid ${choice === "delete" ? "rgba(255,80,80,0.40)" : "rgba(255,255,255,0.08)"}`, background: choice === "delete" ? "rgba(255,80,80,0.08)" : "rgba(255,255,255,0.02)", cursor: "pointer" }}>
+              <div style={{ width: 18, height: 18, borderRadius: "50%", border: `2px solid ${choice === "delete" ? "rgba(255,100,80,0.9)" : "rgba(255,255,255,0.25)"}`, background: choice === "delete" ? "rgba(255,100,80,0.9)" : "transparent", flexShrink: 0, marginTop: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                {choice === "delete" && <div style={{ width: 7, height: 7, borderRadius: "50%", background: "#fff" }} />}
+              </div>
+              <div><div style={{ fontWeight: 800, fontSize: 14, color: "rgba(255,120,100,0.95)", marginBottom: 3 }}>🗑️ Supprimer toutes les données</div><div style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>Action irréversible.</div></div>
+            </label>
+          </div>
+          {choice === "transfer" && (
+            <div style={{ marginBottom: 20 }}>
+              {others.length > 0 ? (<>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.55)", marginBottom: 8 }}>Transférer vers :</div>
+                <CustomSelect options={others.map(w => ({ value: w.id, label: w.name }))} value={transferTo} onChange={setTransferTo} />
+              </>) : (
+                <div style={{ padding: "12px 14px", borderRadius: 12, background: "rgba(255,180,60,0.08)", border: "1px solid rgba(255,180,60,0.20)", fontSize: 13, color: "rgba(255,200,80,0.9)", fontWeight: 700 }}>⚠️ Aucune autre boutique disponible.</div>
+              )}
             </div>
-          </>
-        )}
-        {step === "create" && (
-          <>
-            <div style={{ fontSize: 20, fontWeight: 900, color: "rgba(255,255,255,0.95)", marginBottom: 6 }}>Créer une boutique de destination</div>
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginBottom: 20 }}>Les données de "{target.name}" seront transférées vers cette nouvelle boutique.</div>
-            <input autoFocus placeholder="Nom de la nouvelle boutique…" value={newName} onChange={e => setNewName(e.target.value)} onKeyDown={e => { if (e.key === "Enter") handleDelete(); }}
-              style={{ width: "100%", height: 46, borderRadius: 12, padding: "0 14px", background: "rgba(10,11,14,0.8)", color: "rgba(255,255,255,0.92)", border: "1px solid rgba(120,160,255,0.30)", fontSize: 14, outline: "none", marginBottom: 16 }} />
-            {error && <div style={{ fontSize: 13, color: "rgba(255,120,100,0.95)", fontWeight: 700, marginBottom: 12 }}>{error}</div>}
-            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-              <button type="button" onClick={() => setStep("choice")} style={{ height: 40, padding: "0 18px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.10)", background: "transparent", color: "rgba(255,255,255,0.7)", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>← Retour</button>
-              <button type="button" disabled={!newName.trim() || saving} onClick={handleDelete}
-                style={{ height: 40, padding: "0 18px", borderRadius: 10, border: "none", background: "rgba(120,160,255,0.18)", color: "rgba(120,160,255,0.95)", fontSize: 13, fontWeight: 800, cursor: "pointer", opacity: !newName.trim() || saving ? 0.4 : 1 }}>
-                {saving ? "En cours…" : "Créer et transférer"}
-              </button>
-            </div>
-          </>
-        )}
+          )}
+          {error && <div style={{ fontSize: 13, color: "rgba(255,120,100,0.95)", fontWeight: 700, marginBottom: 12 }}>{error}</div>}
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+            <button type="button" onClick={() => setStep("confirm")} style={{ height: 40, padding: "0 18px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.10)", background: "transparent", color: "rgba(255,255,255,0.7)", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>← Retour</button>
+            <button type="button" disabled={!choice || saving} onClick={() => { if (choice === "transfer" && others.length === 0) { setStep("create"); return; } handleDelete(); }}
+              style={{ height: 40, padding: "0 18px", borderRadius: 10, border: "none", background: choice === "delete" ? "rgba(255,80,80,0.18)" : "rgba(120,160,255,0.18)", color: choice === "delete" ? "rgba(255,120,100,0.95)" : "rgba(120,160,255,0.95)", fontSize: 13, fontWeight: 800, cursor: "pointer", opacity: !choice || saving ? 0.4 : 1 }}>
+              {saving ? "En cours…" : choice === "delete" ? "Supprimer définitivement" : "Transférer et supprimer"}
+            </button>
+          </div>
+        </>)}
+        {step === "create" && (<>
+          <div style={{ fontSize: 20, fontWeight: 900, color: "rgba(255,255,255,0.95)", marginBottom: 6 }}>Créer une boutique de destination</div>
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginBottom: 20 }}>Les données de "{target.name}" seront transférées ici.</div>
+          <input autoFocus placeholder="Nom de la nouvelle boutique…" value={newName} onChange={e => setNewName(e.target.value)} onKeyDown={e => { if (e.key === "Enter") handleDelete(); }}
+            style={{ width: "100%", height: 46, borderRadius: 12, padding: "0 14px", background: "rgba(10,11,14,0.8)", color: "rgba(255,255,255,0.92)", border: "1px solid rgba(120,160,255,0.30)", fontSize: 14, outline: "none", marginBottom: 16 }} />
+          {error && <div style={{ fontSize: 13, color: "rgba(255,120,100,0.95)", fontWeight: 700, marginBottom: 12 }}>{error}</div>}
+          <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+            <button type="button" onClick={() => setStep("choice")} style={{ height: 40, padding: "0 18px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.10)", background: "transparent", color: "rgba(255,255,255,0.7)", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>← Retour</button>
+            <button type="button" disabled={!newName.trim() || saving} onClick={handleDelete}
+              style={{ height: 40, padding: "0 18px", borderRadius: 10, border: "none", background: "rgba(120,160,255,0.18)", color: "rgba(120,160,255,0.95)", fontSize: 13, fontWeight: 800, cursor: "pointer", opacity: !newName.trim() || saving ? 0.4 : 1 }}>
+              {saving ? "En cours…" : "Créer et transférer"}
+            </button>
+          </div>
+        </>)}
       </div>
     </div>,
     document.body
@@ -225,11 +222,9 @@ function WorkspacePicker() {
       </button>
 
       {open && mounted && createPortal(
-        <div ref={dropRef} style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width, zIndex: 9999, borderRadius: 14, padding: 10, background: "linear-gradient(180deg, rgba(18,20,28,0.99), rgba(10,11,16,0.99))", border: "1px solid rgba(99,120,255,0.18)", boxShadow: "0 20px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(99,120,255,0.08) inset", backdropFilter: "blur(20px)" }}>
+        <div ref={dropRef} style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width, zIndex: 9999, borderRadius: 14, padding: 10, background: "linear-gradient(180deg, rgba(18,20,28,0.99), rgba(10,11,16,0.99))", border: "1px solid rgba(99,120,255,0.18)", boxShadow: "0 20px 60px rgba(0,0,0,0.7)", backdropFilter: "blur(20px)" }}>
           <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.2, opacity: 0.4, color: "rgba(255,255,255,0.9)", padding: "4px 8px 8px", textTransform: "uppercase" }}>Mes boutiques</div>
-          {workspaces.length === 0 && !creating && (
-            <div style={{ padding: "8px 10px", opacity: 0.5, fontSize: 13, color: "rgba(255,255,255,0.8)" }}>Aucun workspace</div>
-          )}
+          {workspaces.length === 0 && !creating && <div style={{ padding: "8px 10px", opacity: 0.5, fontSize: 13, color: "rgba(255,255,255,0.8)" }}>Aucun workspace</div>}
           {workspaces.map(w => (
             <div key={w.id}>
               {renamingId === w.id ? (
@@ -237,12 +232,8 @@ function WorkspacePicker() {
                   <input autoFocus value={renameValue} onChange={e => setRenameValue(e.target.value)}
                     onKeyDown={e => { if (e.key === "Enter") handleRename(w.id); if (e.key === "Escape") setRenamingId(null); }}
                     style={{ flex: 1, height: 32, borderRadius: 8, padding: "0 10px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(99,120,255,0.35)", color: "rgba(255,255,255,0.92)", fontSize: 13, outline: "none" }} />
-                  <button type="button" onClick={() => handleRename(w.id)} disabled={renameSaving}
-                    style={{ height: 32, padding: "0 10px", borderRadius: 8, border: "none", background: "rgba(99,120,255,0.25)", color: "rgba(255,255,255,0.95)", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: renameSaving ? 0.5 : 1 }}>
-                    {renameSaving ? "…" : "✓"}
-                  </button>
-                  <button type="button" onClick={() => setRenamingId(null)}
-                    style={{ height: 32, padding: "0 8px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.10)", background: "transparent", color: "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer" }}>✕</button>
+                  <button type="button" onClick={() => handleRename(w.id)} disabled={renameSaving} style={{ height: 32, padding: "0 10px", borderRadius: 8, border: "none", background: "rgba(99,120,255,0.25)", color: "rgba(255,255,255,0.95)", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: renameSaving ? 0.5 : 1 }}>{renameSaving ? "…" : "✓"}</button>
+                  <button type="button" onClick={() => setRenamingId(null)} style={{ height: 32, padding: "0 8px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.10)", background: "transparent", color: "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer" }}>✕</button>
                 </div>
               ) : (
                 <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
@@ -253,13 +244,9 @@ function WorkspacePicker() {
                     {w.id === activeWorkspace?.id && <span style={{ fontSize: 11, color: "rgba(99,120,255,0.9)" }}>✓</span>}
                   </button>
                   <button type="button" onClick={e => { e.stopPropagation(); startRename(w); }} title="Renommer"
-                    style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid rgba(99,120,255,0.15)", background: "rgba(99,120,255,0.05)", color: "rgba(99,120,255,0.6)", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(99,120,255,0.14)"; (e.currentTarget as HTMLButtonElement).style.color = "rgba(120,150,255,0.95)"; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(99,120,255,0.05)"; (e.currentTarget as HTMLButtonElement).style.color = "rgba(99,120,255,0.6)"; }}>✏️</button>
+                    style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid rgba(99,120,255,0.15)", background: "rgba(99,120,255,0.05)", color: "rgba(99,120,255,0.6)", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>✏️</button>
                   <button type="button" onClick={e => { e.stopPropagation(); setDeleteTarget(w); setOpen(false); }} title="Supprimer"
-                    style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid rgba(255,80,80,0.15)", background: "rgba(255,80,80,0.05)", color: "rgba(255,100,80,0.7)", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,80,80,0.14)"; (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,120,100,0.95)"; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLButtonElement).style.background = "rgba(255,80,80,0.05)"; (e.currentTarget as HTMLButtonElement).style.color = "rgba(255,100,80,0.7)"; }}>🗑</button>
+                    style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid rgba(255,80,80,0.15)", background: "rgba(255,80,80,0.05)", color: "rgba(255,100,80,0.7)", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>🗑</button>
                 </div>
               )}
             </div>
@@ -271,12 +258,8 @@ function WorkspacePicker() {
                 onKeyDown={e => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") { setCreating(false); setNewName(""); } }}
                 style={{ width: "100%", height: 36, borderRadius: 9, padding: "0 10px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(99,120,255,0.30)", color: "rgba(255,255,255,0.92)", fontSize: 13, outline: "none" }} />
               <div style={{ display: "flex", gap: 6 }}>
-                <button type="button" onClick={() => { setCreating(false); setNewName(""); }}
-                  style={{ flex: 1, height: 32, borderRadius: 8, border: "1px solid rgba(255,255,255,0.10)", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 12, cursor: "pointer" }}>Annuler</button>
-                <button type="button" onClick={handleCreate} disabled={saving || !newName.trim()}
-                  style={{ flex: 1, height: 32, borderRadius: 8, border: "none", background: "rgba(99,120,255,0.25)", color: "rgba(255,255,255,0.95)", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: !newName.trim() ? 0.5 : 1 }}>
-                  {saving ? "…" : "Créer"}
-                </button>
+                <button type="button" onClick={() => { setCreating(false); setNewName(""); }} style={{ flex: 1, height: 32, borderRadius: 8, border: "1px solid rgba(255,255,255,0.10)", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 12, cursor: "pointer" }}>Annuler</button>
+                <button type="button" onClick={handleCreate} disabled={saving || !newName.trim()} style={{ flex: 1, height: 32, borderRadius: 8, border: "none", background: "rgba(99,120,255,0.25)", color: "rgba(255,255,255,0.95)", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: !newName.trim() ? 0.5 : 1 }}>{saving ? "…" : "Créer"}</button>
               </div>
             </div>
           ) : (
@@ -294,6 +277,14 @@ function WorkspacePicker() {
     </>
   );
 }
+
+const NAV_ITEMS = [
+  { href: "/dashboard/import",      label: "Import",      icon: "📥" },
+  { href: "/dashboard/clients",     label: "Clients",     icon: "👤" },
+  { href: "/dashboard/produits",    label: "Produits",    icon: "🛍️" },
+  { href: "/dashboard/relances",    label: "Relances",    icon: "🔔" },
+  { href: "/dashboard/analytiques", label: "Analytiques", icon: "📊" },
+];
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -316,7 +307,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           --accent-dim: rgba(99,120,255,0.10); --accent-glow: rgba(99,120,255,0.22);
           --accent-glow-strong: rgba(99,120,255,0.35); --text-primary: #eeeef5;
           --text-secondary: rgba(238,238,245,0.45); --text-tertiary: rgba(238,238,245,0.22);
-          --sidebar-w: 220px; --topbar-h: 56px;
+          --sidebar-w: 220px; --topbar-h: 56px; --bottom-nav-h: 64px;
           --font: 'DM Sans', sans-serif; --font-mono: 'DM Mono', monospace;
         }
         html, body { height: 100%; background: var(--bg); font-family: var(--font); color: var(--text-primary); }
@@ -339,7 +330,8 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         .ds-sidebar-footer { padding: 20px 14px; border-top: 1px solid var(--sidebar-border); }
         .ds-version { font-size: 10px; color: var(--text-tertiary); font-family: var(--font-mono); text-align: center; letter-spacing: 1px; }
         .ds-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
-        .ds-topbar { height: var(--topbar-h); display: flex; align-items: center; justify-content: flex-end; padding: 0 28px; border-bottom: 1px solid var(--sidebar-border); flex-shrink: 0; }
+        .ds-topbar { height: var(--topbar-h); display: flex; align-items: center; justify-content: space-between; padding: 0 20px 0 28px; border-bottom: 1px solid var(--sidebar-border); flex-shrink: 0; }
+        .ds-topbar-title { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.5); font-family: var(--font-mono); letter-spacing: 1px; display: none; }
         .ds-profile { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--accent) 0%, var(--accent-mid) 100%); border: none; cursor: pointer; font-size: 13px; font-weight: 600; color: #fff; font-family: var(--font-mono); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 14px var(--accent-glow); transition: box-shadow 0.2s, transform 0.2s; }
         .ds-profile:hover { box-shadow: 0 0 22px var(--accent-glow-strong); transform: scale(1.05); }
         .ds-content { flex: 1; overflow-y: auto; padding: 32px 36px; scrollbar-width: thin; scrollbar-color: var(--surface-2) transparent; }
@@ -351,10 +343,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         .ds-page { display: flex; flex-direction: column; gap: 20px; }
         .ds-topline { font-size: 12px; color: var(--text-tertiary); font-family: var(--font-mono); letter-spacing: 0.5px; }
         .ds-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
-        .ds-title { font-size: clamp(28px, 4vw, 40px); font-weight: 900; letter-spacing: -1px; color: var(--text-primary); line-height: 1.1; }
+        .ds-title { font-size: clamp(22px, 4vw, 40px); font-weight: 900; letter-spacing: -1px; color: var(--text-primary); line-height: 1.1; }
         .ds-subtitle { font-size: 14px; color: var(--text-secondary); margin-top: 6px; font-weight: 300; }
         .ds-right-tools { display: flex; align-items: center; gap: 10px; flex-shrink: 0; padding-top: 6px; }
-        .ds-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+        .ds-stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 14px; }
         .ds-stat-card { background: var(--surface); border: 1px solid rgba(255,255,255,0.06); border-radius: 14px; padding: 18px 20px; transition: border-color 0.2s; }
         .ds-stat-card:hover { border-color: rgba(99,120,255,0.20); }
         .ds-stat-label { font-size: 12px; color: var(--text-secondary); font-weight: 500; margin-bottom: 8px; letter-spacing: 0.3px; }
@@ -378,18 +370,32 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         .ds-btn-ghost { background: rgba(255,255,255,0.02); }
         .ds-btn-primary { background: rgba(99,120,255,0.15); border-color: rgba(99,120,255,0.35); color: #a5b4ff; }
         .ds-btn-primary:hover:not(:disabled) { background: rgba(99,120,255,0.22); border-color: rgba(99,120,255,0.50); }
+        .ds-bottom-nav { display: none; }
+
         @media (max-width: 768px) {
-          .ds-sidebar { width: 60px; min-width: 60px; }
-          .ds-brand-title, .ds-brand-sub, .ds-nav-label, .ds-workspace-wrap { display: none; }
-          .ds-brand { justify-content: center; padding: 20px 12px; }
-          .ds-nav { padding: 20px 6px; gap: 8px; }
-          .ds-nav-item { justify-content: center; padding: 10px; }
-          .ds-nav-icon { width: auto; font-size: 17px; }
-          .ds-nav-active-bar { display: none; }
-          .ds-content { padding: 20px 16px; }
+          .ds-sidebar { display: none; }
+          .ds-topbar-title { display: block; }
+          .ds-content { padding: 16px 14px 80px; }
+          .ds-bottom-nav {
+            display: flex;
+            position: fixed;
+            bottom: 0; left: 0; right: 0;
+            height: var(--bottom-nav-h);
+            background: rgba(12,12,20,0.97);
+            border-top: 1px solid rgba(99,120,255,0.12);
+            backdrop-filter: blur(20px);
+            z-index: 1000;
+            padding-bottom: env(safe-area-inset-bottom);
+          }
+          .ds-stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+          .ds-title { font-size: 22px; }
+          .ds-card { padding: 14px 14px; }
+          .ds-right-tools { gap: 6px; }
+          .ds-btn { height: 32px; padding: 0 12px; font-size: 12px; }
         }
       `}</style>
       <div className="ds-root">
+        {/* Sidebar desktop */}
         <aside className="ds-sidebar">
           <div className="ds-brand">
             <div className="ds-logo">CF</div>
@@ -403,18 +409,16 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             <WorkspacePicker />
           </div>
           <nav className="ds-nav">
-            <NavItem href="/dashboard/import"     label="Import"      icon="📥" />
-            <NavItem href="/dashboard/clients"    label="Clients"     icon="👤" />
-            <NavItem href="/dashboard/produits"   label="Produits"    icon="🛍️" />
-            <NavItem href="/dashboard/relances"   label="Relances"    icon="🔔" />
-            <NavItem href="/dashboard/analytiques" label="Analytiques" icon="📊" />
+            {NAV_ITEMS.map(item => <NavItem key={item.href} {...item} />)}
           </nav>
           <div className="ds-sidebar-footer">
             <div className="ds-version">v1.0 · BETA</div>
           </div>
         </aside>
+
         <div className="ds-main">
           <div className="ds-topbar">
+            <div className="ds-topbar-title">CLIENTFLOW</div>
             <button className="ds-profile" type="button" aria-label="Profil">E</button>
           </div>
           <main className="ds-content">
@@ -423,6 +427,11 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             </div>
           </main>
         </div>
+
+        {/* Barre de navigation mobile en bas */}
+        <nav className="ds-bottom-nav">
+          {NAV_ITEMS.map(item => <BottomNavItem key={item.href} {...item} />)}
+        </nav>
       </div>
     </>
   );
