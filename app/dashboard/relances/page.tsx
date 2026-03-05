@@ -32,7 +32,6 @@ function downloadCSV(filename: string, rows: string[][]) {
 }
 
 type Segment = "vip" | "regulier" | "inactif" | "nouveau" | "jamais";
-
 const SEGMENTS: { key: Segment; label: string; emoji: string; color: string; bg: string; desc: string }[] = [
   { key: "vip",      label: "VIP",        emoji: "👑", color: "rgba(255,200,80,0.95)",  bg: "rgba(255,200,80,0.10)",  desc: "Top clients · CA élevé" },
   { key: "regulier", label: "Réguliers",  emoji: "⭐", color: "rgba(120,160,255,0.95)", bg: "rgba(120,160,255,0.10)", desc: "Achats récents et fréquents" },
@@ -40,10 +39,102 @@ const SEGMENTS: { key: Segment; label: string; emoji: string; color: string; bg:
   { key: "nouveau",  label: "Nouveaux",   emoji: "✨", color: "rgba(120,220,140,0.95)", bg: "rgba(120,220,140,0.10)", desc: "Inscrits récemment, peu d'achats" },
   { key: "jamais",   label: "Sans achat", emoji: "🔕", color: "rgba(180,180,200,0.70)", bg: "rgba(180,180,200,0.06)", desc: "Jamais effectué d'achat" },
 ];
-
 const STATUS_OVERRIDE_TO_SEGMENT: Record<NonNullable<StatusOverride>, Segment> = {
   vip: "vip", regular: "regulier", inactive: "inactif", new: "nouveau",
 };
+
+// ─── Mobile Client Row Card ───────────────────────────────────────────────────
+function MobileRelanceCard({ client, caTotal, nbVentes, lastSaleDate, daysSinceLast, segment }: {
+  client: ClientRow; caTotal: number; nbVentes: number; lastSaleDate: string | null; daysSinceLast: number | null; segment: Segment;
+}) {
+  const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  const seg = SEGMENTS.find(s => s.key === segment)!;
+  const inactifAlert = segment === "inactif";
+  const hasOverride = !!client.status_override;
+  const name = `${client.prenom ?? ""} ${client.nom ?? ""}`.trim() || client.email || "Client";
+
+  return (
+    <div style={{ display: "flex", alignItems: "center", padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)", gap: 10 }}>
+      {/* Avatar */}
+      <div style={{ width: 38, height: 38, borderRadius: "50%", background: seg.bg, border: `1px solid ${seg.color.replace("0.95","0.30")}`, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: seg.color }}>
+        {(client.prenom?.[0] ?? client.email?.[0] ?? "?").toUpperCase()}
+      </div>
+
+      {/* Nom + segment */}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+          <span style={{ fontWeight: 800, fontSize: 14, color: "rgba(255,255,255,0.92)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
+          {hasOverride && <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 5, background: "rgba(99,120,255,0.12)", border: "1px solid rgba(99,120,255,0.25)", color: "rgba(120,160,255,0.8)", flexShrink: 0 }}>Manuel</span>}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: seg.bg, border: `1px solid ${seg.color.replace("0.95","0.25")}`, color: seg.color, flexShrink: 0 }}>{seg.emoji} {seg.label}</span>
+          {daysSinceLast !== null && (
+            <span style={{ fontSize: 11, fontWeight: 700, color: inactifAlert ? "rgba(255,140,80,0.95)" : "rgba(255,255,255,0.40)" }}>
+              {inactifAlert ? "⚠ " : ""}{daysSinceLast}j
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* CA + bouton infos */}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
+        <span style={{ fontSize: 13, fontWeight: 800, color: "rgba(120,160,255,0.9)" }}>{formatEUR(caTotal)}</span>
+        <button type="button" onClick={() => setOpen(true)}
+          style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.5)", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>···</button>
+      </div>
+
+      {/* Popup détails */}
+      {open && mounted && createPortal(
+        <div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "flex-end", justifyContent: "center", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}
+          onMouseDown={e => { if (e.target === e.currentTarget) setOpen(false); }}>
+          <div style={{ width: "100%", maxWidth: 480, borderRadius: "20px 20px 0 0", background: "linear-gradient(180deg, rgba(22,24,34,0.99), rgba(12,13,18,0.99))", border: "1px solid rgba(255,255,255,0.08)", borderBottom: "none", padding: "20px 20px 40px" }}>
+            <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 20px" }} />
+
+            {/* Header */}
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
+              <div style={{ width: 48, height: 48, borderRadius: "50%", background: seg.bg, border: `1px solid ${seg.color.replace("0.95","0.35")}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 800, color: seg.color, flexShrink: 0 }}>
+                {(client.prenom?.[0] ?? client.email?.[0] ?? "?").toUpperCase()}
+              </div>
+              <div>
+                <div style={{ fontWeight: 900, fontSize: 17, color: "rgba(255,255,255,0.95)", display: "flex", alignItems: "center", gap: 8 }}>
+                  {name}
+                  {hasOverride && <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 6, background: "rgba(99,120,255,0.12)", border: "1px solid rgba(99,120,255,0.25)", color: "rgba(120,160,255,0.8)" }}>Manuel</span>}
+                </div>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.40)", marginTop: 2 }}>{client.email || "Pas d'email"}</div>
+              </div>
+            </div>
+
+            {/* Infos */}
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
+              <PopupRow label="Segment">
+                <span style={{ fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: seg.bg, border: `1px solid ${seg.color.replace("0.95","0.25")}`, color: seg.color }}>{seg.emoji} {seg.label}</span>
+              </PopupRow>
+              <PopupRow label="CA total" value={formatEUR(caTotal)} accent />
+              <PopupRow label="Nb ventes" value={String(nbVentes)} />
+              <PopupRow label="Dernière vente" value={lastSaleDate ? toFRDate(lastSaleDate) : "—"} />
+              <PopupRow label="Inactivité" value={daysSinceLast !== null ? `${daysSinceLast} jours${inactifAlert ? " ⚠" : ""}` : "—"} alert={inactifAlert} />
+            </div>
+
+            <button type="button" onClick={() => setOpen(false)}
+              style={{ width: "100%", height: 46, borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "rgba(255,255,255,0.55)", fontSize: 14, cursor: "pointer" }}>Fermer</button>
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  );
+}
+
+function PopupRow({ label, value, accent, alert, children }: { label: string; value?: string; accent?: boolean; alert?: boolean; children?: React.ReactNode; }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: 10, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
+      <span style={{ fontSize: 12, color: "rgba(255,255,255,0.40)", fontWeight: 600 }}>{label}</span>
+      {children ?? <span style={{ fontSize: 13, fontWeight: 800, color: alert ? "rgba(255,140,80,0.95)" : accent ? "rgba(120,160,255,0.95)" : "rgba(255,255,255,0.88)" }}>{value}</span>}
+    </div>
+  );
+}
 
 export default function RelancesPage() {
   const { activeWorkspace } = useWorkspace();
@@ -55,13 +146,11 @@ export default function RelancesPage() {
   const [searchQ, setSearchQ] = useState("");
   const [mounted, setMounted] = useState(false);
 
-  // Paramètres actifs
   const [inactifDays, setInactifDays] = useState(60);
   const [vipThreshold, setVipThreshold] = useState(500);
   const [nouveauDays, setNouveauDays] = useState(30);
   const [regulierMinVentes, setRegulierMinVentes] = useState(2);
 
-  // Paramètres temporaires (formulaire)
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tmpInactif, setTmpInactif] = useState(60);
   const [tmpVip, setTmpVip] = useState(500);
@@ -103,7 +192,6 @@ export default function RelancesPage() {
       const lastSaleDate = lastSale?.created_at ?? null;
       const daysSinceLast = lastSaleDate ? daysSince(lastSaleDate) : null;
       const clientAgeDays = c.created_at ? daysSince(c.created_at) : 999;
-
       let segment: Segment;
       if (c.status_override && STATUS_OVERRIDE_TO_SEGMENT[c.status_override]) {
         segment = STATUS_OVERRIDE_TO_SEGMENT[c.status_override];
@@ -115,12 +203,9 @@ export default function RelancesPage() {
         segment = "vip";
       } else if (clientAgeDays <= nouveauDays && nbVentes <= 2) {
         segment = "nouveau";
-      } else if (nbVentes >= regulierMinVentes && daysSinceLast !== null && daysSinceLast < inactifDays) {
-        segment = "regulier";
       } else {
         segment = "regulier";
       }
-
       return { client: c, caTotal, nbVentes, lastSaleDate, daysSinceLast, segment };
     });
   }, [clients, sales, inactifDays, vipThreshold, nouveauDays, regulierMinVentes]);
@@ -142,8 +227,6 @@ export default function RelancesPage() {
     }
     return list.sort((a, b) => b.caTotal - a.caTotal);
   }, [clientStats, activeSegment, searchQ]);
-
-  function clientName(c: ClientRow) { const n = `${c.prenom ?? ""} ${c.nom ?? ""}`.trim(); return n || c.email || "Client"; }
 
   function exportSegment() {
     const rows = filtered.map(cs => [
@@ -175,6 +258,8 @@ export default function RelancesPage() {
   return (
     <div className="ds-page">
       <div className="ds-topline">Dashboard / Relances</div>
+
+      {/* Header */}
       <div className="ds-header">
         <div>
           <h1 className="ds-title">Relances & Segments</h1>
@@ -182,25 +267,16 @@ export default function RelancesPage() {
           {errorMsg && <p style={{ marginTop: 8, color: "rgba(255,120,120,0.95)", fontWeight: 800 }}>Erreur : {errorMsg}</p>}
         </div>
         <div className="ds-right-tools">
-          <button className="ds-btn ds-btn-ghost" type="button" onClick={fetchAll} disabled={loading}>
-            {loading ? "Chargement..." : "Actualiser"}
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              setTmpInactif(inactifDays);
-              setTmpVip(vipThreshold);
-              setTmpNouveau(nouveauDays);
-              setTmpRegulierMinVentes(regulierMinVentes);
-              setSettingsOpen(true);
-            }}
-            style={{ height: 40, padding: "0 16px", borderRadius: 12, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.80)", fontWeight: 750, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}
-          >
+          <button className="ds-btn ds-btn-ghost" type="button" onClick={fetchAll} disabled={loading}>{loading ? "Chargement..." : "Actualiser"}</button>
+          <button type="button"
+            onClick={() => { setTmpInactif(inactifDays); setTmpVip(vipThreshold); setTmpNouveau(nouveauDays); setTmpRegulierMinVentes(regulierMinVentes); setSettingsOpen(true); }}
+            style={{ height: 40, padding: "0 16px", borderRadius: 12, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.80)", fontWeight: 750, fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", gap: 6 }}>
             ⚙ Paramètres
           </button>
         </div>
       </div>
 
+      {/* Stats */}
       <div className="ds-stats-grid">
         <div className="ds-stat-card"><div className="ds-stat-label">Total clients</div><div className="ds-stat-value">{clients.length}</div></div>
         <div className="ds-stat-card"><div className="ds-stat-label">Clients inactifs (+{inactifDays}j)</div><div className="ds-stat-value" style={{ color: "rgba(255,140,80,0.95)" }}>{globalStats.countBySegment.inactif}</div></div>
@@ -208,24 +284,27 @@ export default function RelancesPage() {
         <div className="ds-stat-card"><div className="ds-stat-label">CA potentiel si relance</div><div className="ds-stat-value" style={{ color: "rgba(120,220,140,0.95)" }}>{formatEUR(globalStats.caPotentiel)}</div><div style={{ fontSize: 11, opacity: 0.5, marginTop: 2 }}>Basé sur panier moyen</div></div>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 10, marginBottom: 20 }}>
-        <div onClick={() => setActiveSegment("all")} style={{ borderRadius: 14, padding: "14px 16px", border: `1.5px solid ${activeSegment === "all" ? "rgba(120,160,255,0.45)" : "rgba(255,255,255,0.08)"}`, background: activeSegment === "all" ? "rgba(120,160,255,0.10)" : "rgba(255,255,255,0.02)", cursor: "pointer", transition: "all 120ms" }}>
-          <div style={{ fontSize: 22, marginBottom: 6 }}>👥</div>
-          <div style={{ fontWeight: 900, fontSize: 22, color: "rgba(255,255,255,0.95)" }}>{clients.length}</div>
-          <div style={{ fontWeight: 700, fontSize: 13, color: "rgba(255,255,255,0.70)", marginTop: 2 }}>Tous</div>
-          <div style={{ fontSize: 11, opacity: 0.45, marginTop: 2 }}>Tous les clients</div>
-        </div>
-        {SEGMENTS.map(seg => (
-          <div key={seg.key} onClick={() => setActiveSegment(seg.key)}
-            style={{ borderRadius: 14, padding: "14px 16px", border: `1.5px solid ${activeSegment === seg.key ? seg.color.replace("0.95", "0.45") : "rgba(255,255,255,0.08)"}`, background: activeSegment === seg.key ? seg.bg : "rgba(255,255,255,0.02)", cursor: "pointer", transition: "all 120ms" }}>
-            <div style={{ fontSize: 22, marginBottom: 6 }}>{seg.emoji}</div>
-            <div style={{ fontWeight: 900, fontSize: 22, color: seg.color }}>{globalStats.countBySegment[seg.key]}</div>
-            <div style={{ fontWeight: 700, fontSize: 13, color: "rgba(255,255,255,0.70)", marginTop: 2 }}>{seg.label}</div>
-            <div style={{ fontSize: 11, opacity: 0.45, marginTop: 2 }}>{seg.desc}</div>
+      {/* Segment pills — scrollable horizontalement sur mobile */}
+      <div className="rl-seg-scroll">
+        <div className="rl-seg-track">
+          <div onClick={() => setActiveSegment("all")}
+            className={`rl-seg-pill ${activeSegment === "all" ? "rl-seg-pill-active" : ""}`}
+            style={activeSegment === "all" ? { borderColor: "rgba(120,160,255,0.45)", background: "rgba(120,160,255,0.10)" } : {}}>
+            <span className="rl-seg-pill-emoji">👥</span>
+            <span className="rl-seg-pill-count" style={{ color: "rgba(255,255,255,0.9)" }}>{clients.length}</span>
+            <span className="rl-seg-pill-label">Tous</span>
           </div>
-        ))}
-      </div>
-
+          {SEGMENTS.map(seg => (
+            <div key={seg.key} onClick={() => setActiveSegment(seg.key)}
+              className={`rl-seg-pill ${activeSegment === seg.key ? "rl-seg-pill-active" : ""}`}
+              style={activeSegment === seg.key ? { borderColor: seg.color.replace("0.95", "0.45"), background: seg.bg } : {}}>
+              <span className="rl-seg-pill-emoji">{seg.emoji}</span>
+              <span className="rl-seg-pill-count" style={{ color: seg.color }}>{globalStats.countBySegment[seg.key]}</span>
+              <span className="rl-seg-pill-label">{seg.label}</span>
+            </div>
+          ))}
+        </div>
+      </div>{/* Card liste */}
       <div className="ds-card">
         <div className="ds-card-head" style={{ flexWrap: "wrap", gap: 12 }}>
           <div>
@@ -256,59 +335,75 @@ export default function RelancesPage() {
             <div style={{ fontWeight: 800, color: "rgba(255,255,255,0.7)" }}>Aucun client dans ce segment</div>
           </div>
         ) : (
-          <div className="ds-table-wrap">
-            <table className="ds-table">
-              <thead>
-                <tr><th>Client</th><th>Segment</th><th className="ds-right">CA total</th><th className="ds-right">Ventes</th><th className="ds-right">Dernière vente</th><th className="ds-right">Inactivité</th></tr>
-              </thead>
-              <tbody>
-                {filtered.map(({ client, caTotal, nbVentes, lastSaleDate, daysSinceLast, segment }) => {
-                  const seg = SEGMENTS.find(s => s.key === segment)!;
-                  const inactifAlert = segment === "inactif";
-                  const hasOverride = !!client.status_override;
-                  return (
-                    <tr key={client.id}>
-                      <td>
-                        <div style={{ fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
-                          {clientName(client)}
-                          {hasOverride && <span title="Statut forcé manuellement" style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 6, background: "rgba(99,120,255,0.12)", border: "1px solid rgba(99,120,255,0.25)", color: "rgba(120,160,255,0.8)" }}>Manuel</span>}
-                        </div>
-                        <div style={{ fontSize: 12, opacity: 0.5, marginTop: 1 }}>{client.email || "—"}</div>
-                      </td>
-                      <td>
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: seg.bg, border: `1px solid ${seg.color.replace("0.95", "0.25")}`, color: seg.color }}>
-                          {seg.emoji} {seg.label}
-                        </span>
-                      </td>
-                      <td className="ds-right" style={{ fontWeight: 800, color: "rgba(120,160,255,0.9)" }}>{formatEUR(caTotal)}</td>
-                      <td className="ds-right" style={{ fontWeight: 700, opacity: 0.8 }}>{nbVentes}</td>
-                      <td className="ds-right" style={{ fontSize: 13, opacity: 0.75 }}>{lastSaleDate ? toFRDate(lastSaleDate) : <span style={{ opacity: 0.4 }}>—</span>}</td>
-                      <td className="ds-right">
-                        {daysSinceLast !== null ? (
-                          <span style={{ fontWeight: 700, fontSize: 13, color: inactifAlert ? "rgba(255,140,80,0.95)" : "rgba(255,255,255,0.60)" }}>
-                            {daysSinceLast} j{inactifAlert && " ⚠"}
-                          </span>
-                        ) : <span style={{ opacity: 0.3 }}>—</span>}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <>
+            {/* Desktop : tableau */}
+            <div className="rl-desktop-table">
+              <div className="ds-table-wrap">
+                <table className="ds-table">
+                  <thead>
+                    <tr><th>Client</th><th>Segment</th><th className="ds-right">CA total</th><th className="ds-right">Ventes</th><th className="ds-right">Dernière vente</th><th className="ds-right">Inactivité</th></tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map(({ client, caTotal, nbVentes, lastSaleDate, daysSinceLast, segment }) => {
+                      const seg = SEGMENTS.find(s => s.key === segment)!;
+                      const inactifAlert = segment === "inactif";
+                      const hasOverride = !!client.status_override;
+                      return (
+                        <tr key={client.id}>
+                          <td>
+                            <div style={{ fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
+                              {`${client.prenom ?? ""} ${client.nom ?? ""}`.trim() || client.email || "Client"}
+                              {hasOverride && <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 6, background: "rgba(99,120,255,0.12)", border: "1px solid rgba(99,120,255,0.25)", color: "rgba(120,160,255,0.8)" }}>Manuel</span>}
+                            </div>
+                            <div style={{ fontSize: 12, opacity: 0.5, marginTop: 1 }}>{client.email || "—"}</div>
+                          </td>
+                          <td>
+                            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: seg.bg, border: `1px solid ${seg.color.replace("0.95", "0.25")}`, color: seg.color }}>
+                              {seg.emoji} {seg.label}
+                            </span>
+                          </td>
+                          <td className="ds-right" style={{ fontWeight: 800, color: "rgba(120,160,255,0.9)" }}>{formatEUR(caTotal)}</td>
+                          <td className="ds-right" style={{ fontWeight: 700, opacity: 0.8 }}>{nbVentes}</td>
+                          <td className="ds-right" style={{ fontSize: 13, opacity: 0.75 }}>{lastSaleDate ? toFRDate(lastSaleDate) : <span style={{ opacity: 0.4 }}>—</span>}</td>
+                          <td className="ds-right">
+                            {daysSinceLast !== null ? (
+                              <span style={{ fontWeight: 700, fontSize: 13, color: inactifAlert ? "rgba(255,140,80,0.95)" : "rgba(255,255,255,0.60)" }}>
+                                {daysSinceLast} j{inactifAlert && " ⚠"}
+                              </span>
+                            ) : <span style={{ opacity: 0.3 }}>—</span>}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Mobile : cartes */}
+            <div className="rl-mobile-list">
+              {filtered.map(({ client, caTotal, nbVentes, lastSaleDate, daysSinceLast, segment }) => (
+                <MobileRelanceCard
+                  key={client.id}
+                  client={client}
+                  caTotal={caTotal}
+                  nbVentes={nbVentes}
+                  lastSaleDate={lastSaleDate}
+                  daysSinceLast={daysSinceLast}
+                  segment={segment}
+                />
+              ))}
+            </div>
+          </>
         )}
       </div>
 
       {/* ── Modal Paramètres ── */}
       {settingsOpen && mounted && createPortal(
-        <div
-          style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", padding: 18, background: "rgba(0,0,0,0.58)", backdropFilter: "blur(10px)", overflowY: "auto" }}
-          onMouseDown={e => { if (e.target === e.currentTarget) setSettingsOpen(false); }}
-        >
-          <div
-            style={{ width: 480, maxWidth: "100%", borderRadius: 18, padding: 24, background: "linear-gradient(180deg, rgba(20,22,28,0.98), rgba(12,13,16,0.98))", border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 30px 80px rgba(0,0,0,0.6)", margin: "auto" }}
-            onMouseDown={e => e.stopPropagation()}
-          >
+        <div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", padding: 18, background: "rgba(0,0,0,0.58)", backdropFilter: "blur(10px)", overflowY: "auto" }}
+          onMouseDown={e => { if (e.target === e.currentTarget) setSettingsOpen(false); }}>
+          <div style={{ width: 480, maxWidth: "100%", borderRadius: 18, padding: 24, background: "linear-gradient(180deg, rgba(20,22,28,0.98), rgba(12,13,16,0.98))", border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 30px 80px rgba(0,0,0,0.6)", margin: "auto" }}
+            onMouseDown={e => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 22 }}>
               <div>
                 <div style={{ fontSize: 20, fontWeight: 900, color: "rgba(255,255,255,0.95)" }}>Paramètres de segmentation</div>
@@ -316,10 +411,8 @@ export default function RelancesPage() {
               </div>
               <button type="button" onClick={() => setSettingsOpen(false)} style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 999, color: "rgba(255,255,255,0.7)", padding: "8px 14px", cursor: "pointer", fontWeight: 750 }}>Fermer</button>
             </div>
-
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-
-              {/* ── Inactivité ── */}
+              {/* Inactivité */}
               <div style={{ padding: "16px 18px", borderRadius: 14, background: "rgba(255,140,80,0.06)", border: "1px solid rgba(255,140,80,0.15)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                   <div><div style={{ fontWeight: 800, fontSize: 14, color: "rgba(255,140,80,0.95)" }}>😴 Client inactif après</div><div style={{ fontSize: 12, opacity: 0.55, marginTop: 2 }}>Nombre de jours sans achat</div></div>
@@ -333,8 +426,7 @@ export default function RelancesPage() {
                   ))}
                 </div>
               </div>
-
-              {/* ── VIP ── */}
+              {/* VIP */}
               <div style={{ padding: "16px 18px", borderRadius: 14, background: "rgba(255,200,80,0.06)", border: "1px solid rgba(255,200,80,0.15)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                   <div><div style={{ fontWeight: 800, fontSize: 14, color: "rgba(255,200,80,0.95)" }}>👑 Client VIP à partir de</div><div style={{ fontSize: 12, opacity: 0.55, marginTop: 2 }}>CA total minimum</div></div>
@@ -348,8 +440,7 @@ export default function RelancesPage() {
                   ))}
                 </div>
               </div>
-
-              {/* ── Régulier ── */}
+              {/* Régulier */}
               <div style={{ padding: "16px 18px", borderRadius: 14, background: "rgba(120,160,255,0.05)", border: "1px solid rgba(120,160,255,0.15)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                   <div><div style={{ fontWeight: 800, fontSize: 14, color: "rgba(120,160,255,0.95)" }}>⭐ Client régulier à partir de</div><div style={{ fontSize: 12, opacity: 0.55, marginTop: 2 }}>Nombre minimum de ventes</div></div>
@@ -363,8 +454,7 @@ export default function RelancesPage() {
                   ))}
                 </div>
               </div>
-
-              {/* ── Nouveau ── */}
+              {/* Nouveau */}
               <div style={{ padding: "16px 18px", borderRadius: 14, background: "rgba(120,220,140,0.05)", border: "1px solid rgba(120,220,140,0.12)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
                   <div><div style={{ fontWeight: 800, fontSize: 14, color: "rgba(120,220,140,0.95)" }}>✨ Nouveau client pendant</div><div style={{ fontSize: 12, opacity: 0.55, marginTop: 2 }}>Jours depuis l'inscription</div></div>
@@ -378,23 +468,36 @@ export default function RelancesPage() {
                   ))}
                 </div>
               </div>
-
             </div>
-
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 22 }}>
               <button type="button" onClick={() => setSettingsOpen(false)} style={{ height: 40, padding: "0 18px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.03)", color: "rgba(255,255,255,0.7)", fontWeight: 750, cursor: "pointer" }}>Annuler</button>
-              <button type="button" onClick={() => {
-                setInactifDays(tmpInactif);
-                setVipThreshold(tmpVip);
-                setNouveauDays(tmpNouveau);
-                setRegulierMinVentes(tmpRegulierMinVentes);
-                setSettingsOpen(false);
-              }} style={{ height: 40, padding: "0 22px", borderRadius: 999, border: "1px solid rgba(120,160,255,0.40)", background: "rgba(120,160,255,0.16)", color: "rgba(255,255,255,0.95)", fontWeight: 800, cursor: "pointer" }}>Appliquer</button>
+              <button type="button" onClick={() => { setInactifDays(tmpInactif); setVipThreshold(tmpVip); setNouveauDays(tmpNouveau); setRegulierMinVentes(tmpRegulierMinVentes); setSettingsOpen(false); }}
+                style={{ height: 40, padding: "0 22px", borderRadius: 999, border: "1px solid rgba(120,160,255,0.40)", background: "rgba(120,160,255,0.16)", color: "rgba(255,255,255,0.95)", fontWeight: 800, cursor: "pointer" }}>Appliquer</button>
             </div>
           </div>
         </div>,
         document.body
       )}
+
+      <style jsx global>{`
+        .rl-seg-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-bottom: 20px; padding-bottom: 4px; }
+        .rl-seg-scroll::-webkit-scrollbar { display: none; }
+        .rl-seg-track { display: flex; gap: 10px; min-width: max-content; }
+        .rl-seg-pill { border-radius: 14px; padding: 14px 16px; border: 1.5px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); cursor: pointer; transition: all 120ms; display: flex; flex-direction: column; align-items: flex-start; min-width: 110px; }
+        .rl-seg-pill-active { }
+        .rl-seg-pill-emoji { font-size: 20px; margin-bottom: 6px; }
+        .rl-seg-pill-count { font-weight: 900; font-size: 22px; line-height: 1; }
+        .rl-seg-pill-label { font-weight: 700; font-size: 12px; color: rgba(255,255,255,0.65); margin-top: 4px; }
+        .rl-desktop-table { display: block; }
+        .rl-mobile-list { display: none; }
+        @media (max-width: 768px) {
+          .rl-desktop-table { display: none; }
+          .rl-mobile-list { display: block; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); overflow: hidden; }
+          .rl-seg-pill { min-width: 90px; padding: 12px 12px; }
+          .rl-seg-pill-count { font-size: 18px; }
+          .rl-seg-pill-emoji { font-size: 18px; margin-bottom: 4px; }
+        }
+      `}</style>
     </div>
   );
 }
