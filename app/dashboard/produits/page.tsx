@@ -20,6 +20,7 @@ function formatEUR(n: number) {
 export default function ProduitsPage() {
   const { activeWorkspace } = useWorkspace();
   const [products, setProducts] = useState<Product[]>([]);
+  const [extraCategories, setExtraCategories] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
   const [search, setSearch] = useState("");
@@ -63,9 +64,12 @@ export default function ProduitsPage() {
   }
 
   const categories = useMemo(() => {
-    const cats = new Set(products.map(p => p.category ?? "Sans catégorie"));
+    const cats = new Set([
+      ...products.map(p => p.category ?? "Sans catégorie"),
+      ...extraCategories,
+    ]);
     return Array.from(cats).sort();
-  }, [products]);
+  }, [products, extraCategories]);
 
   const filtered = useMemo(() => {
     let list = products;
@@ -118,25 +122,15 @@ export default function ProduitsPage() {
     finally { setLoading(false); }
   }
 
-  // ── Catégorie : créer ──
-  async function createCategory() {
+  function createCategory() {
     const name = catName.trim();
     if (!name) { setCatError("Nom requis."); return; }
     if (categories.includes(name)) { setCatError("Cette catégorie existe déjà."); return; }
-    setCatSaving(true); setCatError("");
-    // On crée un produit placeholder invisible pour "matérialiser" la catégorie
-    // En réalité on stocke juste le nom dans le state (pas de table dédiée)
-    // → La catégorie existe dès qu'un produit l'utilise. On notifie juste l'utilisateur
-    // et on pré-remplit le champ catégorie du prochain produit.
-    setCatSaving(false);
+    setExtraCategories(prev => [...prev, name]);
     setCatName("");
-    // Ferme et ouvre directement le modal produit avec la catégorie pré-remplie
-    setCatModalOpen(false);
-    setEditId(null); setFormName(""); setFormCategory(name); setFormPrice("");
-    setErrorMsg(""); setModalOpen(true);
+    setCatError("");
   }
 
-  // ── Catégorie : renommer ──
   async function renameCategory(oldName: string) {
     const newName = renameVal.trim();
     if (!newName || newName === oldName) { setRenamingCat(null); return; }
@@ -150,13 +144,13 @@ export default function ProduitsPage() {
       setProducts(prev => prev.map(p =>
         (p.category ?? "Sans catégorie") === oldName ? { ...p, category: newName === "Sans catégorie" ? null : newName } : p
       ));
+      setExtraCategories(prev => prev.map(c => c === oldName ? newName : c));
       if (filterCat === oldName) setFilterCat(newName);
       setRenamingCat(null); setRenameVal("");
     } catch (e: any) { setCatError(e?.message ?? "Erreur renommage"); }
     finally { setCatSaving(false); }
   }
 
-  // ── Catégorie : supprimer ──
   async function deleteCategory(name: string) {
     if (!confirm(`Supprimer la catégorie "${name}" ? Les produits associés passeront en "Sans catégorie".`)) return;
     setCatSaving(true); setCatError("");
@@ -168,6 +162,7 @@ export default function ProduitsPage() {
       setProducts(prev => prev.map(p =>
         (p.category ?? "Sans catégorie") === name ? { ...p, category: null } : p
       ));
+      setExtraCategories(prev => prev.filter(c => c !== name));
       if (filterCat === name) setFilterCat("all");
     } catch (e: any) { setCatError(e?.message ?? "Erreur suppression"); }
     finally { setCatSaving(false); }
@@ -214,7 +209,7 @@ export default function ProduitsPage() {
         <div className="ds-stat-card"><div className="ds-stat-label">Prix max</div><div className="ds-stat-value">{formatEUR(products.length > 0 ? Math.max(...products.map(p => p.price)) : 0)}</div></div>
       </div>
 
-      {/* Recherche + filtre catégorie */}
+      {/* Recherche + filtre */}
       <div style={{ display: "flex", gap: 12, marginBottom: 16, flexWrap: "wrap", alignItems: "center" }}>
         <div style={{ position: "relative", flex: 1, minWidth: 200 }}>
           <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", fontSize: 16, opacity: 0.4, pointerEvents: "none" }}>⌕</span>
@@ -300,31 +295,26 @@ export default function ProduitsPage() {
 
             {catError && <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 10, background: "rgba(255,80,80,0.08)", border: "1px solid rgba(255,80,80,0.20)", color: "rgba(255,120,120,0.95)", fontWeight: 700, fontSize: 13 }}>{catError}</div>}
 
-            {/* Créer nouvelle catégorie */}
-            <div style={{ marginBottom: 20, padding: "16px", borderRadius: 14, background: "rgba(255,200,80,0.05)", border: "1px solid rgba(255,200,80,0.15)" }}>
+            {/* Créer */}
+            <div style={{ marginBottom: 20, padding: 16, borderRadius: 14, background: "rgba(255,200,80,0.05)", border: "1px solid rgba(255,200,80,0.15)" }}>
               <div style={{ fontSize: 13, fontWeight: 800, color: "rgba(255,210,80,0.9)", marginBottom: 10 }}>＋ Nouvelle catégorie</div>
               <div style={{ display: "flex", gap: 8 }}>
-                <input
-                  value={catName} onChange={e => setCatName(e.target.value)}
-                  placeholder="ex: Soins, Coupes, Accessoires…"
+                <input value={catName} onChange={e => setCatName(e.target.value)} placeholder="ex: Soins, Coupes, Accessoires…"
                   onKeyDown={e => { if (e.key === "Enter") createCategory(); }}
                   style={{ flex: 1, height: 40, borderRadius: 10, padding: "0 12px", background: "rgba(10,11,14,0.65)", color: "rgba(255,255,255,0.92)", border: "1px solid rgba(255,200,80,0.25)", outline: "none", fontSize: 13 }} />
-                <button type="button" onClick={createCategory} disabled={catSaving || !catName.trim()}
-                  style={{ height: 40, padding: "0 16px", borderRadius: 10, border: "1px solid rgba(255,200,80,0.40)", background: "rgba(255,200,80,0.14)", color: "rgba(255,210,80,0.95)", fontWeight: 800, fontSize: 13, cursor: catSaving || !catName.trim() ? "not-allowed" : "pointer", opacity: !catName.trim() ? 0.5 : 1, whiteSpace: "nowrap" }}>
-                  {catSaving ? "…" : "Créer"}
+                <button type="button" onClick={createCategory} disabled={!catName.trim()}
+                  style={{ height: 40, padding: "0 16px", borderRadius: 10, border: "1px solid rgba(255,200,80,0.40)", background: "rgba(255,200,80,0.14)", color: "rgba(255,210,80,0.95)", fontWeight: 800, fontSize: 13, cursor: !catName.trim() ? "not-allowed" : "pointer", opacity: !catName.trim() ? 0.5 : 1, whiteSpace: "nowrap" }}>
+                  Créer
                 </button>
-              </div>
-              <div style={{ fontSize: 11, opacity: 0.45, marginTop: 8 }}>
-                💡 Créer une catégorie ouvre directement le formulaire de création d'un produit avec cette catégorie pré-remplie.
               </div>
             </div>
 
-            {/* Liste catégories existantes */}
+            {/* Liste */}
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1, opacity: 0.4, textTransform: "uppercase", marginBottom: 10 }}>Catégories existantes ({categories.length})</div>
             {categories.length === 0 ? (
               <div style={{ padding: "20px 0", textAlign: "center", opacity: 0.4, fontSize: 13 }}>Aucune catégorie pour l'instant</div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 280, overflowY: "auto" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 300, overflowY: "auto" }}>
                 {categories.map(cat => {
                   const count = products.filter(p => (p.category ?? "Sans catégorie") === cat).length;
                   return (
@@ -359,7 +349,7 @@ export default function ProduitsPage() {
         document.body
       )}
 
-      {/* ── Modal produit création/édition ── */}
+      {/* ── Modal produit ── */}
       {modalOpen && mounted && createPortal(
         <div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", padding: 18, background: "rgba(0,0,0,0.58)", backdropFilter: "blur(10px)" }}
           onMouseDown={e => { if (e.target === e.currentTarget) setModalOpen(false); }}>
