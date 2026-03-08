@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { useWorkspace } from "@/lib/workspaceContext";
 
@@ -15,7 +16,6 @@ function formatEUR(n: number) {
   const v = Number.isFinite(n) ? n : 0;
   try { return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(v); } catch { return `${v.toFixed(2)} €`; }
 }
-function pad2(n: number) { return String(n).padStart(2, "0"); }
 
 export default function ProduitsPage() {
   const { activeWorkspace } = useWorkspace();
@@ -23,8 +23,9 @@ export default function ProduitsPage() {
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
   const [search, setSearch] = useState("");
+  const [mounted, setMounted] = useState(false);
 
-  // Modal création/édition
+  // Modal produit
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [formName, setFormName] = useState("");
@@ -32,10 +33,18 @@ export default function ProduitsPage() {
   const [formPrice, setFormPrice] = useState("");
   const [formSaving, setFormSaving] = useState(false);
 
-  // Catégorie filtre
+  // Modal catégorie
+  const [catModalOpen, setCatModalOpen] = useState(false);
+  const [catName, setCatName] = useState("");
+  const [catSaving, setCatSaving] = useState(false);
+  const [catError, setCatError] = useState("");
+  const [renamingCat, setRenamingCat] = useState<string | null>(null);
+  const [renameVal, setRenameVal] = useState("");
+
+  // Filtre catégorie
   const [filterCat, setFilterCat] = useState<string>("all");
 
-  useEffect(() => { fetchProducts(); }, [activeWorkspace?.id]);
+  useEffect(() => { setMounted(true); fetchProducts(); }, [activeWorkspace?.id]);
 
   async function fetchProducts() {
     setLoading(true); setErrorMsg("");
@@ -44,11 +53,9 @@ export default function ProduitsPage() {
       if (!auth?.user) { window.location.href = "/login"; return; }
       if (!activeWorkspace) { setProducts([]); setLoading(false); return; }
       const { data, error } = await supabase
-        .from("products")
-        .select("id,name,category,price,created_at")
+        .from("products").select("id,name,category,price,created_at")
         .eq("workspace_id", activeWorkspace.id)
-        .order("category", { ascending: true })
-        .order("name", { ascending: true });
+        .order("category", { ascending: true }).order("name", { ascending: true });
       if (error) throw error;
       setProducts((data ?? []) as Product[]);
     } catch (e: any) { setErrorMsg(e?.message ?? "Erreur inconnue"); }
@@ -57,7 +64,7 @@ export default function ProduitsPage() {
 
   const categories = useMemo(() => {
     const cats = new Set(products.map(p => p.category ?? "Sans catégorie"));
-    return ["all", ...Array.from(cats).sort()];
+    return Array.from(cats).sort();
   }, [products]);
 
   const filtered = useMemo(() => {
@@ -85,13 +92,7 @@ export default function ProduitsPage() {
     try {
       const { data: auth } = await supabase.auth.getUser();
       const user = auth?.user; if (!user) { window.location.href = "/login"; return; }
-      const payload = {
-        name: formName.trim(),
-        category: formCategory.trim() || null,
-        price,
-        user_id: user.id,
-        workspace_id: activeWorkspace?.id,
-      };
+      const payload = { name: formName.trim(), category: formCategory.trim() || null, price, user_id: user.id, workspace_id: activeWorkspace?.id };
       if (editId) {
         const { error } = await supabase.from("products").update(payload).eq("id", editId);
         if (error) throw error;
@@ -117,6 +118,61 @@ export default function ProduitsPage() {
     finally { setLoading(false); }
   }
 
+  // ── Catégorie : créer ──
+  async function createCategory() {
+    const name = catName.trim();
+    if (!name) { setCatError("Nom requis."); return; }
+    if (categories.includes(name)) { setCatError("Cette catégorie existe déjà."); return; }
+    setCatSaving(true); setCatError("");
+    // On crée un produit placeholder invisible pour "matérialiser" la catégorie
+    // En réalité on stocke juste le nom dans le state (pas de table dédiée)
+    // → La catégorie existe dès qu'un produit l'utilise. On notifie juste l'utilisateur
+    // et on pré-remplit le champ catégorie du prochain produit.
+    setCatSaving(false);
+    setCatName("");
+    // Ferme et ouvre directement le modal produit avec la catégorie pré-remplie
+    setCatModalOpen(false);
+    setEditId(null); setFormName(""); setFormCategory(name); setFormPrice("");
+    setErrorMsg(""); setModalOpen(true);
+  }
+
+  // ── Catégorie : renommer ──
+  async function renameCategory(oldName: string) {
+    const newName = renameVal.trim();
+    if (!newName || newName === oldName) { setRenamingCat(null); return; }
+    if (categories.includes(newName)) { setCatError("Cette catégorie existe déjà."); return; }
+    setCatSaving(true); setCatError("");
+    try {
+      const toUpdate = products.filter(p => (p.category ?? "Sans catégorie") === oldName);
+      await Promise.all(toUpdate.map(p =>
+        supabase.from("products").update({ category: newName === "Sans catégorie" ? null : newName }).eq("id", p.id)
+      ));
+      setProducts(prev => prev.map(p =>
+        (p.category ?? "Sans catégorie") === oldName ? { ...p, category: newName === "Sans catégorie" ? null : newName } : p
+      ));
+      if (filterCat === oldName) setFilterCat(newName);
+      setRenamingCat(null); setRenameVal("");
+    } catch (e: any) { setCatError(e?.message ?? "Erreur renommage"); }
+    finally { setCatSaving(false); }
+  }
+
+  // ── Catégorie : supprimer ──
+  async function deleteCategory(name: string) {
+    if (!confirm(`Supprimer la catégorie "${name}" ? Les produits associés passeront en "Sans catégorie".`)) return;
+    setCatSaving(true); setCatError("");
+    try {
+      const toUpdate = products.filter(p => (p.category ?? "Sans catégorie") === name);
+      await Promise.all(toUpdate.map(p =>
+        supabase.from("products").update({ category: null }).eq("id", p.id)
+      ));
+      setProducts(prev => prev.map(p =>
+        (p.category ?? "Sans catégorie") === name ? { ...p, category: null } : p
+      ));
+      if (filterCat === name) setFilterCat("all");
+    } catch (e: any) { setCatError(e?.message ?? "Erreur suppression"); }
+    finally { setCatSaving(false); }
+  }
+
   if (!activeWorkspace) return (
     <div className="ds-page">
       <div className="ds-topline">Dashboard / Produits</div>
@@ -139,6 +195,10 @@ export default function ProduitsPage() {
         </div>
         <div className="ds-right-tools">
           <button className="ds-btn ds-btn-ghost" type="button" onClick={fetchProducts} disabled={loading}>{loading ? "Chargement..." : "Actualiser"}</button>
+          <button type="button" onClick={() => { setCatName(""); setCatError(""); setRenamingCat(null); setCatModalOpen(true); }}
+            style={{ height: 40, padding: "0 16px", borderRadius: 12, background: "rgba(255,200,80,0.10)", border: "1px solid rgba(255,200,80,0.30)", color: "rgba(255,210,80,0.95)", fontWeight: 800, fontSize: 14, cursor: "pointer" }}>
+            🏷 Catégories
+          </button>
           <button type="button" onClick={openCreate}
             style={{ height: 40, padding: "0 18px", borderRadius: 12, background: "rgba(120,160,255,0.16)", border: "1px solid rgba(120,160,255,0.40)", color: "rgba(255,255,255,0.95)", fontWeight: 800, fontSize: 14, cursor: "pointer" }}>
             ＋ Nouveau produit
@@ -149,7 +209,7 @@ export default function ProduitsPage() {
       {/* Stats */}
       <div className="ds-stats-grid">
         <div className="ds-stat-card"><div className="ds-stat-label">Produits</div><div className="ds-stat-value">{products.length}</div></div>
-        <div className="ds-stat-card"><div className="ds-stat-label">Catégories</div><div className="ds-stat-value">{categories.length - 1}</div></div>
+        <div className="ds-stat-card"><div className="ds-stat-label">Catégories</div><div className="ds-stat-value">{categories.length}</div></div>
         <div className="ds-stat-card"><div className="ds-stat-label">Prix moyen</div><div className="ds-stat-value">{formatEUR(products.length > 0 ? products.reduce((a, p) => a + p.price, 0) / products.length : 0)}</div></div>
         <div className="ds-stat-card"><div className="ds-stat-label">Prix max</div><div className="ds-stat-value">{formatEUR(products.length > 0 ? Math.max(...products.map(p => p.price)) : 0)}</div></div>
       </div>
@@ -162,10 +222,14 @@ export default function ProduitsPage() {
             style={{ width: "100%", height: 44, borderRadius: 12, padding: "0 14px 0 40px", background: "rgba(10,11,14,0.65)", color: "rgba(255,255,255,0.92)", border: "1px solid rgba(255,255,255,0.10)", outline: "none", fontSize: 14 }} />
         </div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <button type="button" onClick={() => setFilterCat("all")}
+            style={{ height: 36, padding: "0 14px", borderRadius: 999, border: `1px solid ${filterCat === "all" ? "rgba(120,160,255,0.45)" : "rgba(255,255,255,0.10)"}`, background: filterCat === "all" ? "rgba(120,160,255,0.16)" : "rgba(255,255,255,0.03)", color: filterCat === "all" ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.65)", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
+            Tout
+          </button>
           {categories.map(cat => (
             <button key={cat} type="button" onClick={() => setFilterCat(cat)}
               style={{ height: 36, padding: "0 14px", borderRadius: 999, border: `1px solid ${filterCat === cat ? "rgba(120,160,255,0.45)" : "rgba(255,255,255,0.10)"}`, background: filterCat === cat ? "rgba(120,160,255,0.16)" : "rgba(255,255,255,0.03)", color: filterCat === cat ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.65)", fontSize: 13, fontWeight: 700, cursor: "pointer" }}>
-              {cat === "all" ? "Tout" : cat}
+              {cat}
             </button>
           ))}
         </div>
@@ -206,13 +270,9 @@ export default function ProduitsPage() {
                     <td className="ds-right">
                       <div style={{ display: "inline-flex", gap: 8 }}>
                         <button type="button" onClick={() => openEdit(p)}
-                          style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.80)", fontSize: 12, fontWeight: 750, cursor: "pointer" }}>
-                          Modifier
-                        </button>
+                          style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.80)", fontSize: 12, fontWeight: 750, cursor: "pointer" }}>Modifier</button>
                         <button type="button" onClick={() => deleteProduct(p.id)}
-                          style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(255,80,80,0.20)", background: "rgba(255,80,80,0.06)", color: "rgba(255,120,120,0.85)", fontSize: 12, fontWeight: 750, cursor: "pointer" }}>
-                          Suppr.
-                        </button>
+                          style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(255,80,80,0.20)", background: "rgba(255,80,80,0.06)", color: "rgba(255,120,120,0.85)", fontSize: 12, fontWeight: 750, cursor: "pointer" }}>Suppr.</button>
                       </div>
                     </td>
                   </tr>
@@ -223,11 +283,88 @@ export default function ProduitsPage() {
         )}
       </div>
 
-      {/* Modal création/édition */}
-      {modalOpen && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 70, display: "flex", alignItems: "center", justifyContent: "center", padding: 18, background: "rgba(0,0,0,0.58)", backdropFilter: "blur(10px)" }}
+      {/* ── Modal Catégories ── */}
+      {catModalOpen && mounted && createPortal(
+        <div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", padding: 18, background: "rgba(0,0,0,0.60)", backdropFilter: "blur(10px)" }}
+          onMouseDown={e => { if (e.target === e.currentTarget) setCatModalOpen(false); }}>
+          <div style={{ width: 480, maxWidth: "100%", borderRadius: 18, padding: 24, background: "linear-gradient(180deg, rgba(20,22,28,0.99), rgba(12,13,16,0.99))", border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 30px 80px rgba(0,0,0,0.6)" }}
+            onMouseDown={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+              <div>
+                <div style={{ fontSize: 20, fontWeight: 900, color: "rgba(255,255,255,0.95)" }}>🏷 Gérer les catégories</div>
+                <div style={{ fontSize: 13, opacity: 0.5, marginTop: 3 }}>Crée, renomme ou supprime des catégories</div>
+              </div>
+              <button type="button" onClick={() => setCatModalOpen(false)}
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 999, color: "rgba(255,255,255,0.7)", padding: "8px 14px", cursor: "pointer", fontWeight: 750 }}>Fermer</button>
+            </div>
+
+            {catError && <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 10, background: "rgba(255,80,80,0.08)", border: "1px solid rgba(255,80,80,0.20)", color: "rgba(255,120,120,0.95)", fontWeight: 700, fontSize: 13 }}>{catError}</div>}
+
+            {/* Créer nouvelle catégorie */}
+            <div style={{ marginBottom: 20, padding: "16px", borderRadius: 14, background: "rgba(255,200,80,0.05)", border: "1px solid rgba(255,200,80,0.15)" }}>
+              <div style={{ fontSize: 13, fontWeight: 800, color: "rgba(255,210,80,0.9)", marginBottom: 10 }}>＋ Nouvelle catégorie</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <input
+                  value={catName} onChange={e => setCatName(e.target.value)}
+                  placeholder="ex: Soins, Coupes, Accessoires…"
+                  onKeyDown={e => { if (e.key === "Enter") createCategory(); }}
+                  style={{ flex: 1, height: 40, borderRadius: 10, padding: "0 12px", background: "rgba(10,11,14,0.65)", color: "rgba(255,255,255,0.92)", border: "1px solid rgba(255,200,80,0.25)", outline: "none", fontSize: 13 }} />
+                <button type="button" onClick={createCategory} disabled={catSaving || !catName.trim()}
+                  style={{ height: 40, padding: "0 16px", borderRadius: 10, border: "1px solid rgba(255,200,80,0.40)", background: "rgba(255,200,80,0.14)", color: "rgba(255,210,80,0.95)", fontWeight: 800, fontSize: 13, cursor: catSaving || !catName.trim() ? "not-allowed" : "pointer", opacity: !catName.trim() ? 0.5 : 1, whiteSpace: "nowrap" }}>
+                  {catSaving ? "…" : "Créer"}
+                </button>
+              </div>
+              <div style={{ fontSize: 11, opacity: 0.45, marginTop: 8 }}>
+                💡 Créer une catégorie ouvre directement le formulaire de création d'un produit avec cette catégorie pré-remplie.
+              </div>
+            </div>
+
+            {/* Liste catégories existantes */}
+            <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1, opacity: 0.4, textTransform: "uppercase", marginBottom: 10 }}>Catégories existantes ({categories.length})</div>
+            {categories.length === 0 ? (
+              <div style={{ padding: "20px 0", textAlign: "center", opacity: 0.4, fontSize: 13 }}>Aucune catégorie pour l'instant</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 280, overflowY: "auto" }}>
+                {categories.map(cat => {
+                  const count = products.filter(p => (p.category ?? "Sans catégorie") === cat).length;
+                  return (
+                    <div key={cat}>
+                      {renamingCat === cat ? (
+                        <div style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 12px", borderRadius: 10, background: "rgba(120,160,255,0.06)", border: "1px solid rgba(120,160,255,0.25)" }}>
+                          <input autoFocus value={renameVal} onChange={e => setRenameVal(e.target.value)}
+                            onKeyDown={e => { if (e.key === "Enter") renameCategory(cat); if (e.key === "Escape") setRenamingCat(null); }}
+                            style={{ flex: 1, height: 32, borderRadius: 8, padding: "0 10px", background: "rgba(10,11,14,0.65)", color: "rgba(255,255,255,0.92)", border: "1px solid rgba(120,160,255,0.35)", outline: "none", fontSize: 13 }} />
+                          <button type="button" onClick={() => renameCategory(cat)} disabled={catSaving}
+                            style={{ height: 32, padding: "0 12px", borderRadius: 8, border: "none", background: "rgba(120,160,255,0.20)", color: "rgba(255,255,255,0.95)", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: catSaving ? 0.5 : 1 }}>{catSaving ? "…" : "✓"}</button>
+                          <button type="button" onClick={() => setRenamingCat(null)}
+                            style={{ height: 32, padding: "0 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.10)", background: "transparent", color: "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer" }}>✕</button>
+                        </div>
+                      ) : (
+                        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 12px", borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                          <span style={{ fontSize: 12, fontWeight: 700, padding: "2px 10px", borderRadius: 999, background: "rgba(120,160,255,0.10)", border: "1px solid rgba(120,160,255,0.20)", color: "rgba(120,160,255,0.9)", flexShrink: 0 }}>{cat}</span>
+                          <span style={{ fontSize: 12, opacity: 0.4, flex: 1 }}>{count} produit{count > 1 ? "s" : ""}</span>
+                          <button type="button" onClick={() => { setRenamingCat(cat); setRenameVal(cat); setCatError(""); }}
+                            style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid rgba(120,160,255,0.15)", background: "rgba(120,160,255,0.05)", color: "rgba(120,160,255,0.7)", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>✏️</button>
+                          <button type="button" onClick={() => deleteCategory(cat)}
+                            style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid rgba(255,80,80,0.15)", background: "rgba(255,80,80,0.05)", color: "rgba(255,100,80,0.7)", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>🗑</button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* ── Modal produit création/édition ── */}
+      {modalOpen && mounted && createPortal(
+        <div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", padding: 18, background: "rgba(0,0,0,0.58)", backdropFilter: "blur(10px)" }}
           onMouseDown={e => { if (e.target === e.currentTarget) setModalOpen(false); }}>
-          <div style={{ width: 500, maxWidth: "100%", borderRadius: 18, padding: 24, background: "linear-gradient(180deg, rgba(20,22,28,0.98), rgba(12,13,16,0.98))", border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 30px 80px rgba(0,0,0,0.6)" }}>
+          <div style={{ width: 500, maxWidth: "100%", borderRadius: 18, padding: 24, background: "linear-gradient(180deg, rgba(20,22,28,0.98), rgba(12,13,16,0.98))", border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 30px 80px rgba(0,0,0,0.6)" }}
+            onMouseDown={e => e.stopPropagation()}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
               <div>
                 <div style={{ fontSize: 20, fontWeight: 900, color: "rgba(255,255,255,0.95)" }}>{editId ? "Modifier le produit" : "Nouveau produit"}</div>
@@ -252,7 +389,7 @@ export default function ProduitsPage() {
                     list="cat-suggestions"
                     style={{ width: "100%", height: 44, borderRadius: 12, padding: "0 14px", background: "rgba(10,11,14,0.65)", color: "rgba(255,255,255,0.92)", border: "1px solid rgba(255,255,255,0.12)", outline: "none", fontSize: 14 }} />
                   <datalist id="cat-suggestions">
-                    {categories.filter(c => c !== "all").map(c => <option key={c} value={c} />)}
+                    {categories.map(c => <option key={c} value={c} />)}
                   </datalist>
                 </div>
                 <div>
@@ -272,7 +409,8 @@ export default function ProduitsPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
