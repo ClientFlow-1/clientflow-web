@@ -51,15 +51,14 @@ const STATUS_OVERRIDE_TO_SEGMENT: Record<NonNullable<StatusOverride>, Segment> =
 };
 
 // ─── Status Picker Dropdown (desktop) ────────────────────────────────────────
-function StatusPickerDropdown({ client, onStatusChanged }: {
-  client: ClientRow; onStatusChanged: (clientId: string, newStatus: StatusOverride) => void;
+function StatusPickerDropdown({ client, computedSegment, onStatusChanged }: {
+  client: ClientRow; computedSegment: Segment; onStatusChanged: (clientId: string, newStatus: StatusOverride) => void;
 }) {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const btnRef = useState<HTMLButtonElement | null>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0 });
   const buttonRef = { current: null as HTMLButtonElement | null };
+  const [pos, setPos] = useState({ top: 0, left: 0 });
   useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
@@ -72,7 +71,7 @@ function StatusPickerDropdown({ client, onStatusChanged }: {
 
   useEffect(() => {
     if (!open) return;
-    const h = (e: MouseEvent) => { if (!(e.target as Node)?.isConnected) return; setOpen(false); };
+    const h = (e: MouseEvent) => { setOpen(false); };
     document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [open]);
@@ -84,7 +83,17 @@ function StatusPickerDropdown({ client, onStatusChanged }: {
     if (!error) { onStatusChanged(client.id, newStatus); setOpen(false); }
   }
 
-  const current = STATUS_OPTIONS.find(o => o.value === client.status_override) ?? STATUS_OPTIONS[0];
+  // Si statut manuel → affiche le statut manuel coloré
+  // Si Auto → affiche le segment calculé avec sa couleur + "(auto)" en petit
+  const isAuto = !client.status_override;
+  const seg = SEGMENTS.find(s => s.key === computedSegment)!;
+  const manualOpt = STATUS_OPTIONS.find(o => o.value === client.status_override);
+
+  const displayColor = isAuto ? seg.color : manualOpt!.color;
+  const displayBg = isAuto ? seg.bg : manualOpt!.bg;
+  const displayBorder = isAuto ? seg.color.replace("0.95", "0.25") : manualOpt!.border;
+  const displayEmoji = isAuto ? seg.emoji : manualOpt!.emoji;
+  const displayLabel = isAuto ? seg.label : manualOpt!.label;
 
   return (
     <>
@@ -92,24 +101,31 @@ function StatusPickerDropdown({ client, onStatusChanged }: {
         ref={el => { buttonRef.current = el; }}
         type="button"
         onClick={e => { e.stopPropagation(); setOpen(v => !v); }}
-        style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: current.bg, border: `1px solid ${current.border}`, color: current.color, cursor: "pointer", whiteSpace: "nowrap" }}
+        style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: displayBg, border: `1px solid ${displayBorder}`, color: displayColor, cursor: "pointer", whiteSpace: "nowrap" }}
       >
-        {current.emoji} {current.label} <span style={{ opacity: 0.5, fontSize: 10 }}>▾</span>
+        {displayEmoji} {displayLabel}
+        {isAuto && <span style={{ fontSize: 10, opacity: 0.55, fontWeight: 600 }}>(auto)</span>}
+        <span style={{ opacity: 0.5, fontSize: 10 }}>▾</span>
       </button>
 
       {open && mounted && createPortal(
         <div
           onMouseDown={e => e.stopPropagation()}
-          style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 99999, width: 220, borderRadius: 14, padding: 8, background: "linear-gradient(180deg, rgba(18,20,28,0.99), rgba(10,11,16,0.99))", border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 20px 60px rgba(0,0,0,0.7)", backdropFilter: "blur(20px)" }}
+          style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 99999, width: 240, borderRadius: 14, padding: 8, background: "linear-gradient(180deg, rgba(18,20,28,0.99), rgba(10,11,16,0.99))", border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 20px 60px rgba(0,0,0,0.7)", backdropFilter: "blur(20px)" }}
         >
+          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.1, opacity: 0.4, padding: "4px 10px 8px", textTransform: "uppercase" }}>Forcer le statut</div>
           {STATUS_OPTIONS.map(opt => {
             const isActive = client.status_override === opt.value;
+            const isCurrentAuto = opt.value === null && isAuto;
             return (
               <button key={String(opt.value)} type="button" onClick={() => applyStatus(opt.value)} disabled={saving}
-                style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 9, border: "none", background: isActive ? opt.bg : "transparent", color: isActive ? opt.color : "rgba(255,255,255,0.80)", fontSize: 13, fontWeight: isActive ? 800 : 500, cursor: saving ? "not-allowed" : "pointer", marginBottom: 2, textAlign: "left", opacity: saving ? 0.6 : 1 }}>
-                <span style={{ fontSize: 16 }}>{opt.emoji}</span>
-                <span style={{ flex: 1 }}>{opt.label}</span>
-                {isActive && <span style={{ fontSize: 12, color: opt.color }}>✓</span>}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 9, border: "none", background: isActive || isCurrentAuto ? (opt.value === null ? seg.bg : opt.bg) : "transparent", color: isActive || isCurrentAuto ? (opt.value === null ? seg.color : opt.color) : "rgba(255,255,255,0.80)", fontSize: 13, fontWeight: isActive || isCurrentAuto ? 800 : 500, cursor: saving ? "not-allowed" : "pointer", marginBottom: 2, textAlign: "left", opacity: saving ? 0.6 : 1 }}>
+                <span style={{ fontSize: 16 }}>{opt.value === null ? "🔄" : opt.emoji}</span>
+                <div style={{ flex: 1 }}>
+                  <div>{opt.label}</div>
+                  {opt.value === null && <div style={{ fontSize: 10, opacity: 0.5, marginTop: 1 }}>Actuellement : {seg.emoji} {seg.label}</div>}
+                </div>
+                {(isActive || isCurrentAuto) && <span style={{ fontSize: 12 }}>✓</span>}
               </button>
             );
           })}
@@ -156,7 +172,9 @@ function MobileRelanceCard({ client, caTotal, nbVentes, lastSaleDate, daysSinceL
           {hasOverride && <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 5, background: "rgba(99,120,255,0.12)", border: "1px solid rgba(99,120,255,0.25)", color: "rgba(120,160,255,0.8)", flexShrink: 0 }}>Manuel</span>}
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-          <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: seg.bg, border: `1px solid ${seg.color.replace("0.95","0.25")}`, color: seg.color, flexShrink: 0 }}>{seg.emoji} {seg.label}</span>
+          <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: seg.bg, border: `1px solid ${seg.color.replace("0.95","0.25")}`, color: seg.color, flexShrink: 0 }}>
+            {seg.emoji} {seg.label}{!hasOverride && <span style={{ opacity: 0.55, fontWeight: 600 }}> (auto)</span>}
+          </span>
           {daysSinceLast !== null && (
             <span style={{ fontSize: 11, fontWeight: 700, color: inactifAlert ? "rgba(255,140,80,0.95)" : "rgba(255,255,255,0.40)" }}>
               {inactifAlert ? "⚠ " : ""}{daysSinceLast}j
@@ -192,7 +210,9 @@ function MobileRelanceCard({ client, caTotal, nbVentes, lastSaleDate, daysSinceL
               <>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
                   <PopupRow label="Segment">
-                    <span style={{ fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: seg.bg, border: `1px solid ${seg.color.replace("0.95","0.25")}`, color: seg.color }}>{seg.emoji} {seg.label}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: seg.bg, border: `1px solid ${seg.color.replace("0.95","0.25")}`, color: seg.color }}>
+                      {seg.emoji} {seg.label}{!hasOverride && <span style={{ opacity: 0.55 }}> (auto)</span>}
+                    </span>
                   </PopupRow>
                   <PopupRow label="CA total" value={formatEUR(caTotal)} accent />
                   <PopupRow label="Nb ventes" value={String(nbVentes)} />
@@ -209,19 +229,20 @@ function MobileRelanceCard({ client, caTotal, nbVentes, lastSaleDate, daysSinceL
             ) : (
               <>
                 <div style={{ marginBottom: 14 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.50)", marginBottom: 12 }}>Choisir un statut pour <strong style={{ color: "rgba(255,255,255,0.85)" }}>{name}</strong></div>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.50)", marginBottom: 12 }}>Statut pour <strong style={{ color: "rgba(255,255,255,0.85)" }}>{name}</strong></div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {STATUS_OPTIONS.map(opt => {
                       const isActive = client.status_override === opt.value;
+                      const isCurrentAuto = opt.value === null && !hasOverride;
                       return (
                         <button key={String(opt.value)} type="button" onClick={() => applyStatus(opt.value)} disabled={saving}
-                          style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderRadius: 12, border: `1px solid ${isActive ? opt.border : "rgba(255,255,255,0.08)"}`, background: isActive ? opt.bg : "rgba(255,255,255,0.03)", cursor: saving ? "not-allowed" : "pointer", transition: "all 120ms", opacity: saving ? 0.6 : 1 }}>
+                          style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderRadius: 12, border: `1px solid ${isActive || isCurrentAuto ? opt.border : "rgba(255,255,255,0.08)"}`, background: isActive || isCurrentAuto ? opt.bg : "rgba(255,255,255,0.03)", cursor: saving ? "not-allowed" : "pointer", transition: "all 120ms", opacity: saving ? 0.6 : 1 }}>
                           <span style={{ fontSize: 20 }}>{opt.emoji}</span>
                           <div style={{ flex: 1, textAlign: "left" }}>
-                            <div style={{ fontWeight: 800, fontSize: 14, color: isActive ? opt.color : "rgba(255,255,255,0.88)" }}>{opt.label}</div>
-                            {opt.value === null && <div style={{ fontSize: 11, opacity: 0.5, marginTop: 1 }}>Calculé automatiquement</div>}
+                            <div style={{ fontWeight: 800, fontSize: 14, color: isActive || isCurrentAuto ? opt.color : "rgba(255,255,255,0.88)" }}>{opt.label}</div>
+                            {opt.value === null && <div style={{ fontSize: 11, opacity: 0.5, marginTop: 1 }}>Actuellement : {seg.emoji} {seg.label}</div>}
                           </div>
-                          {isActive && <span style={{ fontSize: 16, color: opt.color }}>✓</span>}
+                          {(isActive || isCurrentAuto) && <span style={{ fontSize: 16, color: opt.color }}>✓</span>}
                         </button>
                       );
                     })}
@@ -446,20 +467,22 @@ export default function RelancesPage() {
                   </thead>
                   <tbody>
                     {filtered.map(({ client, caTotal, nbVentes, lastSaleDate, daysSinceLast, segment }) => {
-                      const seg = SEGMENTS.find(s => s.key === segment)!;
                       const inactifAlert = segment === "inactif";
-                      const hasOverride = !!client.status_override;
                       return (
                         <tr key={client.id}>
                           <td>
                             <div style={{ fontWeight: 700, display: "flex", alignItems: "center", gap: 6 }}>
                               {`${client.prenom ?? ""} ${client.nom ?? ""}`.trim() || client.email || "Client"}
-                              {hasOverride && <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 6, background: "rgba(99,120,255,0.12)", border: "1px solid rgba(99,120,255,0.25)", color: "rgba(120,160,255,0.8)" }}>Manuel</span>}
+                              {client.status_override && <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 6, background: "rgba(99,120,255,0.12)", border: "1px solid rgba(99,120,255,0.25)", color: "rgba(120,160,255,0.8)" }}>Manuel</span>}
                             </div>
                             <div style={{ fontSize: 12, opacity: 0.5, marginTop: 1 }}>{client.email || "—"}</div>
                           </td>
                           <td>
-                            <StatusPickerDropdown client={client} onStatusChanged={handleStatusChanged} />
+                            <StatusPickerDropdown
+                              client={client}
+                              computedSegment={segment}
+                              onStatusChanged={handleStatusChanged}
+                            />
                           </td>
                           <td className="ds-right" style={{ fontWeight: 800, color: "rgba(120,160,255,0.9)" }}>{formatEUR(caTotal)}</td>
                           <td className="ds-right" style={{ fontWeight: 700, opacity: 0.8 }}>{nbVentes}</td>
