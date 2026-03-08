@@ -39,21 +39,41 @@ const SEGMENTS: { key: Segment; label: string; emoji: string; color: string; bg:
   { key: "nouveau",  label: "Nouveaux",   emoji: "✨", color: "rgba(120,220,140,0.95)", bg: "rgba(120,220,140,0.10)", desc: "Inscrits récemment, peu d'achats" },
   { key: "jamais",   label: "Sans achat", emoji: "🔕", color: "rgba(180,180,200,0.70)", bg: "rgba(180,180,200,0.06)", desc: "Jamais effectué d'achat" },
 ];
+const STATUS_OPTIONS: { value: StatusOverride; label: string; emoji: string; color: string; bg: string; border: string }[] = [
+  { value: null,       label: "Auto",     emoji: "🔄", color: "rgba(238,238,245,0.6)",  bg: "rgba(255,255,255,0.04)", border: "rgba(255,255,255,0.10)" },
+  { value: "vip",      label: "VIP",      emoji: "👑", color: "rgba(255,200,80,0.95)",  bg: "rgba(255,200,80,0.10)",  border: "rgba(255,200,80,0.35)" },
+  { value: "regular",  label: "Régulier", emoji: "⭐", color: "rgba(120,160,255,0.95)", bg: "rgba(120,160,255,0.10)", border: "rgba(120,160,255,0.35)" },
+  { value: "inactive", label: "Inactif",  emoji: "😴", color: "rgba(255,140,80,0.95)",  bg: "rgba(255,140,80,0.10)",  border: "rgba(255,140,80,0.35)" },
+  { value: "new",      label: "Nouveau",  emoji: "✨", color: "rgba(120,220,140,0.95)", bg: "rgba(120,220,140,0.10)", border: "rgba(120,220,140,0.35)" },
+];
 const STATUS_OVERRIDE_TO_SEGMENT: Record<NonNullable<StatusOverride>, Segment> = {
   vip: "vip", regular: "regulier", inactive: "inactif", new: "nouveau",
 };
 
-// ─── Mobile Client Row Card ───────────────────────────────────────────────────
-function MobileRelanceCard({ client, caTotal, nbVentes, lastSaleDate, daysSinceLast, segment }: {
-  client: ClientRow; caTotal: number; nbVentes: number; lastSaleDate: string | null; daysSinceLast: number | null; segment: Segment;
+// ─── Mobile Relance Card ──────────────────────────────────────────────────────
+function MobileRelanceCard({ client, caTotal, nbVentes, lastSaleDate, daysSinceLast, segment, onStatusChanged }: {
+  client: ClientRow; caTotal: number; nbVentes: number; lastSaleDate: string | null;
+  daysSinceLast: number | null; segment: Segment; onStatusChanged: (clientId: string, newStatus: StatusOverride) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const [statusMode, setStatusMode] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
+
   const seg = SEGMENTS.find(s => s.key === segment)!;
   const inactifAlert = segment === "inactif";
   const hasOverride = !!client.status_override;
   const name = `${client.prenom ?? ""} ${client.nom ?? ""}`.trim() || client.email || "Client";
+
+  async function applyStatus(newStatus: StatusOverride) {
+    setSaving(true);
+    const { error } = await supabase.from("clients").update({ status_override: newStatus }).eq("id", client.id);
+    setSaving(false);
+    if (!error) { onStatusChanged(client.id, newStatus); setStatusMode(false); }
+  }
+
+  function handleClose() { setOpen(false); setStatusMode(false); }
 
   return (
     <div style={{ display: "flex", alignItems: "center", padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)", gap: 10 }}>
@@ -81,44 +101,80 @@ function MobileRelanceCard({ client, caTotal, nbVentes, lastSaleDate, daysSinceL
       {/* CA + bouton infos */}
       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
         <span style={{ fontSize: 13, fontWeight: 800, color: "rgba(120,160,255,0.9)" }}>{formatEUR(caTotal)}</span>
-        <button type="button" onClick={() => setOpen(true)}
+        <button type="button" onClick={() => { setOpen(true); setStatusMode(false); }}
           style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.5)", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>···</button>
       </div>
 
-      {/* Popup détails */}
+      {/* Popup */}
       {open && mounted && createPortal(
         <div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "flex-end", justifyContent: "center", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}
-          onMouseDown={e => { if (e.target === e.currentTarget) setOpen(false); }}>
+          onMouseDown={e => { if (e.target === e.currentTarget) handleClose(); }}>
           <div style={{ width: "100%", maxWidth: 480, borderRadius: "20px 20px 0 0", background: "linear-gradient(180deg, rgba(22,24,34,0.99), rgba(12,13,18,0.99))", border: "1px solid rgba(255,255,255,0.08)", borderBottom: "none", padding: "20px 20px 40px" }}>
             <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 20px" }} />
 
-            {/* Header */}
+            {/* Header client */}
             <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
               <div style={{ width: 48, height: 48, borderRadius: "50%", background: seg.bg, border: `1px solid ${seg.color.replace("0.95","0.35")}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 800, color: seg.color, flexShrink: 0 }}>
                 {(client.prenom?.[0] ?? client.email?.[0] ?? "?").toUpperCase()}
               </div>
-              <div>
-                <div style={{ fontWeight: 900, fontSize: 17, color: "rgba(255,255,255,0.95)", display: "flex", alignItems: "center", gap: 8 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 900, fontSize: 17, color: "rgba(255,255,255,0.95)", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                   {name}
                   {hasOverride && <span style={{ fontSize: 10, fontWeight: 700, padding: "2px 6px", borderRadius: 6, background: "rgba(99,120,255,0.12)", border: "1px solid rgba(99,120,255,0.25)", color: "rgba(120,160,255,0.8)" }}>Manuel</span>}
                 </div>
-                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.40)", marginTop: 2 }}>{client.email || "Pas d'email"}</div>
+                <div style={{ fontSize: 13, color: "rgba(255,255,255,0.40)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{client.email || "Pas d'email"}</div>
               </div>
             </div>
 
-            {/* Infos */}
-            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
-              <PopupRow label="Segment">
-                <span style={{ fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: seg.bg, border: `1px solid ${seg.color.replace("0.95","0.25")}`, color: seg.color }}>{seg.emoji} {seg.label}</span>
-              </PopupRow>
-              <PopupRow label="CA total" value={formatEUR(caTotal)} accent />
-              <PopupRow label="Nb ventes" value={String(nbVentes)} />
-              <PopupRow label="Dernière vente" value={lastSaleDate ? toFRDate(lastSaleDate) : "—"} />
-              <PopupRow label="Inactivité" value={daysSinceLast !== null ? `${daysSinceLast} jours${inactifAlert ? " ⚠" : ""}` : "—"} alert={inactifAlert} />
-            </div>
+            {!statusMode ? (
+              <>
+                {/* Infos */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
+                  <PopupRow label="Segment">
+                    <span style={{ fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: seg.bg, border: `1px solid ${seg.color.replace("0.95","0.25")}`, color: seg.color }}>{seg.emoji} {seg.label}</span>
+                  </PopupRow>
+                  <PopupRow label="CA total" value={formatEUR(caTotal)} accent />
+                  <PopupRow label="Nb ventes" value={String(nbVentes)} />
+                  <PopupRow label="Dernière vente" value={lastSaleDate ? toFRDate(lastSaleDate) : "—"} />
+                  <PopupRow label="Inactivité" value={daysSinceLast !== null ? `${daysSinceLast} jours${inactifAlert ? " ⚠" : ""}` : "—"} alert={inactifAlert} />
+                </div>
 
-            <button type="button" onClick={() => setOpen(false)}
-              style={{ width: "100%", height: 46, borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "rgba(255,255,255,0.55)", fontSize: 14, cursor: "pointer" }}>Fermer</button>
+                {/* Bouton modifier statut */}
+                <button type="button" onClick={() => setStatusMode(true)}
+                  style={{ width: "100%", height: 46, borderRadius: 12, border: "1px solid rgba(99,120,255,0.30)", background: "rgba(99,120,255,0.10)", color: "rgba(120,160,255,0.95)", fontSize: 14, fontWeight: 800, cursor: "pointer", marginBottom: 10 }}>
+                  🏷 Modifier le statut
+                </button>
+
+                <button type="button" onClick={handleClose}
+                  style={{ width: "100%", height: 44, borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "rgba(255,255,255,0.45)", fontSize: 14, cursor: "pointer" }}>Fermer</button>
+              </>
+            ) : (
+              <>
+                {/* Sélecteur de statut */}
+                <div style={{ marginBottom: 14 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.50)", marginBottom: 12 }}>Choisir un statut pour <strong style={{ color: "rgba(255,255,255,0.85)" }}>{name}</strong></div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {STATUS_OPTIONS.map(opt => {
+                      const isActive = client.status_override === opt.value;
+                      return (
+                        <button key={String(opt.value)} type="button" onClick={() => applyStatus(opt.value)} disabled={saving}
+                          style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", borderRadius: 12, border: `1px solid ${isActive ? opt.border : "rgba(255,255,255,0.08)"}`, background: isActive ? opt.bg : "rgba(255,255,255,0.03)", cursor: saving ? "not-allowed" : "pointer", transition: "all 120ms", opacity: saving ? 0.6 : 1 }}>
+                          <span style={{ fontSize: 20 }}>{opt.emoji}</span>
+                          <div style={{ flex: 1, textAlign: "left" }}>
+                            <div style={{ fontWeight: 800, fontSize: 14, color: isActive ? opt.color : "rgba(255,255,255,0.88)" }}>{opt.label}</div>
+                            {opt.value === null && <div style={{ fontSize: 11, opacity: 0.5, marginTop: 1 }}>Calculé automatiquement</div>}
+                          </div>
+                          {isActive && <span style={{ fontSize: 16, color: opt.color }}>✓</span>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                <button type="button" onClick={() => setStatusMode(false)}
+                  style={{ width: "100%", height: 44, borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "rgba(255,255,255,0.45)", fontSize: 14, cursor: "pointer" }}>← Retour</button>
+              </>
+            )}
           </div>
         </div>,
         document.body
@@ -175,6 +231,10 @@ export default function RelancesPage() {
       setSales((sData ?? []) as SaleRow[]);
     } catch (e: any) { setErrorMsg(e?.message ?? "Erreur inconnue"); }
     finally { setLoading(false); }
+  }
+
+  function handleStatusChanged(clientId: string, newStatus: StatusOverride) {
+    setClients(prev => prev.map(c => c.id === clientId ? { ...c, status_override: newStatus } : c));
   }
 
   const clientStats = useMemo(() => {
@@ -258,8 +318,6 @@ export default function RelancesPage() {
   return (
     <div className="ds-page">
       <div className="ds-topline">Dashboard / Relances</div>
-
-      {/* Header */}
       <div className="ds-header">
         <div>
           <h1 className="ds-title">Relances & Segments</h1>
@@ -276,7 +334,6 @@ export default function RelancesPage() {
         </div>
       </div>
 
-      {/* Stats */}
       <div className="ds-stats-grid">
         <div className="ds-stat-card"><div className="ds-stat-label">Total clients</div><div className="ds-stat-value">{clients.length}</div></div>
         <div className="ds-stat-card"><div className="ds-stat-label">Clients inactifs (+{inactifDays}j)</div><div className="ds-stat-value" style={{ color: "rgba(255,140,80,0.95)" }}>{globalStats.countBySegment.inactif}</div></div>
@@ -284,7 +341,7 @@ export default function RelancesPage() {
         <div className="ds-stat-card"><div className="ds-stat-label">CA potentiel si relance</div><div className="ds-stat-value" style={{ color: "rgba(120,220,140,0.95)" }}>{formatEUR(globalStats.caPotentiel)}</div><div style={{ fontSize: 11, opacity: 0.5, marginTop: 2 }}>Basé sur panier moyen</div></div>
       </div>
 
-      {/* Segment pills — scrollable horizontalement sur mobile */}
+      {/* Segments scrollables */}
       <div className="rl-seg-scroll">
         <div className="rl-seg-track">
           <div onClick={() => setActiveSegment("all")}
@@ -391,6 +448,7 @@ export default function RelancesPage() {
                   lastSaleDate={lastSaleDate}
                   daysSinceLast={daysSinceLast}
                   segment={segment}
+                  onStatusChanged={handleStatusChanged}
                 />
               ))}
             </div>
@@ -484,7 +542,6 @@ export default function RelancesPage() {
         .rl-seg-scroll::-webkit-scrollbar { display: none; }
         .rl-seg-track { display: flex; gap: 10px; min-width: max-content; }
         .rl-seg-pill { border-radius: 14px; padding: 14px 16px; border: 1.5px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.02); cursor: pointer; transition: all 120ms; display: flex; flex-direction: column; align-items: flex-start; min-width: 110px; }
-        .rl-seg-pill-active { }
         .rl-seg-pill-emoji { font-size: 20px; margin-bottom: 6px; }
         .rl-seg-pill-count { font-weight: 900; font-size: 22px; line-height: 1; }
         .rl-seg-pill-label { font-weight: 700; font-size: 12px; color: rgba(255,255,255,0.65); margin-top: 4px; }
