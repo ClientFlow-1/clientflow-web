@@ -50,6 +50,76 @@ const STATUS_OVERRIDE_TO_SEGMENT: Record<NonNullable<StatusOverride>, Segment> =
   vip: "vip", regular: "regulier", inactive: "inactif", new: "nouveau",
 };
 
+// ─── Status Picker Dropdown (desktop) ────────────────────────────────────────
+function StatusPickerDropdown({ client, onStatusChanged }: {
+  client: ClientRow; onStatusChanged: (clientId: string, newStatus: StatusOverride) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const btnRef = useState<HTMLButtonElement | null>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+  const buttonRef = { current: null as HTMLButtonElement | null };
+  useEffect(() => { setMounted(true); }, []);
+
+  useEffect(() => {
+    if (!open || !buttonRef.current) return;
+    const r = buttonRef.current.getBoundingClientRect();
+    const spaceBelow = window.innerHeight - r.bottom;
+    const dropH = 280;
+    setPos({ top: spaceBelow < dropH ? r.top - dropH - 4 : r.bottom + 4, left: r.left });
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => { if (!(e.target as Node)?.isConnected) return; setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+
+  async function applyStatus(newStatus: StatusOverride) {
+    setSaving(true);
+    const { error } = await supabase.from("clients").update({ status_override: newStatus }).eq("id", client.id);
+    setSaving(false);
+    if (!error) { onStatusChanged(client.id, newStatus); setOpen(false); }
+  }
+
+  const current = STATUS_OPTIONS.find(o => o.value === client.status_override) ?? STATUS_OPTIONS[0];
+
+  return (
+    <>
+      <button
+        ref={el => { buttonRef.current = el; }}
+        type="button"
+        onClick={e => { e.stopPropagation(); setOpen(v => !v); }}
+        style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: current.bg, border: `1px solid ${current.border}`, color: current.color, cursor: "pointer", whiteSpace: "nowrap" }}
+      >
+        {current.emoji} {current.label} <span style={{ opacity: 0.5, fontSize: 10 }}>▾</span>
+      </button>
+
+      {open && mounted && createPortal(
+        <div
+          onMouseDown={e => e.stopPropagation()}
+          style={{ position: "fixed", top: pos.top, left: pos.left, zIndex: 99999, width: 220, borderRadius: 14, padding: 8, background: "linear-gradient(180deg, rgba(18,20,28,0.99), rgba(10,11,16,0.99))", border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 20px 60px rgba(0,0,0,0.7)", backdropFilter: "blur(20px)" }}
+        >
+          {STATUS_OPTIONS.map(opt => {
+            const isActive = client.status_override === opt.value;
+            return (
+              <button key={String(opt.value)} type="button" onClick={() => applyStatus(opt.value)} disabled={saving}
+                style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "9px 12px", borderRadius: 9, border: "none", background: isActive ? opt.bg : "transparent", color: isActive ? opt.color : "rgba(255,255,255,0.80)", fontSize: 13, fontWeight: isActive ? 800 : 500, cursor: saving ? "not-allowed" : "pointer", marginBottom: 2, textAlign: "left", opacity: saving ? 0.6 : 1 }}>
+                <span style={{ fontSize: 16 }}>{opt.emoji}</span>
+                <span style={{ flex: 1 }}>{opt.label}</span>
+                {isActive && <span style={{ fontSize: 12, color: opt.color }}>✓</span>}
+              </button>
+            );
+          })}
+        </div>,
+        document.body
+      )}
+    </>
+  );
+}
+
 // ─── Mobile Relance Card ──────────────────────────────────────────────────────
 function MobileRelanceCard({ client, caTotal, nbVentes, lastSaleDate, daysSinceLast, segment, onStatusChanged }: {
   client: ClientRow; caTotal: number; nbVentes: number; lastSaleDate: string | null;
@@ -77,12 +147,9 @@ function MobileRelanceCard({ client, caTotal, nbVentes, lastSaleDate, daysSinceL
 
   return (
     <div style={{ display: "flex", alignItems: "center", padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)", gap: 10 }}>
-      {/* Avatar */}
       <div style={{ width: 38, height: 38, borderRadius: "50%", background: seg.bg, border: `1px solid ${seg.color.replace("0.95","0.30")}`, flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: seg.color }}>
         {(client.prenom?.[0] ?? client.email?.[0] ?? "?").toUpperCase()}
       </div>
-
-      {/* Nom + segment */}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
           <span style={{ fontWeight: 800, fontSize: 14, color: "rgba(255,255,255,0.92)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
@@ -97,22 +164,17 @@ function MobileRelanceCard({ client, caTotal, nbVentes, lastSaleDate, daysSinceL
           )}
         </div>
       </div>
-
-      {/* CA + bouton infos */}
       <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 4, flexShrink: 0 }}>
         <span style={{ fontSize: 13, fontWeight: 800, color: "rgba(120,160,255,0.9)" }}>{formatEUR(caTotal)}</span>
         <button type="button" onClick={() => { setOpen(true); setStatusMode(false); }}
           style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.5)", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>···</button>
       </div>
 
-      {/* Popup */}
       {open && mounted && createPortal(
         <div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "flex-end", justifyContent: "center", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}
           onMouseDown={e => { if (e.target === e.currentTarget) handleClose(); }}>
           <div style={{ width: "100%", maxWidth: 480, borderRadius: "20px 20px 0 0", background: "linear-gradient(180deg, rgba(22,24,34,0.99), rgba(12,13,18,0.99))", border: "1px solid rgba(255,255,255,0.08)", borderBottom: "none", padding: "20px 20px 40px" }}>
             <div style={{ width: 36, height: 4, borderRadius: 2, background: "rgba(255,255,255,0.15)", margin: "0 auto 20px" }} />
-
-            {/* Header client */}
             <div style={{ display: "flex", alignItems: "center", gap: 14, marginBottom: 20 }}>
               <div style={{ width: 48, height: 48, borderRadius: "50%", background: seg.bg, border: `1px solid ${seg.color.replace("0.95","0.35")}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 800, color: seg.color, flexShrink: 0 }}>
                 {(client.prenom?.[0] ?? client.email?.[0] ?? "?").toUpperCase()}
@@ -128,7 +190,6 @@ function MobileRelanceCard({ client, caTotal, nbVentes, lastSaleDate, daysSinceL
 
             {!statusMode ? (
               <>
-                {/* Infos */}
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 16 }}>
                   <PopupRow label="Segment">
                     <span style={{ fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: seg.bg, border: `1px solid ${seg.color.replace("0.95","0.25")}`, color: seg.color }}>{seg.emoji} {seg.label}</span>
@@ -138,19 +199,15 @@ function MobileRelanceCard({ client, caTotal, nbVentes, lastSaleDate, daysSinceL
                   <PopupRow label="Dernière vente" value={lastSaleDate ? toFRDate(lastSaleDate) : "—"} />
                   <PopupRow label="Inactivité" value={daysSinceLast !== null ? `${daysSinceLast} jours${inactifAlert ? " ⚠" : ""}` : "—"} alert={inactifAlert} />
                 </div>
-
-                {/* Bouton modifier statut */}
                 <button type="button" onClick={() => setStatusMode(true)}
                   style={{ width: "100%", height: 46, borderRadius: 12, border: "1px solid rgba(99,120,255,0.30)", background: "rgba(99,120,255,0.10)", color: "rgba(120,160,255,0.95)", fontSize: 14, fontWeight: 800, cursor: "pointer", marginBottom: 10 }}>
                   🏷 Modifier le statut
                 </button>
-
                 <button type="button" onClick={handleClose}
                   style={{ width: "100%", height: 44, borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "rgba(255,255,255,0.45)", fontSize: 14, cursor: "pointer" }}>Fermer</button>
               </>
             ) : (
               <>
-                {/* Sélecteur de statut */}
                 <div style={{ marginBottom: 14 }}>
                   <div style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.50)", marginBottom: 12 }}>Choisir un statut pour <strong style={{ color: "rgba(255,255,255,0.85)" }}>{name}</strong></div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -170,7 +227,6 @@ function MobileRelanceCard({ client, caTotal, nbVentes, lastSaleDate, daysSinceL
                     })}
                   </div>
                 </div>
-
                 <button type="button" onClick={() => setStatusMode(false)}
                   style={{ width: "100%", height: 44, borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "rgba(255,255,255,0.45)", fontSize: 14, cursor: "pointer" }}>← Retour</button>
               </>
@@ -201,12 +257,10 @@ export default function RelancesPage() {
   const [activeSegment, setActiveSegment] = useState<Segment | "all">("all");
   const [searchQ, setSearchQ] = useState("");
   const [mounted, setMounted] = useState(false);
-
   const [inactifDays, setInactifDays] = useState(60);
   const [vipThreshold, setVipThreshold] = useState(500);
   const [nouveauDays, setNouveauDays] = useState(30);
   const [regulierMinVentes, setRegulierMinVentes] = useState(2);
-
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tmpInactif, setTmpInactif] = useState(60);
   const [tmpVip, setTmpVip] = useState(500);
@@ -255,17 +309,11 @@ export default function RelancesPage() {
       let segment: Segment;
       if (c.status_override && STATUS_OVERRIDE_TO_SEGMENT[c.status_override]) {
         segment = STATUS_OVERRIDE_TO_SEGMENT[c.status_override];
-      } else if (nbVentes === 0) {
-        segment = "jamais";
-      } else if (daysSinceLast !== null && daysSinceLast >= inactifDays) {
-        segment = "inactif";
-      } else if (caTotal >= vipThreshold) {
-        segment = "vip";
-      } else if (clientAgeDays <= nouveauDays && nbVentes <= 2) {
-        segment = "nouveau";
-      } else {
-        segment = "regulier";
-      }
+      } else if (nbVentes === 0) { segment = "jamais";
+      } else if (daysSinceLast !== null && daysSinceLast >= inactifDays) { segment = "inactif";
+      } else if (caTotal >= vipThreshold) { segment = "vip";
+      } else if (clientAgeDays <= nouveauDays && nbVentes <= 2) { segment = "nouveau";
+      } else { segment = "regulier"; }
       return { client: c, caTotal, nbVentes, lastSaleDate, daysSinceLast, segment };
     });
   }, [clients, sales, inactifDays, vipThreshold, nouveauDays, regulierMinVentes]);
@@ -308,7 +356,7 @@ export default function RelancesPage() {
       <h1 className="ds-title">Relances</h1>
       <div style={{ padding: "60px 0", textAlign: "center", opacity: 0.5 }}>
         <div style={{ fontSize: 32, marginBottom: 12 }}>◈</div>
-        <div style={{ fontSize: 16, fontWeight: 800, color: "rgba(255,255,255,0.7)" }}>Aucun workspace sélectionné</div>
+        <div style={{ fontSize: 16, fontWeight: 800 }}>Aucun workspace sélectionné</div>
       </div>
     </div>
   );
@@ -341,19 +389,16 @@ export default function RelancesPage() {
         <div className="ds-stat-card"><div className="ds-stat-label">CA potentiel si relance</div><div className="ds-stat-value" style={{ color: "rgba(120,220,140,0.95)" }}>{formatEUR(globalStats.caPotentiel)}</div><div style={{ fontSize: 11, opacity: 0.5, marginTop: 2 }}>Basé sur panier moyen</div></div>
       </div>
 
-      {/* Segments scrollables */}
       <div className="rl-seg-scroll">
         <div className="rl-seg-track">
-          <div onClick={() => setActiveSegment("all")}
-            className={`rl-seg-pill ${activeSegment === "all" ? "rl-seg-pill-active" : ""}`}
+          <div onClick={() => setActiveSegment("all")} className={`rl-seg-pill ${activeSegment === "all" ? "rl-seg-pill-active" : ""}`}
             style={activeSegment === "all" ? { borderColor: "rgba(120,160,255,0.45)", background: "rgba(120,160,255,0.10)" } : {}}>
             <span className="rl-seg-pill-emoji">👥</span>
             <span className="rl-seg-pill-count" style={{ color: "rgba(255,255,255,0.9)" }}>{clients.length}</span>
             <span className="rl-seg-pill-label">Tous</span>
           </div>
           {SEGMENTS.map(seg => (
-            <div key={seg.key} onClick={() => setActiveSegment(seg.key)}
-              className={`rl-seg-pill ${activeSegment === seg.key ? "rl-seg-pill-active" : ""}`}
+            <div key={seg.key} onClick={() => setActiveSegment(seg.key)} className={`rl-seg-pill ${activeSegment === seg.key ? "rl-seg-pill-active" : ""}`}
               style={activeSegment === seg.key ? { borderColor: seg.color.replace("0.95", "0.45"), background: seg.bg } : {}}>
               <span className="rl-seg-pill-emoji">{seg.emoji}</span>
               <span className="rl-seg-pill-count" style={{ color: seg.color }}>{globalStats.countBySegment[seg.key]}</span>
@@ -361,8 +406,7 @@ export default function RelancesPage() {
             </div>
           ))}
         </div>
-      </div>{/* Card liste */}
-      <div className="ds-card">
+      </div><div className="ds-card">
         <div className="ds-card-head" style={{ flexWrap: "wrap", gap: 12 }}>
           <div>
             <div className="ds-card-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -398,7 +442,7 @@ export default function RelancesPage() {
               <div className="ds-table-wrap">
                 <table className="ds-table">
                   <thead>
-                    <tr><th>Client</th><th>Segment</th><th className="ds-right">CA total</th><th className="ds-right">Ventes</th><th className="ds-right">Dernière vente</th><th className="ds-right">Inactivité</th></tr>
+                    <tr><th>Client</th><th>Statut</th><th className="ds-right">CA total</th><th className="ds-right">Ventes</th><th className="ds-right">Dernière vente</th><th className="ds-right">Inactivité</th></tr>
                   </thead>
                   <tbody>
                     {filtered.map(({ client, caTotal, nbVentes, lastSaleDate, daysSinceLast, segment }) => {
@@ -415,9 +459,7 @@ export default function RelancesPage() {
                             <div style={{ fontSize: 12, opacity: 0.5, marginTop: 1 }}>{client.email || "—"}</div>
                           </td>
                           <td>
-                            <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: seg.bg, border: `1px solid ${seg.color.replace("0.95", "0.25")}`, color: seg.color }}>
-                              {seg.emoji} {seg.label}
-                            </span>
+                            <StatusPickerDropdown client={client} onStatusChanged={handleStatusChanged} />
                           </td>
                           <td className="ds-right" style={{ fontWeight: 800, color: "rgba(120,160,255,0.9)" }}>{formatEUR(caTotal)}</td>
                           <td className="ds-right" style={{ fontWeight: 700, opacity: 0.8 }}>{nbVentes}</td>
