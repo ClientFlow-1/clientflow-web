@@ -59,7 +59,6 @@ const STATUS_OPTIONS: { value: StatusOverride; label: string; emoji: string; col
   { value: "new",      label: "Nouveau",  emoji: "✨", color: "#4ecdc4",                bg: "rgba(78,205,196,0.1)",    border: "rgba(78,205,196,0.3)" },
 ];
 
-// ─── InfoRow ──────────────────────────────────────────────────────────────────
 function InfoRow({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, padding: "10px 14px", borderRadius: 10, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}>
@@ -69,16 +68,21 @@ function InfoRow({ label, value, accent }: { label: string; value: string; accen
   );
 }
 
-// ─── Mobile Client Card ───────────────────────────────────────────────────────
-function MobileClientCard({ c, total, onEdit, onDelete, loading }: {
-  c: ClientRow; total: number; onEdit: () => void; onDelete: () => void; loading: boolean;
+function MobileClientCard({ c, total, checked, onToggle, onEdit, onDelete, loading }: {
+  c: ClientRow; total: number; checked: boolean; onToggle: () => void; onEdit: () => void; onDelete: () => void; loading: boolean;
 }) {
   const [popupOpen, setPopupOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
   return (
-    <div style={{ display: "flex", alignItems: "center", padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)", gap: 10 }}>
+    <div style={{ display: "flex", alignItems: "center", padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)", gap: 10, background: checked ? "rgba(120,160,255,0.06)" : "transparent", transition: "background 120ms" }}>
+      {/* Checkbox */}
+      <div onClick={onToggle}
+        style={{ width: 22, height: 22, borderRadius: 7, border: `1.5px solid ${checked ? "rgba(120,160,255,0.9)" : "rgba(255,255,255,0.20)"}`, background: checked ? "rgba(120,160,255,0.9)" : "rgba(255,255,255,0.03)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 120ms" }}>
+        {checked && <span style={{ fontSize: 12, color: "#fff", fontWeight: 900 }}>✓</span>}
+      </div>
+
       <div style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(99,120,255,0.15)", border: "1px solid rgba(99,120,255,0.25)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: "rgba(120,160,255,0.9)" }}>
         {(c.prenom?.[0] ?? c.email?.[0] ?? "?").toUpperCase()}
       </div>
@@ -90,10 +94,6 @@ function MobileClientCard({ c, total, onEdit, onDelete, loading }: {
       </div>
       <button type="button" onClick={() => setPopupOpen(true)}
         style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.5)", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>···</button>
-      <button type="button" onClick={onEdit}
-        style={{ height: 32, padding: "0 12px", borderRadius: 9, border: "1px solid rgba(99,120,255,0.25)", background: "rgba(99,120,255,0.10)", color: "rgba(120,160,255,0.9)", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>✏️</button>
-      <button type="button" onClick={onDelete} disabled={loading}
-        style={{ height: 32, padding: "0 10px", borderRadius: 9, border: "1px solid rgba(255,80,80,0.20)", background: "rgba(255,80,80,0.06)", color: "rgba(255,120,120,0.85)", fontSize: 12, fontWeight: 700, cursor: "pointer", flexShrink: 0 }}>🗑</button>
 
       {popupOpen && mounted && createPortal(
         <div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "flex-end", justifyContent: "center", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}
@@ -132,7 +132,6 @@ function MobileClientCard({ c, total, onEdit, onDelete, loading }: {
   );
 }
 
-// ─── Multi-Product Picker ─────────────────────────────────────────────────────
 function MultiProductPicker({ products, selected, onChange }: {
   products: Product[]; selected: SaleProduct[]; onChange: (items: SaleProduct[]) => void;
 }) {
@@ -203,7 +202,6 @@ function MultiProductPicker({ products, selected, onChange }: {
   );
 }
 
-// ─── Export ───────────────────────────────────────────────────────────────────
 type ExportField = "prenom" | "nom" | "email" | "ca_total" | "nb_ventes" | "date_vente" | "montant_vente" | "client_vente" | "produit_vente";
 type ExportPeriod = "all" | "7d" | "30d" | "90d" | "12m" | "custom";
 const EXPORT_OPTIONS: { key: ExportField; label: string; group: "clients" | "ventes" }[] = [
@@ -350,7 +348,6 @@ function ExportMenu({ clients, sales, clientById, perClientTotals, saleProductsM
   );
 }
 
-// ─── Client Picker ────────────────────────────────────────────────────────────
 function ClientPicker({ clients, valueClientId, onChange, disabled, placeholder }: { clients: ClientRow[]; valueClientId: string; onChange: (id: string) => void; disabled?: boolean; placeholder?: string; }) {
   const [open, setOpen] = useState(false); const [q, setQ] = useState(""); const [mounted, setMounted] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null); const dropRef = useRef<HTMLDivElement>(null);
@@ -397,7 +394,6 @@ function ClientPicker({ clients, valueClientId, onChange, disabled, placeholder 
   );
 }
 
-// ─── Calendar ─────────────────────────────────────────────────────────────────
 function CalendarOverlay({ open, valueIso, onPick, onClose }: { open: boolean; valueIso: string; onPick: (iso: string) => void; onClose: () => void; }) {
   const todayIso = toISODateInput(new Date());
   const [viewMonth, setViewMonth] = useState<Date>(startOfMonth(new Date())); const [mounted, setMounted] = useState(false);
@@ -444,7 +440,6 @@ function CalendarOverlay({ open, valueIso, onPick, onClose }: { open: boolean; v
   );
 }
 
-// ─── Client Edit Drawer ───────────────────────────────────────────────────────
 function ClientEditDrawer({ client, onClose, onSaved }: { client: ClientRow | null; onClose: () => void; onSaved: (updated: ClientRow) => void; }) {
   const [prenom, setPrenom] = useState(""); const [nom, setNom] = useState(""); const [email, setEmail] = useState("");
   const [birthdate, setBirthdate] = useState(""); const [notes, setNotes] = useState("");
@@ -555,7 +550,8 @@ function DrawerField({ label, value, onChange, placeholder, type = "text" }: { l
         onBlur={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }} />
     </div>
   );
-}// ─── Page principale ──────────────────────────────────────────────────────────
+}
+
 export default function ClientsPage() {
   const { activeWorkspace } = useWorkspace();
   const [clients, setClients] = useState<ClientRow[]>([]);
@@ -872,7 +868,7 @@ export default function ClientsPage() {
           <div className="cl-empty"><div className="cl-empty-icon">∅</div><div className="cl-empty-title">Aucun client trouvé</div><div className="cl-empty-sub">Importe un CSV ou crée un client manuellement.</div></div>
         ) : (
           <>
-            {/* Desktop : tableau */}
+            {/* Desktop */}
             <div className="cl-desktop-table">
               <div className="ds-table-wrap">
                 <table className="ds-table">
@@ -905,13 +901,26 @@ export default function ClientsPage() {
               </div>
             </div>
 
-            {/* Mobile : cartes */}
+            {/* Mobile */}
             <div className="cl-mobile-list">
+              {selectedCount > 0 && (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(120,160,255,0.06)" }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: "rgba(120,160,255,0.9)" }}>{selectedCount} sélectionné{selectedCount > 1 ? "s" : ""}</span>
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <button type="button" onClick={clearSelection}
+                      style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.10)", background: "transparent", color: "rgba(255,255,255,0.55)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Désélectionner</button>
+                    <button type="button" onClick={deleteSelected} disabled={loading}
+                      style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(255,80,80,0.25)", background: "rgba(255,80,80,0.08)", color: "rgba(255,120,120,0.9)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>🗑 Supprimer</button>
+                  </div>
+                </div>
+              )}
               {filtered.map(c => (
                 <MobileClientCard
                   key={c.id}
                   c={c}
                   total={perClientTotals.get(c.id) ?? 0}
+                  checked={!!selected[c.id]}
+                  onToggle={() => toggleOne(c.id)}
                   onEdit={() => setEditingClient(c)}
                   onDelete={() => deleteOne(c.id)}
                   loading={loading}
