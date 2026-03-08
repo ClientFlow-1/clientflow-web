@@ -182,7 +182,10 @@ function WorkspacePicker() {
   useEffect(() => {
     if (!open || !btnRef.current) return;
     const r = btnRef.current.getBoundingClientRect();
-    setPos({ top: r.bottom + 6, left: r.left, width: Math.max(r.width, 240) });
+    // Sur mobile, aligner à droite si le bouton est à droite
+    const dropW = Math.max(r.width, 260);
+    const left = Math.min(r.left, window.innerWidth - dropW - 12);
+    setPos({ top: r.bottom + 6, left: Math.max(12, left), width: dropW });
   }, [open]);
   useEffect(() => {
     if (!open) return;
@@ -210,67 +213,86 @@ function WorkspacePicker() {
     setRenameSaving(false); setRenamingId(null);
   }
 
-  return (
-    <>
-      <button ref={btnRef} type="button" onClick={() => setOpen(v => !v)}
-        style={{ width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "10px 14px", borderRadius: 10, background: "rgba(99,120,255,0.08)", border: "1px solid rgba(99,120,255,0.20)", cursor: "pointer", color: "rgba(255,255,255,0.92)", fontSize: 13, fontWeight: 700 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-          <span style={{ width: 8, height: 8, borderRadius: "50%", background: "rgba(99,120,255,0.9)", flexShrink: 0, boxShadow: "0 0 8px rgba(99,120,255,0.6)" }} />
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{activeWorkspace?.name ?? "Aucun workspace"}</span>
-        </div>
-        <span style={{ opacity: 0.5, fontSize: 10 }}>{open ? "▲" : "▼"}</span>
-      </button>
+  const triggerBtn = (compact?: boolean) => (
+    <button ref={btnRef} type="button" onClick={() => setOpen(v => !v)}
+      style={compact ? {
+        // Version compacte pour la topbar mobile
+        display: "flex", alignItems: "center", gap: 6, height: 34, padding: "0 12px",
+        borderRadius: 10, background: "rgba(99,120,255,0.10)", border: "1px solid rgba(99,120,255,0.25)",
+        cursor: "pointer", color: "rgba(255,255,255,0.92)", fontSize: 13, fontWeight: 700, maxWidth: 180,
+      } : {
+        // Version pleine pour la sidebar desktop
+        width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
+        gap: 8, padding: "10px 14px", borderRadius: 10, background: "rgba(99,120,255,0.08)",
+        border: "1px solid rgba(99,120,255,0.20)", cursor: "pointer", color: "rgba(255,255,255,0.92)",
+        fontSize: 13, fontWeight: 700,
+      }}>
+      <span style={{ width: 7, height: 7, borderRadius: "50%", background: "rgba(99,120,255,0.9)", flexShrink: 0, boxShadow: "0 0 8px rgba(99,120,255,0.6)" }} />
+      <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", flex: 1 }}>
+        {activeWorkspace?.name ?? "Boutique"}
+      </span>
+      <span style={{ opacity: 0.5, fontSize: 10, flexShrink: 0 }}>{open ? "▲" : "▼"}</span>
+    </button>
+  );
 
-      {open && mounted && createPortal(
-        <div ref={dropRef} style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width, zIndex: 9999, borderRadius: 14, padding: 10, background: "linear-gradient(180deg, rgba(18,20,28,0.99), rgba(10,11,16,0.99))", border: "1px solid rgba(99,120,255,0.18)", boxShadow: "0 20px 60px rgba(0,0,0,0.7)", backdropFilter: "blur(20px)" }}>
-          <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.2, opacity: 0.4, color: "rgba(255,255,255,0.9)", padding: "4px 8px 8px", textTransform: "uppercase" }}>Mes boutiques</div>
-          {workspaces.length === 0 && !creating && <div style={{ padding: "8px 10px", opacity: 0.5, fontSize: 13, color: "rgba(255,255,255,0.8)" }}>Aucun workspace</div>}
-          {workspaces.map(w => (
-            <div key={w.id}>
-              {renamingId === w.id ? (
-                <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 2px" }}>
-                  <input autoFocus value={renameValue} onChange={e => setRenameValue(e.target.value)}
-                    onKeyDown={e => { if (e.key === "Enter") handleRename(w.id); if (e.key === "Escape") setRenamingId(null); }}
-                    style={{ flex: 1, height: 32, borderRadius: 8, padding: "0 10px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(99,120,255,0.35)", color: "rgba(255,255,255,0.92)", fontSize: 13, outline: "none" }} />
-                  <button type="button" onClick={() => handleRename(w.id)} disabled={renameSaving} style={{ height: 32, padding: "0 10px", borderRadius: 8, border: "none", background: "rgba(99,120,255,0.25)", color: "rgba(255,255,255,0.95)", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: renameSaving ? 0.5 : 1 }}>{renameSaving ? "…" : "✓"}</button>
-                  <button type="button" onClick={() => setRenamingId(null)} style={{ height: 32, padding: "0 8px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.10)", background: "transparent", color: "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer" }}>✕</button>
-                </div>
-              ) : (
-                <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                  <button type="button" onClick={() => { setActiveWorkspace(w); setOpen(false); }}
-                    style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, padding: "10px 10px", borderRadius: 9, border: "none", background: w.id === activeWorkspace?.id ? "rgba(99,120,255,0.14)" : "transparent", color: "rgba(255,255,255,0.88)", cursor: "pointer", fontSize: 13, fontWeight: w.id === activeWorkspace?.id ? 800 : 500, textAlign: "left" }}>
-                    <span style={{ width: 7, height: 7, borderRadius: "50%", background: w.id === activeWorkspace?.id ? "rgba(99,120,255,0.9)" : "rgba(255,255,255,0.2)", flexShrink: 0 }} />
-                    <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{w.name}</span>
-                    {w.id === activeWorkspace?.id && <span style={{ fontSize: 11, color: "rgba(99,120,255,0.9)" }}>✓</span>}
-                  </button>
-                  <button type="button" onClick={e => { e.stopPropagation(); startRename(w); }} title="Renommer"
-                    style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid rgba(99,120,255,0.15)", background: "rgba(99,120,255,0.05)", color: "rgba(99,120,255,0.6)", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>✏️</button>
-                  <button type="button" onClick={e => { e.stopPropagation(); setDeleteTarget(w); setOpen(false); }} title="Supprimer"
-                    style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid rgba(255,80,80,0.15)", background: "rgba(255,80,80,0.05)", color: "rgba(255,100,80,0.7)", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>🗑</button>
-                </div>
-              )}
-            </div>
-          ))}
-          <div style={{ height: 1, background: "rgba(255,255,255,0.07)", margin: "8px 0" }} />
-          {creating ? (
-            <div style={{ padding: "6px 4px", display: "flex", flexDirection: "column", gap: 8 }}>
-              <input autoFocus placeholder="Nom de la boutique…" value={newName} onChange={e => setNewName(e.target.value)}
-                onKeyDown={e => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") { setCreating(false); setNewName(""); } }}
-                style={{ width: "100%", height: 36, borderRadius: 9, padding: "0 10px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(99,120,255,0.30)", color: "rgba(255,255,255,0.92)", fontSize: 13, outline: "none" }} />
-              <div style={{ display: "flex", gap: 6 }}>
-                <button type="button" onClick={() => { setCreating(false); setNewName(""); }} style={{ flex: 1, height: 32, borderRadius: 8, border: "1px solid rgba(255,255,255,0.10)", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 12, cursor: "pointer" }}>Annuler</button>
-                <button type="button" onClick={handleCreate} disabled={saving || !newName.trim()} style={{ flex: 1, height: 32, borderRadius: 8, border: "none", background: "rgba(99,120,255,0.25)", color: "rgba(255,255,255,0.95)", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: !newName.trim() ? 0.5 : 1 }}>{saving ? "…" : "Créer"}</button>
-              </div>
+  const dropdown = open && mounted && createPortal(
+    <div ref={dropRef} style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width, zIndex: 99999, borderRadius: 14, padding: 10, background: "linear-gradient(180deg, rgba(18,20,28,0.99), rgba(10,11,16,0.99))", border: "1px solid rgba(99,120,255,0.18)", boxShadow: "0 20px 60px rgba(0,0,0,0.7)", backdropFilter: "blur(20px)" }}>
+      <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1.2, opacity: 0.4, color: "rgba(255,255,255,0.9)", padding: "4px 8px 8px", textTransform: "uppercase" }}>Mes boutiques</div>
+      {workspaces.length === 0 && !creating && <div style={{ padding: "8px 10px", opacity: 0.5, fontSize: 13, color: "rgba(255,255,255,0.8)" }}>Aucun workspace</div>}
+      {workspaces.map(w => (
+        <div key={w.id}>
+          {renamingId === w.id ? (
+            <div style={{ display: "flex", alignItems: "center", gap: 4, padding: "4px 2px" }}>
+              <input autoFocus value={renameValue} onChange={e => setRenameValue(e.target.value)}
+                onKeyDown={e => { if (e.key === "Enter") handleRename(w.id); if (e.key === "Escape") setRenamingId(null); }}
+                style={{ flex: 1, height: 32, borderRadius: 8, padding: "0 10px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(99,120,255,0.35)", color: "rgba(255,255,255,0.92)", fontSize: 13, outline: "none" }} />
+              <button type="button" onClick={() => handleRename(w.id)} disabled={renameSaving} style={{ height: 32, padding: "0 10px", borderRadius: 8, border: "none", background: "rgba(99,120,255,0.25)", color: "rgba(255,255,255,0.95)", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: renameSaving ? 0.5 : 1 }}>{renameSaving ? "…" : "✓"}</button>
+              <button type="button" onClick={() => setRenamingId(null)} style={{ height: 32, padding: "0 8px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.10)", background: "transparent", color: "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer" }}>✕</button>
             </div>
           ) : (
-            <button type="button" onClick={() => { setCreating(true); setRenamingId(null); }}
-              style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderRadius: 9, border: "1px dashed rgba(99,120,255,0.25)", background: "transparent", color: "rgba(99,120,255,0.8)", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>
-              <span style={{ fontSize: 16 }}>＋</span> Nouvelle boutique
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <button type="button" onClick={() => { setActiveWorkspace(w); setOpen(false); }}
+                style={{ flex: 1, display: "flex", alignItems: "center", gap: 10, padding: "10px 10px", borderRadius: 9, border: "none", background: w.id === activeWorkspace?.id ? "rgba(99,120,255,0.14)" : "transparent", color: "rgba(255,255,255,0.88)", cursor: "pointer", fontSize: 13, fontWeight: w.id === activeWorkspace?.id ? 800 : 500, textAlign: "left" }}>
+                <span style={{ width: 7, height: 7, borderRadius: "50%", background: w.id === activeWorkspace?.id ? "rgba(99,120,255,0.9)" : "rgba(255,255,255,0.2)", flexShrink: 0 }} />
+                <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{w.name}</span>
+                {w.id === activeWorkspace?.id && <span style={{ fontSize: 11, color: "rgba(99,120,255,0.9)" }}>✓</span>}
+              </button>
+              <button type="button" onClick={e => { e.stopPropagation(); startRename(w); }} title="Renommer"
+                style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid rgba(99,120,255,0.15)", background: "rgba(99,120,255,0.05)", color: "rgba(99,120,255,0.6)", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>✏️</button>
+              <button type="button" onClick={e => { e.stopPropagation(); setDeleteTarget(w); setOpen(false); }} title="Supprimer"
+                style={{ width: 28, height: 28, borderRadius: 8, border: "1px solid rgba(255,80,80,0.15)", background: "rgba(255,80,80,0.05)", color: "rgba(255,100,80,0.7)", fontSize: 13, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>🗑</button>
+            </div>
           )}
-        </div>,
-        document.body
+        </div>
+      ))}
+      <div style={{ height: 1, background: "rgba(255,255,255,0.07)", margin: "8px 0" }} />
+      {creating ? (
+        <div style={{ padding: "6px 4px", display: "flex", flexDirection: "column", gap: 8 }}>
+          <input autoFocus placeholder="Nom de la boutique…" value={newName} onChange={e => setNewName(e.target.value)}
+            onKeyDown={e => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") { setCreating(false); setNewName(""); } }}
+            style={{ width: "100%", height: 36, borderRadius: 9, padding: "0 10px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(99,120,255,0.30)", color: "rgba(255,255,255,0.92)", fontSize: 13, outline: "none" }} />
+          <div style={{ display: "flex", gap: 6 }}>
+            <button type="button" onClick={() => { setCreating(false); setNewName(""); }} style={{ flex: 1, height: 32, borderRadius: 8, border: "1px solid rgba(255,255,255,0.10)", background: "transparent", color: "rgba(255,255,255,0.6)", fontSize: 12, cursor: "pointer" }}>Annuler</button>
+            <button type="button" onClick={handleCreate} disabled={saving || !newName.trim()} style={{ flex: 1, height: 32, borderRadius: 8, border: "none", background: "rgba(99,120,255,0.25)", color: "rgba(255,255,255,0.95)", fontSize: 12, fontWeight: 700, cursor: "pointer", opacity: !newName.trim() ? 0.5 : 1 }}>{saving ? "…" : "Créer"}</button>
+          </div>
+        </div>
+      ) : (
+        <button type="button" onClick={() => { setCreating(true); setRenamingId(null); }}
+          style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, padding: "9px 10px", borderRadius: 9, border: "1px dashed rgba(99,120,255,0.25)", background: "transparent", color: "rgba(99,120,255,0.8)", cursor: "pointer", fontSize: 13, fontWeight: 700 }}>
+          <span style={{ fontSize: 16 }}>＋</span> Nouvelle boutique
+        </button>
       )}
+    </div>,
+    document.body
+  );
+
+  return (
+    <>
+      {/* Bouton sidebar desktop — rendu via la classe ds-workspace-desktop */}
+      <span className="ds-workspace-desktop">{triggerBtn(false)}</span>
+      {/* Bouton topbar mobile — rendu via la classe ds-workspace-mobile */}
+      <span className="ds-workspace-mobile">{triggerBtn(true)}</span>
+      {dropdown}
       {deleteTarget && mounted && (
         <DeleteWorkspaceModal target={deleteTarget} workspaces={workspaces} onClose={() => setDeleteTarget(null)} onDeleted={() => setDeleteTarget(null)} />
       )}
@@ -320,6 +342,8 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         .ds-brand-sub { font-size: 11px; color: var(--text-tertiary); margin-top: 3px; font-weight: 300; }
         .ds-workspace-wrap { padding: 14px 14px 12px; border-bottom: 1px solid var(--sidebar-border); }
         .ds-workspace-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; opacity: 0.35; color: rgba(255,255,255,0.9); margin-bottom: 7px; text-transform: uppercase; font-family: var(--font-mono); }
+        .ds-workspace-desktop { display: block; }
+        .ds-workspace-mobile { display: none; }
         .ds-nav { display: flex; flex-direction: column; gap: 4px; padding: 16px 14px; flex: 1; }
         .ds-nav-item { display: flex; align-items: center; gap: 11px; padding: 11px 13px; border-radius: 9px; text-decoration: none; color: var(--text-secondary); font-size: 13.5px; font-weight: 400; position: relative; transition: all 0.2s ease; cursor: pointer; overflow: hidden; }
         .ds-nav-item:hover { color: var(--text-primary); background: rgba(99,120,255,0.06); }
@@ -330,9 +354,9 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         .ds-sidebar-footer { padding: 20px 14px; border-top: 1px solid var(--sidebar-border); }
         .ds-version { font-size: 10px; color: var(--text-tertiary); font-family: var(--font-mono); text-align: center; letter-spacing: 1px; }
         .ds-main { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: var(--bg); }
-        .ds-topbar { height: var(--topbar-h); display: flex; align-items: center; justify-content: space-between; padding: 0 20px 0 28px; border-bottom: 1px solid var(--sidebar-border); flex-shrink: 0; }
+        .ds-topbar { height: var(--topbar-h); display: flex; align-items: center; justify-content: space-between; padding: 0 16px 0 28px; border-bottom: 1px solid var(--sidebar-border); flex-shrink: 0; gap: 10px; }
         .ds-topbar-title { font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.5); font-family: var(--font-mono); letter-spacing: 1px; display: none; }
-        .ds-profile { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--accent) 0%, var(--accent-mid) 100%); border: none; cursor: pointer; font-size: 13px; font-weight: 600; color: #fff; font-family: var(--font-mono); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 14px var(--accent-glow); transition: box-shadow 0.2s, transform 0.2s; }
+        .ds-profile { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--accent) 0%, var(--accent-mid) 100%); border: none; cursor: pointer; font-size: 13px; font-weight: 600; color: #fff; font-family: var(--font-mono); display: flex; align-items: center; justify-content: center; box-shadow: 0 0 14px var(--accent-glow); transition: box-shadow 0.2s, transform 0.2s; flex-shrink: 0; }
         .ds-profile:hover { box-shadow: 0 0 22px var(--accent-glow-strong); transform: scale(1.05); }
         .ds-content { flex: 1; overflow-y: auto; padding: 32px 36px; scrollbar-width: thin; scrollbar-color: var(--surface-2) transparent; }
         .ds-content::-webkit-scrollbar { width: 5px; }
@@ -375,6 +399,9 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         @media (max-width: 768px) {
           .ds-sidebar { display: none; }
           .ds-topbar-title { display: block; }
+          .ds-workspace-desktop { display: none; }
+          .ds-workspace-mobile { display: flex; align-items: center; flex: 1; min-width: 0; }
+          .ds-workspace-mobile button { max-width: 100%; }
           .ds-content { padding: 16px 14px 80px; }
           .ds-bottom-nav {
             display: flex;
@@ -395,7 +422,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         }
       `}</style>
       <div className="ds-root">
-        {/* Sidebar desktop */}
         <aside className="ds-sidebar">
           <div className="ds-brand">
             <div className="ds-logo">CF</div>
@@ -418,7 +444,9 @@ export default function DashboardShell({ children }: { children: React.ReactNode
 
         <div className="ds-main">
           <div className="ds-topbar">
+            {/* Mobile : titre + workspace picker */}
             <div className="ds-topbar-title">CLIENTFLOW</div>
+            <WorkspacePicker />
             <button className="ds-profile" type="button" aria-label="Profil">E</button>
           </div>
           <main className="ds-content">
@@ -428,7 +456,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           </main>
         </div>
 
-        {/* Barre de navigation mobile en bas */}
         <nav className="ds-bottom-nav">
           {NAV_ITEMS.map(item => <BottomNavItem key={item.href} {...item} />)}
         </nav>
