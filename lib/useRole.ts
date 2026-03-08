@@ -23,8 +23,18 @@ export function useRole() {
       if (!user) { setRole(null); setLoading(false); return; }
 
       const [{ data: memberData }, { data: wsData }] = await Promise.all([
-        supabase.from("workspace_members").select("role").eq("workspace_id", activeWorkspace!.id).eq("user_id", user.id).eq("status", "active").single(),
-        supabase.from("workspaces").select("user_id,is_open").eq("id", activeWorkspace!.id).single(),
+        supabase
+          .from("workspace_members")
+          .select("role")
+          .eq("workspace_id", activeWorkspace!.id)
+          .eq("user_id", user.id)
+          .eq("status", "active")
+          .single(),
+        supabase
+          .from("workspaces")
+          .select("user_id,is_open")
+          .eq("id", activeWorkspace!.id)
+          .single(),
       ]);
 
       setIsOpen(wsData?.is_open !== false);
