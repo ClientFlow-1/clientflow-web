@@ -1,9 +1,11 @@
 "use client";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useWorkspace, Workspace } from "@/lib/workspaceContext";
+import { useRole } from "@/lib/useRole";
+import { supabase } from "@/lib/supabaseClient";
 
 function NavItem({ href, label, icon }: { href: string; label: string; icon: string }) {
   const pathname = usePathname();
@@ -182,7 +184,6 @@ function WorkspacePicker() {
   useEffect(() => {
     if (!open || !btnRef.current) return;
     const r = btnRef.current.getBoundingClientRect();
-    // Sur mobile, aligner à droite si le bouton est à droite
     const dropW = Math.max(r.width, 260);
     const left = Math.min(r.left, window.innerWidth - dropW - 12);
     setPos({ top: r.bottom + 6, left: Math.max(12, left), width: dropW });
@@ -216,12 +217,10 @@ function WorkspacePicker() {
   const triggerBtn = (compact?: boolean) => (
     <button ref={btnRef} type="button" onClick={() => setOpen(v => !v)}
       style={compact ? {
-        // Version compacte pour la topbar mobile
         display: "flex", alignItems: "center", gap: 6, height: 34, padding: "0 12px",
         borderRadius: 10, background: "rgba(99,120,255,0.10)", border: "1px solid rgba(99,120,255,0.25)",
         cursor: "pointer", color: "rgba(255,255,255,0.92)", fontSize: 13, fontWeight: 700, maxWidth: 180,
       } : {
-        // Version pleine pour la sidebar desktop
         width: "100%", display: "flex", alignItems: "center", justifyContent: "space-between",
         gap: 8, padding: "10px 14px", borderRadius: 10, background: "rgba(99,120,255,0.08)",
         border: "1px solid rgba(99,120,255,0.20)", cursor: "pointer", color: "rgba(255,255,255,0.92)",
@@ -288,9 +287,7 @@ function WorkspacePicker() {
 
   return (
     <>
-      {/* Bouton sidebar desktop — rendu via la classe ds-workspace-desktop */}
       <span className="ds-workspace-desktop">{triggerBtn(false)}</span>
-      {/* Bouton topbar mobile — rendu via la classe ds-workspace-mobile */}
       <span className="ds-workspace-mobile">{triggerBtn(true)}</span>
       {dropdown}
       {deleteTarget && mounted && (
@@ -300,23 +297,140 @@ function WorkspacePicker() {
   );
 }
 
-const NAV_ITEMS = [
-  { href: "/dashboard/import",      label: "Import",      icon: "📥" },
-  { href: "/dashboard/clients",     label: "Clients",     icon: "👤" },
-  { href: "/dashboard/produits",    label: "Produits",    icon: "🛍️" },
-  { href: "/dashboard/relances",    label: "Relances",    icon: "🔔" },
-  { href: "/dashboard/analytiques", label: "Analytiques", icon: "📊" },
+// ─── Nav items selon le rôle ──────────────────────────────────────────────────
+const ALL_NAV_ITEMS = [
+  { href: "/dashboard/import",      label: "Import",      icon: "📥", vendeur: true  },
+  { href: "/dashboard/clients",     label: "Clients",     icon: "👤", vendeur: true  },
+  { href: "/dashboard/produits",    label: "Produits",    icon: "🛍️", vendeur: false },
+  { href: "/dashboard/relances",    label: "Relances",    icon: "🔔", vendeur: false },
+  { href: "/dashboard/analytiques", label: "Analytiques", icon: "📊", vendeur: false },
+  { href: "/dashboard/parametres",  label: "Paramètres",  icon: "⚙️", vendeur: false },
 ];
+
+// ─── Badge rôle ───────────────────────────────────────────────────────────────
+function RoleBadge({ role }: { role: string }) {
+  const styles: Record<string, { color: string; bg: string; border: string; label: string }> = {
+    owner:   { color: "#f5c842", bg: "rgba(245,200,66,0.10)",  border: "rgba(245,200,66,0.30)",  label: "Owner"   },
+    admin:   { color: "#6378ff", bg: "rgba(99,120,255,0.10)",  border: "rgba(99,120,255,0.30)",  label: "Admin"   },
+    vendeur: { color: "#4ecdc4", bg: "rgba(78,205,196,0.10)",  border: "rgba(78,205,196,0.30)",  label: "Vendeur" },
+  };
+  const s = styles[role] ?? { color: "rgba(255,255,255,0.5)", bg: "rgba(255,255,255,0.04)", border: "rgba(255,255,255,0.10)", label: role };
+  return (
+    <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 999, background: s.bg, border: `1px solid ${s.border}`, color: s.color, letterSpacing: 0.5 }}>
+      {s.label}
+    </span>
+  );
+}
+
+// ─── Profile menu ─────────────────────────────────────────────────────────────
+function ProfileMenu({ role }: { role: string | null }) {
+  const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const dropRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, right: 0 });
+  const router = useRouter();
+
+  useEffect(() => {
+    setMounted(true);
+    supabase.auth.getUser().then(({ data }) => { if (data?.user?.email) setUserEmail(data.user.email); });
+  }, []);
+
+  useEffect(() => {
+    if (!open || !btnRef.current) return;
+    const r = btnRef.current.getBoundingClientRect();
+    setPos({ top: r.bottom + 8, right: window.innerWidth - r.right });
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => { const t = e.target as Node; if (btnRef.current?.contains(t) || dropRef.current?.contains(t)) return; setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+
+  async function handleSignOut() {
+    await supabase.auth.signOut();
+    router.push("/login");
+  }
+
+  const initial = (userEmail?.[0] ?? "?").toUpperCase();
+
+  return (
+    <>
+      <button ref={btnRef} className="ds-profile" type="button" onClick={() => setOpen(v => !v)} aria-label="Profil">
+        {initial}
+      </button>
+      {open && mounted && createPortal(
+        <div ref={dropRef} style={{ position: "fixed", top: pos.top, right: pos.right, zIndex: 99999, width: 240, borderRadius: 14, padding: 12, background: "linear-gradient(180deg, rgba(18,20,28,0.99), rgba(10,11,16,0.99))", border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 20px 60px rgba(0,0,0,0.7)", backdropFilter: "blur(20px)" }}>
+          {/* Infos user */}
+          <div style={{ padding: "8px 10px 12px", borderBottom: "1px solid rgba(255,255,255,0.07)", marginBottom: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+              <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg, #6378ff, #4f63e8)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
+                {initial}
+              </div>
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.90)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{userEmail || "—"}</div>
+                {role && <div style={{ marginTop: 3 }}><RoleBadge role={role} /></div>}
+              </div>
+            </div>
+          </div>
+          {/* Déconnexion */}
+          <button type="button" onClick={handleSignOut}
+            style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,120,120,0.85)", fontSize: 13, fontWeight: 700, cursor: "pointer", textAlign: "left" }}
+            onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,80,80,0.08)"; }}
+            onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}>
+            <span style={{ fontSize: 16 }}>🚪</span> Se déconnecter
+          </button>
+        </div>,
+        document.body
+      )}
+    </>
+  );
+}
+
+// ─── Guard page vendeur ───────────────────────────────────────────────────────
+function AccessDenied() {
+  return (
+    <div style={{ padding: "80px 0", textAlign: "center" }}>
+      <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
+      <div style={{ fontSize: 20, fontWeight: 900, color: "rgba(255,255,255,0.9)", marginBottom: 8 }}>Accès restreint</div>
+      <div style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", maxWidth: 320, margin: "0 auto", lineHeight: 1.6 }}>
+        Tu n'as pas les permissions nécessaires pour accéder à cette page.
+      </div>
+    </div>
+  );
+}
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const { role, loading: roleLoading, isVendeur } = useRole();
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [displayChildren, setDisplayChildren] = useState(children);
+
   useEffect(() => {
     setIsTransitioning(true);
     const t = setTimeout(() => { setDisplayChildren(children); setIsTransitioning(false); }, 180);
     return () => clearTimeout(t);
   }, [pathname]);
+
+  // Pages interdites aux vendeurs
+  const VENDEUR_BLOCKED = [
+    "/dashboard/produits",
+    "/dashboard/relances",
+    "/dashboard/analytiques",
+    "/dashboard/parametres",
+  ];
+
+  const isBlocked = isVendeur && VENDEUR_BLOCKED.some(p => pathname.startsWith(p));
+
+  // Items de nav filtrés selon le rôle
+  const navItems = roleLoading
+    ? ALL_NAV_ITEMS.filter(i => i.vendeur) // Affiche le minimum pendant le chargement
+    : isVendeur
+    ? ALL_NAV_ITEMS.filter(i => i.vendeur)
+    : ALL_NAV_ITEMS;
 
   return (
     <>
@@ -435,29 +549,29 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             <WorkspacePicker />
           </div>
           <nav className="ds-nav">
-            {NAV_ITEMS.map(item => <NavItem key={item.href} {...item} />)}
+            {navItems.map(item => <NavItem key={item.href} {...item} />)}
           </nav>
           <div className="ds-sidebar-footer">
+            {role && <div style={{ marginBottom: 8, display: "flex", justifyContent: "center" }}><RoleBadge role={role} /></div>}
             <div className="ds-version">v1.0 · BETA</div>
           </div>
         </aside>
 
         <div className="ds-main">
           <div className="ds-topbar">
-            {/* Mobile : titre + workspace picker */}
             <div className="ds-topbar-title">CLIENTFLOW</div>
             <WorkspacePicker />
-            <button className="ds-profile" type="button" aria-label="Profil">E</button>
+            <ProfileMenu role={role} />
           </div>
           <main className="ds-content">
             <div className={`ds-page-wrapper ${isTransitioning ? "entering" : "visible"}`}>
-              {displayChildren}
+              {isBlocked ? <AccessDenied /> : displayChildren}
             </div>
           </main>
         </div>
 
         <nav className="ds-bottom-nav">
-          {NAV_ITEMS.map(item => <BottomNavItem key={item.href} {...item} />)}
+          {navItems.map(item => <BottomNavItem key={item.href} {...item} />)}
         </nav>
       </div>
     </>
