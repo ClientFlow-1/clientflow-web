@@ -297,7 +297,6 @@ function WorkspacePicker() {
   );
 }
 
-// ─── Nav items selon le rôle ──────────────────────────────────────────────────
 const ALL_NAV_ITEMS = [
   { href: "/dashboard/import",      label: "Import",      icon: "📥", vendeur: true  },
   { href: "/dashboard/clients",     label: "Clients",     icon: "👤", vendeur: true  },
@@ -307,7 +306,6 @@ const ALL_NAV_ITEMS = [
   { href: "/dashboard/parametres",  label: "Paramètres",  icon: "⚙️", vendeur: false },
 ];
 
-// ─── Badge rôle ───────────────────────────────────────────────────────────────
 function RoleBadge({ role }: { role: string }) {
   const styles: Record<string, { color: string; bg: string; border: string; label: string }> = {
     owner:   { color: "#f5c842", bg: "rgba(245,200,66,0.10)",  border: "rgba(245,200,66,0.30)",  label: "Owner"   },
@@ -322,7 +320,6 @@ function RoleBadge({ role }: { role: string }) {
   );
 }
 
-// ─── Profile menu ─────────────────────────────────────────────────────────────
 function ProfileMenu({ role }: { role: string | null }) {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -336,13 +333,11 @@ function ProfileMenu({ role }: { role: string | null }) {
     setMounted(true);
     supabase.auth.getUser().then(({ data }) => { if (data?.user?.email) setUserEmail(data.user.email); });
   }, []);
-
   useEffect(() => {
     if (!open || !btnRef.current) return;
     const r = btnRef.current.getBoundingClientRect();
     setPos({ top: r.bottom + 8, right: window.innerWidth - r.right });
   }, [open]);
-
   useEffect(() => {
     if (!open) return;
     const h = (e: MouseEvent) => { const t = e.target as Node; if (btnRef.current?.contains(t) || dropRef.current?.contains(t)) return; setOpen(false); };
@@ -364,7 +359,6 @@ function ProfileMenu({ role }: { role: string | null }) {
       </button>
       {open && mounted && createPortal(
         <div ref={dropRef} style={{ position: "fixed", top: pos.top, right: pos.right, zIndex: 99999, width: 240, borderRadius: 14, padding: 12, background: "linear-gradient(180deg, rgba(18,20,28,0.99), rgba(10,11,16,0.99))", border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 20px 60px rgba(0,0,0,0.7)", backdropFilter: "blur(20px)" }}>
-          {/* Infos user */}
           <div style={{ padding: "8px 10px 12px", borderBottom: "1px solid rgba(255,255,255,0.07)", marginBottom: 8 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
               <div style={{ width: 36, height: 36, borderRadius: "50%", background: "linear-gradient(135deg, #6378ff, #4f63e8)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: "#fff", flexShrink: 0 }}>
@@ -376,7 +370,6 @@ function ProfileMenu({ role }: { role: string | null }) {
               </div>
             </div>
           </div>
-          {/* Déconnexion */}
           <button type="button" onClick={handleSignOut}
             style={{ width: "100%", display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", borderRadius: 9, border: "none", background: "transparent", color: "rgba(255,120,120,0.85)", fontSize: 13, fontWeight: 700, cursor: "pointer", textAlign: "left" }}
             onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,80,80,0.08)"; }}
@@ -390,14 +383,17 @@ function ProfileMenu({ role }: { role: string | null }) {
   );
 }
 
-// ─── Guard page vendeur ───────────────────────────────────────────────────────
-function AccessDenied() {
+function AccessDenied({ reason }: { reason: "permission" | "closed" }) {
   return (
     <div style={{ padding: "80px 0", textAlign: "center" }}>
-      <div style={{ fontSize: 48, marginBottom: 16 }}>🔒</div>
-      <div style={{ fontSize: 20, fontWeight: 900, color: "rgba(255,255,255,0.9)", marginBottom: 8 }}>Accès restreint</div>
+      <div style={{ fontSize: 48, marginBottom: 16 }}>{reason === "closed" ? "⛔" : "🔒"}</div>
+      <div style={{ fontSize: 20, fontWeight: 900, color: "rgba(255,255,255,0.9)", marginBottom: 8 }}>
+        {reason === "closed" ? "Boutique fermée" : "Accès restreint"}
+      </div>
       <div style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", maxWidth: 320, margin: "0 auto", lineHeight: 1.6 }}>
-        Tu n'as pas les permissions nécessaires pour accéder à cette page.
+        {reason === "closed"
+          ? "La boutique est actuellement fermée. Contacte le propriétaire pour y accéder."
+          : "Tu n'as pas les permissions nécessaires pour accéder à cette page."}
       </div>
     </div>
   );
@@ -405,7 +401,7 @@ function AccessDenied() {
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { role, loading: roleLoading, isVendeur } = useRole();
+  const { role, loading: roleLoading, isVendeur, isBlocked: shopClosed } = useRole();
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [displayChildren, setDisplayChildren] = useState(children);
 
@@ -415,7 +411,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     return () => clearTimeout(t);
   }, [pathname]);
 
-  // Pages interdites aux vendeurs
   const VENDEUR_BLOCKED = [
     "/dashboard/produits",
     "/dashboard/relances",
@@ -423,11 +418,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     "/dashboard/parametres",
   ];
 
-  const isBlocked = isVendeur && VENDEUR_BLOCKED.some(p => pathname.startsWith(p));
+  const isPageBlocked = isVendeur && VENDEUR_BLOCKED.some(p => pathname.startsWith(p));
 
-  // Items de nav filtrés selon le rôle
   const navItems = roleLoading
-    ? ALL_NAV_ITEMS.filter(i => i.vendeur) // Affiche le minimum pendant le chargement
+    ? ALL_NAV_ITEMS.filter(i => i.vendeur)
     : isVendeur
     ? ALL_NAV_ITEMS.filter(i => i.vendeur)
     : ALL_NAV_ITEMS;
@@ -509,7 +503,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         .ds-btn-primary { background: rgba(99,120,255,0.15); border-color: rgba(99,120,255,0.35); color: #a5b4ff; }
         .ds-btn-primary:hover:not(:disabled) { background: rgba(99,120,255,0.22); border-color: rgba(99,120,255,0.50); }
         .ds-bottom-nav { display: none; }
-
         @media (max-width: 768px) {
           .ds-sidebar { display: none; }
           .ds-topbar-title { display: block; }
@@ -518,15 +511,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           .ds-workspace-mobile button { max-width: 100%; }
           .ds-content { padding: 16px 14px 80px; }
           .ds-bottom-nav {
-            display: flex;
-            position: fixed;
-            bottom: 0; left: 0; right: 0;
-            height: var(--bottom-nav-h);
-            background: rgba(12,12,20,0.97);
-            border-top: 1px solid rgba(99,120,255,0.12);
-            backdrop-filter: blur(20px);
-            z-index: 1000;
-            padding-bottom: env(safe-area-inset-bottom);
+            display: flex; position: fixed; bottom: 0; left: 0; right: 0;
+            height: var(--bottom-nav-h); background: rgba(12,12,20,0.97);
+            border-top: 1px solid rgba(99,120,255,0.12); backdrop-filter: blur(20px);
+            z-index: 1000; padding-bottom: env(safe-area-inset-bottom);
           }
           .ds-stats-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
           .ds-title { font-size: 22px; }
@@ -565,7 +553,11 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           </div>
           <main className="ds-content">
             <div className={`ds-page-wrapper ${isTransitioning ? "entering" : "visible"}`}>
-              {isBlocked ? <AccessDenied /> : displayChildren}
+              {shopClosed
+                ? <AccessDenied reason="closed" />
+                : isPageBlocked
+                ? <AccessDenied reason="permission" />
+                : displayChildren}
             </div>
           </main>
         </div>

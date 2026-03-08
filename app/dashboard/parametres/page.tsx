@@ -13,8 +13,6 @@ type Member = {
   invited_email: string | null;
   created_at: string;
   email?: string;
-  prenom?: string;
-  nom?: string;
 };
 
 type Invitation = {
@@ -42,6 +40,53 @@ function RoleBadge({ role }: { role: string }) {
   );
 }
 
+// ─── Select stylé thème dark ──────────────────────────────────────────────────
+function ThemedSelect({ value, onChange, options }: {
+  value: string;
+  onChange: (v: string) => void;
+  options: { value: string; label: string; color?: string }[];
+}) {
+  const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const ref = typeof window !== "undefined" ? useState<HTMLDivElement | null>(null) : useState<null>(null);
+  const btnRef = { current: null as HTMLButtonElement | null };
+  const dropRef = { current: null as HTMLDivElement | null };
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
+  useEffect(() => { setMounted(true); }, []);
+  useEffect(() => {
+    if (!open || !btnRef.current) return;
+    const r = btnRef.current.getBoundingClientRect();
+    setPos({ top: r.bottom + 4, left: r.left, width: r.width });
+  }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => { const t = e.target as Node; if (btnRef.current?.contains(t) || dropRef.current?.contains(t)) return; setOpen(false); };
+    document.addEventListener("mousedown", h); return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+  const selected = options.find(o => o.value === value);
+  return (
+    <>
+      <button ref={el => { (btnRef as any).current = el; }} type="button" onClick={() => setOpen(v => !v)}
+        style={{ height: 44, minWidth: 130, padding: "0 14px", borderRadius: 12, background: "rgba(10,11,14,0.80)", color: selected?.color ?? "rgba(255,255,255,0.92)", border: "1px solid rgba(99,120,255,0.25)", outline: "none", cursor: "pointer", fontSize: 14, fontWeight: 700, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+        <span>{selected?.label ?? "—"}</span>
+        <span style={{ opacity: 0.5, fontSize: 10 }}>{open ? "▲" : "▼"}</span>
+      </button>
+      {open && mounted && createPortal(
+        <div ref={el => { (dropRef as any).current = el; }} style={{ position: "fixed", top: pos.top, left: pos.left, width: Math.max(pos.width, 160), zIndex: 99999, borderRadius: 12, overflow: "hidden", background: "linear-gradient(180deg, rgba(18,20,28,0.99), rgba(10,11,16,0.99))", border: "1px solid rgba(99,120,255,0.25)", boxShadow: "0 16px 48px rgba(0,0,0,0.7)", backdropFilter: "blur(20px)" }}>
+          {options.map(o => (
+            <button key={o.value} type="button" onClick={() => { onChange(o.value); setOpen(false); }}
+              style={{ width: "100%", padding: "11px 14px", background: o.value === value ? "rgba(99,120,255,0.14)" : "transparent", color: o.color ?? "rgba(255,255,255,0.88)", fontSize: 14, fontWeight: o.value === value ? 800 : 500, border: "none", cursor: "pointer", textAlign: "left", display: "flex", alignItems: "center", justifyContent: "space-between", transition: "background 100ms" }}>
+              {o.label}
+              {o.value === value && <span style={{ fontSize: 11, color: "rgba(99,120,255,0.9)" }}>✓</span>}
+            </button>
+          ))}
+        </div>,
+        document.body
+      )}
+    </>
+  );
+}
+
 export default function ParametresPage() {
   const { activeWorkspace } = useWorkspace();
   const { role, can, loading: roleLoading } = useRole();
@@ -52,6 +97,8 @@ export default function ParametresPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [successMsg, setSuccessMsg] = useState("");
   const [mounted, setMounted] = useState(false);
+  const [isOpen, setIsOpen] = useState(true);
+  const [togglingShop, setTogglingShop] = useState(false);
 
   // Invite form
   const [inviteEmail, setInviteEmail] = useState("");
@@ -72,6 +119,15 @@ export default function ParametresPage() {
       const { data: auth } = await supabase.auth.getUser();
       if (!auth?.user) { window.location.href = "/login"; return; }
 
+      // Récupère is_open du workspace
+      const { data: wsData } = await supabase
+        .from("workspaces")
+        .select("is_open")
+        .eq("id", activeWorkspace!.id)
+        .single();
+      setIsOpen(wsData?.is_open !== false);
+
+      // Récupère les membres
       const { data: membersData, error: mErr } = await supabase
         .from("workspace_members")
         .select("id,user_id,role,status,invited_email,created_at")
@@ -80,24 +136,10 @@ export default function ParametresPage() {
 
       if (mErr) throw mErr;
 
-      // Récupère les infos des users actifs
-      const enriched: Member[] = await Promise.all(
-        (membersData ?? []).map(async (m: any) => {
-          if (m.user_id) {
-            const { data: profile } = await supabase
-              .from("clients")
-              .select("prenom,nom,email")
-              .eq("id", m.user_id)
-              .single();
-            // Essaie de récupérer l'email depuis auth (disponible uniquement pour l'user courant)
-            if (m.user_id === auth.user!.id) {
-              return { ...m, email: auth.user!.email, prenom: profile?.prenom, nom: profile?.nom };
-            }
-            return { ...m, email: m.invited_email ?? "—", prenom: profile?.prenom, nom: profile?.nom };
-          }
-          return { ...m };
-        })
-      );
+      const enriched: Member[] = (membersData ?? []).map((m: any) => ({
+        ...m,
+        email: m.user_id === auth.user!.id ? auth.user!.email : (m.invited_email ?? "—"),
+      }));
 
       setMembers(enriched);
 
@@ -114,14 +156,28 @@ export default function ParametresPage() {
     finally { setLoading(false); }
   }
 
+  async function toggleShop() {
+    setTogglingShop(true); setErrorMsg(""); setSuccessMsg("");
+    try {
+      const newVal = !isOpen;
+      const { error } = await supabase
+        .from("workspaces")
+        .update({ is_open: newVal })
+        .eq("id", activeWorkspace!.id);
+      if (error) throw error;
+      setIsOpen(newVal);
+      setSuccessMsg(newVal ? "✅ Boutique ouverte — les vendeurs ont accès." : "🔒 Boutique fermée — les vendeurs sont bloqués.");
+      setTimeout(() => setSuccessMsg(""), 4000);
+    } catch (e: any) { setErrorMsg(e?.message ?? "Erreur"); }
+    finally { setTogglingShop(false); }
+  }
+
   async function sendInvitation() {
     if (!inviteEmail.trim()) { setErrorMsg("Email requis."); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(inviteEmail.trim())) { setErrorMsg("Email invalide."); return; }
     setInviting(true); setErrorMsg(""); setSuccessMsg("");
     try {
       const { data: auth } = await supabase.auth.getUser();
-
-      // Vérifie si déjà membre
       const already = members.find(m => m.invited_email === inviteEmail.trim() || m.email === inviteEmail.trim());
       if (already) { setErrorMsg("Cette personne est déjà membre."); return; }
 
@@ -137,67 +193,49 @@ export default function ParametresPage() {
         .single();
 
       if (error) throw error;
-
       setInvitations(prev => [data as Invitation, ...prev]);
       setInviteEmail("");
-
-      // Génère le lien d'invitation
       const link = `${window.location.origin}/invite/${(data as Invitation).token}`;
-      setSuccessMsg(`✅ Invitation créée ! Lien à partager : ${link}`);
+      setSuccessMsg(`✅ Invitation créée ! Lien : ${link}`);
     } catch (e: any) { setErrorMsg(e?.message ?? "Erreur invitation"); }
     finally { setInviting(false); }
   }
 
   async function changeRole(memberId: string, newRole: "admin" | "vendeur") {
     try {
-      const { error } = await supabase
-        .from("workspace_members")
-        .update({ role: newRole })
-        .eq("id", memberId);
+      const { error } = await supabase.from("workspace_members").update({ role: newRole }).eq("id", memberId);
       if (error) throw error;
       setMembers(prev => prev.map(m => m.id === memberId ? { ...m, role: newRole } : m));
-      setSuccessMsg("Rôle mis à jour.");
-      setTimeout(() => setSuccessMsg(""), 3000);
+      setSuccessMsg("Rôle mis à jour."); setTimeout(() => setSuccessMsg(""), 3000);
     } catch (e: any) { setErrorMsg(e?.message ?? "Erreur"); }
   }
 
   async function removeMember(memberId: string) {
     try {
-      const { error } = await supabase
-        .from("workspace_members")
-        .delete()
-        .eq("id", memberId);
+      const { error } = await supabase.from("workspace_members").delete().eq("id", memberId);
       if (error) throw error;
       setMembers(prev => prev.filter(m => m.id !== memberId));
-      setSuccessMsg("Membre retiré.");
-      setTimeout(() => setSuccessMsg(""), 3000);
+      setSuccessMsg("Membre retiré."); setTimeout(() => setSuccessMsg(""), 3000);
     } catch (e: any) { setErrorMsg(e?.message ?? "Erreur"); }
   }
 
   async function cancelInvitation(invId: string) {
     try {
-      const { error } = await supabase
-        .from("workspace_invitations")
-        .delete()
-        .eq("id", invId);
+      const { error } = await supabase.from("workspace_invitations").delete().eq("id", invId);
       if (error) throw error;
       setInvitations(prev => prev.filter(i => i.id !== invId));
-      setSuccessMsg("Invitation annulée.");
-      setTimeout(() => setSuccessMsg(""), 3000);
+      setSuccessMsg("Invitation annulée."); setTimeout(() => setSuccessMsg(""), 3000);
     } catch (e: any) { setErrorMsg(e?.message ?? "Erreur"); }
   }
 
   function copyLink(token: string) {
     const link = `${window.location.origin}/invite/${token}`;
     navigator.clipboard.writeText(link);
-    setSuccessMsg("Lien copié !");
-    setTimeout(() => setSuccessMsg(""), 3000);
+    setSuccessMsg("Lien copié !"); setTimeout(() => setSuccessMsg(""), 3000);
   }
 
   function confirm(text: string, action: () => void) {
-    setConfirmText(text);
-    setConfirmAction(() => action);
-    setConfirmOpen(true);
+    setConfirmText(text); setConfirmAction(() => action); setConfirmOpen(true);
   }
 
   function pad2(n: number) { return String(n).padStart(2, "0"); }
@@ -205,7 +243,6 @@ export default function ParametresPage() {
     const d = new Date(iso);
     return `${pad2(d.getDate())}/${pad2(d.getMonth() + 1)}/${d.getFullYear()}`;
   }
-
   const isExpired = (iso: string) => new Date(iso) < new Date();
 
   if (!activeWorkspace) return (
@@ -246,17 +283,62 @@ export default function ParametresPage() {
         </div>
       </div>
 
-      {errorMsg && <div style={{ marginBottom: 16, padding: "12px 16px", borderRadius: 12, background: "rgba(255,80,80,0.08)", border: "1px solid rgba(255,80,80,0.20)", color: "rgba(255,120,120,0.95)", fontWeight: 700, fontSize: 13 }}>{errorMsg}</div>}
-      {successMsg && <div style={{ marginBottom: 16, padding: "12px 16px", borderRadius: 12, background: "rgba(80,200,120,0.08)", border: "1px solid rgba(80,200,120,0.20)", color: "rgba(100,220,140,0.95)", fontWeight: 700, fontSize: 13, wordBreak: "break-all" }}>{successMsg}</div>}
+      {errorMsg && (
+        <div style={{ padding: "12px 16px", borderRadius: 12, background: "rgba(255,80,80,0.08)", border: "1px solid rgba(255,80,80,0.20)", color: "rgba(255,120,120,0.95)", fontWeight: 700, fontSize: 13 }}>{errorMsg}</div>
+      )}
+      {successMsg && (
+        <div style={{ padding: "12px 16px", borderRadius: 12, background: "rgba(80,200,120,0.08)", border: "1px solid rgba(80,200,120,0.20)", color: "rgba(100,220,140,0.95)", fontWeight: 700, fontSize: 13, wordBreak: "break-all" }}>{successMsg}</div>
+      )}
+
+      {/* ── Statut boutique ── */}
+      <div className="ds-card">
+        <div className="ds-card-head">
+          <div>
+            <div className="ds-card-title">{isOpen ? "🟢" : "🔴"} Statut de la boutique</div>
+            <div className="ds-card-sub">
+              {isOpen
+                ? "La boutique est ouverte — tous les membres ont accès."
+                : "La boutique est fermée — les vendeurs sont bloqués."}
+            </div>
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          {/* Toggle visuel */}
+          <div onClick={() => !togglingShop && confirm(isOpen ? "Fermer la boutique ? Les vendeurs n'auront plus accès." : "Ouvrir la boutique ? Les vendeurs retrouveront leur accès.", toggleShop)}
+            style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 20px", borderRadius: 14, border: `1px solid ${isOpen ? "rgba(80,200,120,0.30)" : "rgba(255,80,80,0.30)"}`, background: isOpen ? "rgba(80,200,120,0.06)" : "rgba(255,80,80,0.06)", cursor: togglingShop ? "not-allowed" : "pointer", transition: "all 200ms", opacity: togglingShop ? 0.6 : 1 }}>
+            {/* Switch pill */}
+            <div style={{ width: 48, height: 26, borderRadius: 999, background: isOpen ? "rgba(80,200,120,0.35)" : "rgba(255,80,80,0.25)", border: `1px solid ${isOpen ? "rgba(80,200,120,0.50)" : "rgba(255,80,80,0.40)"}`, position: "relative", transition: "all 200ms", flexShrink: 0 }}>
+              <div style={{ position: "absolute", top: 3, left: isOpen ? 24 : 3, width: 18, height: 18, borderRadius: "50%", background: isOpen ? "rgba(80,220,120,0.95)" : "rgba(255,100,80,0.95)", transition: "left 200ms", boxShadow: `0 0 8px ${isOpen ? "rgba(80,220,120,0.5)" : "rgba(255,80,80,0.5)"}` }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 800, color: isOpen ? "rgba(100,220,140,0.95)" : "rgba(255,120,100,0.95)" }}>
+                {togglingShop ? "En cours…" : isOpen ? "Boutique ouverte" : "Boutique fermée"}
+              </div>
+              <div style={{ fontSize: 12, opacity: 0.55, marginTop: 2 }}>
+                {isOpen ? "Cliquer pour fermer" : "Cliquer pour ouvrir"}
+              </div>
+            </div>
+          </div>
+
+          {/* Info */}
+          <div style={{ flex: 1, minWidth: 200, padding: "12px 16px", borderRadius: 12, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", fontSize: 13, color: "rgba(255,255,255,0.50)", lineHeight: 1.6 }}>
+            {isOpen
+              ? "✅ Les vendeurs peuvent ajouter des clients et des ventes normalement."
+              : "⛔ Les vendeurs voient un message de boutique fermée et ne peuvent rien faire."}
+          </div>
+        </div>
+      </div>
 
       {/* ── Inviter un membre ── */}
-      <div className="ds-card" style={{ marginBottom: 24 }}>
+      <div className="ds-card">
         <div className="ds-card-head">
-          <div className="ds-card-title">✉️ Inviter un membre</div>
-          <div className="ds-card-sub">Le lien d'invitation est valable 7 jours.</div>
-        </div>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr auto auto", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
           <div>
+            <div className="ds-card-title">✉️ Inviter un membre</div>
+            <div className="ds-card-sub">Le lien d'invitation est valable 7 jours.</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
+          <div style={{ flex: 1, minWidth: 200 }}>
             <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.6, marginBottom: 6 }}>Email</div>
             <input
               value={inviteEmail}
@@ -268,20 +350,20 @@ export default function ParametresPage() {
           </div>
           <div>
             <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.6, marginBottom: 6 }}>Rôle</div>
-            <select
+            <ThemedSelect
               value={inviteRole}
-              onChange={e => setInviteRole(e.target.value as "admin" | "vendeur")}
-              style={{ height: 44, borderRadius: 12, padding: "0 14px", background: "rgba(10,11,14,0.65)", color: "rgba(255,255,255,0.92)", border: "1px solid rgba(255,255,255,0.10)", outline: "none", fontSize: 14, cursor: "pointer" }}
-            >
-              <option value="vendeur">Vendeur</option>
-              <option value="admin">Admin</option>
-            </select>
+              onChange={v => setInviteRole(v as "admin" | "vendeur")}
+              options={[
+                { value: "vendeur", label: "Vendeur", color: "#4ecdc4" },
+                { value: "admin",   label: "Admin",   color: "#6378ff" },
+              ]}
+            />
           </div>
           <button
             type="button"
             onClick={sendInvitation}
             disabled={inviting || !inviteEmail.trim()}
-            style={{ height: 44, padding: "0 20px", borderRadius: 12, border: "1px solid rgba(120,160,255,0.40)", background: "rgba(120,160,255,0.16)", color: "rgba(255,255,255,0.95)", fontWeight: 800, fontSize: 14, cursor: inviting || !inviteEmail.trim() ? "not-allowed" : "pointer", opacity: inviting || !inviteEmail.trim() ? 0.5 : 1, whiteSpace: "nowrap", marginTop: 22 }}
+            style={{ height: 44, padding: "0 20px", borderRadius: 12, border: "1px solid rgba(120,160,255,0.40)", background: "rgba(120,160,255,0.16)", color: "rgba(255,255,255,0.95)", fontWeight: 800, fontSize: 14, cursor: inviting || !inviteEmail.trim() ? "not-allowed" : "pointer", opacity: inviting || !inviteEmail.trim() ? 0.5 : 1, whiteSpace: "nowrap" }}
           >
             {inviting ? "Envoi…" : "＋ Inviter"}
           </button>
@@ -289,7 +371,7 @@ export default function ParametresPage() {
       </div>
 
       {/* ── Membres actifs ── */}
-      <div className="ds-card" style={{ marginBottom: 24 }}>
+      <div className="ds-card">
         <div className="ds-card-head">
           <div>
             <div className="ds-card-title">👥 Membres actifs</div>
@@ -308,7 +390,6 @@ export default function ParametresPage() {
               </thead>
               <tbody>
                 {members.filter(m => m.status === "active").map(m => {
-                  const isCurrentUser = false;
                   const isOwnerRow = m.role === "owner";
                   return (
                     <tr key={m.id}>
@@ -317,14 +398,14 @@ export default function ParametresPage() {
                         {isOwnerRow ? (
                           <RoleBadge role="owner" />
                         ) : (
-                          <select
+                          <ThemedSelect
                             value={m.role}
-                            onChange={e => changeRole(m.id, e.target.value as "admin" | "vendeur")}
-                            style={{ height: 30, borderRadius: 8, padding: "0 10px", background: "rgba(10,11,14,0.65)", color: "rgba(255,255,255,0.92)", border: "1px solid rgba(255,255,255,0.10)", outline: "none", fontSize: 12, cursor: "pointer" }}
-                          >
-                            <option value="admin">Admin</option>
-                            <option value="vendeur">Vendeur</option>
-                          </select>
+                            onChange={v => changeRole(m.id, v as "admin" | "vendeur")}
+                            options={[
+                              { value: "vendeur", label: "Vendeur", color: "#4ecdc4" },
+                              { value: "admin",   label: "Admin",   color: "#6378ff" },
+                            ]}
+                          />
                         )}
                       </td>
                       <td style={{ opacity: 0.55, fontSize: 13 }}>{formatDate(m.created_at)}</td>
@@ -332,7 +413,7 @@ export default function ParametresPage() {
                         {!isOwnerRow && (
                           <button
                             type="button"
-                            onClick={() => confirm(`Retirer ce membre du workspace ?`, () => removeMember(m.id))}
+                            onClick={() => confirm("Retirer ce membre du workspace ?", () => removeMember(m.id))}
                             style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(255,80,80,0.20)", background: "rgba(255,80,80,0.06)", color: "rgba(255,120,120,0.85)", fontSize: 12, fontWeight: 750, cursor: "pointer" }}
                           >Retirer</button>
                         )}
@@ -370,16 +451,14 @@ export default function ParametresPage() {
                     </td>
                     <td className="ds-right">
                       <div style={{ display: "inline-flex", gap: 8 }}>
-                        <button
-                          type="button"
-                          onClick={() => copyLink(inv.token)}
-                          style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(120,160,255,0.20)", background: "rgba(120,160,255,0.06)", color: "rgba(120,160,255,0.85)", fontSize: 12, fontWeight: 750, cursor: "pointer" }}
-                        >📋 Copier le lien</button>
-                        <button
-                          type="button"
-                          onClick={() => confirm("Annuler cette invitation ?", () => cancelInvitation(inv.id))}
-                          style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(255,80,80,0.20)", background: "rgba(255,80,80,0.06)", color: "rgba(255,120,120,0.85)", fontSize: 12, fontWeight: 750, cursor: "pointer" }}
-                        >Annuler</button>
+                        <button type="button" onClick={() => copyLink(inv.token)}
+                          style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(120,160,255,0.20)", background: "rgba(120,160,255,0.06)", color: "rgba(120,160,255,0.85)", fontSize: 12, fontWeight: 750, cursor: "pointer" }}>
+                          📋 Copier le lien
+                        </button>
+                        <button type="button" onClick={() => confirm("Annuler cette invitation ?", () => cancelInvitation(inv.id))}
+                          style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(255,80,80,0.20)", background: "rgba(255,80,80,0.06)", color: "rgba(255,120,120,0.85)", fontSize: 12, fontWeight: 750, cursor: "pointer" }}>
+                          Annuler
+                        </button>
                       </div>
                     </td>
                   </tr>
