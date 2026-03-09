@@ -107,14 +107,8 @@ function ThemedSelect({ value, onChange, options }: {
   );
 }
 
-// ─── Picker boutiques inline (multi-select) ───────────────────────────────────
 function WorkspaceAccessPicker({
-  memberId,
-  memberRole,
-  allWorkspaces,
-  assignedIds,
-  currentUserRole,
-  onChange,
+  memberId, memberRole, allWorkspaces, assignedIds, currentUserRole, onChange,
 }: {
   memberId: string;
   memberRole: string;
@@ -129,10 +123,7 @@ function WorkspaceAccessPicker({
   const dropRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
 
-  // Owner peut assigner admin+vendeur, admin peut assigner uniquement vendeur
-  const canManage =
-    currentUserRole === "owner" ||
-    (currentUserRole === "admin" && memberRole === "vendeur");
+  const canManage = currentUserRole === "owner" || (currentUserRole === "admin" && memberRole === "vendeur");
 
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => {
@@ -155,70 +146,38 @@ function WorkspaceAccessPicker({
 
   function toggle(wsId: string) {
     if (!canManage) return;
-    const next = assignedIds.includes(wsId)
-      ? assignedIds.filter(id => id !== wsId)
-      : [...assignedIds, wsId];
+    const next = assignedIds.includes(wsId) ? assignedIds.filter(id => id !== wsId) : [...assignedIds, wsId];
     onChange(memberId, next);
   }
 
-  const label = assignedIds.length === 0
-    ? "Aucune boutique"
-    : assignedIds.length === allWorkspaces.length
-    ? "Toutes les boutiques"
-    : `${assignedIds.length} boutique${assignedIds.length > 1 ? "s" : ""}`;
+  const label = assignedIds.length === 0 ? "Aucune boutique" : assignedIds.length === allWorkspaces.length ? "Toutes les boutiques" : `${assignedIds.length} boutique${assignedIds.length > 1 ? "s" : ""}`;
+  const labelColor = assignedIds.length === 0 ? "rgba(255,120,120,0.8)" : assignedIds.length === allWorkspaces.length ? "rgba(100,220,140,0.9)" : "rgba(255,200,80,0.9)";
 
-  const labelColor = assignedIds.length === 0
-    ? "rgba(255,120,120,0.8)"
-    : assignedIds.length === allWorkspaces.length
-    ? "rgba(100,220,140,0.9)"
-    : "rgba(255,200,80,0.9)";
-
-  // Si owner, pas de restriction d'accès à afficher
-  if (memberRole === "owner") {
-    return (
-      <span style={{ fontSize: 12, color: "rgba(245,200,66,0.7)", fontWeight: 600 }}>Toutes (owner)</span>
-    );
-  }
+  if (memberRole === "owner") return <span style={{ fontSize: 12, color: "rgba(245,200,66,0.7)", fontWeight: 600 }}>Toutes (owner)</span>;
 
   return (
     <>
-      <button
-        ref={btnRef}
-        type="button"
-        onClick={() => canManage && setOpen(v => !v)}
-        style={{ height: 34, padding: "0 10px", borderRadius: 9, background: "rgba(255,255,255,0.03)", color: labelColor, border: `1px solid ${assignedIds.length === 0 ? "rgba(255,80,80,0.25)" : "rgba(255,255,255,0.10)"}`, outline: "none", cursor: canManage ? "pointer" : "default", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}
-      >
-        <span>🏪</span>
-        <span>{label}</span>
+      <button ref={btnRef} type="button" onClick={() => canManage && setOpen(v => !v)}
+        style={{ height: 34, padding: "0 10px", borderRadius: 9, background: "rgba(255,255,255,0.03)", color: labelColor, border: `1px solid ${assignedIds.length === 0 ? "rgba(255,80,80,0.25)" : "rgba(255,255,255,0.10)"}`, outline: "none", cursor: canManage ? "pointer" : "default", fontSize: 12, fontWeight: 700, display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+        <span>🏪</span><span>{label}</span>
         {canManage && <span style={{ opacity: 0.4, fontSize: 9 }}>{open ? "▲" : "▼"}</span>}
       </button>
       {open && mounted && createPortal(
-        <div
-          ref={dropRef}
-          style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width, zIndex: 99999, borderRadius: 14, padding: 8, background: "linear-gradient(180deg, rgba(18,20,28,0.99), rgba(10,11,16,0.99))", border: "1px solid rgba(99,120,255,0.22)", boxShadow: "0 16px 48px rgba(0,0,0,0.7)", backdropFilter: "blur(20px)" }}
-        >
+        <div ref={dropRef} style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width, zIndex: 99999, borderRadius: 14, padding: 8, background: "linear-gradient(180deg, rgba(18,20,28,0.99), rgba(10,11,16,0.99))", border: "1px solid rgba(99,120,255,0.22)", boxShadow: "0 16px 48px rgba(0,0,0,0.7)", backdropFilter: "blur(20px)" }}>
           <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: 1, opacity: 0.4, color: "#fff", padding: "4px 8px 8px", textTransform: "uppercase" }}>Boutiques accessibles</div>
           {allWorkspaces.map(ws => {
             const checked = assignedIds.includes(ws.id);
             return (
-              <button
-                key={ws.id}
-                type="button"
-                onClick={() => toggle(ws.id)}
-                style={{ width: "100%", padding: "10px 12px", background: checked ? "rgba(99,120,255,0.12)" : "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 10, borderRadius: 8, transition: "background 100ms" }}
-              >
+              <button key={ws.id} type="button" onClick={() => toggle(ws.id)}
+                style={{ width: "100%", padding: "10px 12px", background: checked ? "rgba(99,120,255,0.12)" : "transparent", border: "none", cursor: "pointer", display: "flex", alignItems: "center", gap: 10, borderRadius: 8, transition: "background 100ms" }}>
                 <div style={{ width: 16, height: 16, borderRadius: 5, border: `2px solid ${checked ? "rgba(99,120,255,0.9)" : "rgba(255,255,255,0.25)"}`, background: checked ? "rgba(99,120,255,0.9)" : "transparent", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", transition: "all 150ms" }}>
                   {checked && <span style={{ fontSize: 9, color: "#fff", fontWeight: 900 }}>✓</span>}
                 </div>
-                <span style={{ fontSize: 13, fontWeight: checked ? 700 : 500, color: checked ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.65)", textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {ws.name}
-                </span>
+                <span style={{ fontSize: 13, fontWeight: checked ? 700 : 500, color: checked ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.65)", textAlign: "left", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{ws.name}</span>
               </button>
             );
           })}
-          {allWorkspaces.length === 0 && (
-            <div style={{ padding: "10px 12px", fontSize: 13, opacity: 0.4, color: "#fff" }}>Aucune boutique disponible</div>
-          )}
+          {allWorkspaces.length === 0 && <div style={{ padding: "10px 12px", fontSize: 13, opacity: 0.4, color: "#fff" }}>Aucune boutique disponible</div>}
         </div>,
         document.body
       )}
@@ -258,8 +217,7 @@ export default function ParametresPage() {
       if (!auth?.user) { window.location.href = "/login"; return; }
       setCurrentUserId(auth.user.id);
 
-      const { data: wsData } = await supabase
-        .from("workspaces").select("is_open").eq("id", activeWorkspace!.id).single();
+      const { data: wsData } = await supabase.from("workspaces").select("is_open").eq("id", activeWorkspace!.id).single();
       setIsOpen(wsData?.is_open !== false);
 
       const { data: membersData, error: mErr } = await supabase
@@ -269,7 +227,6 @@ export default function ParametresPage() {
         .order("created_at", { ascending: true });
       if (mErr) throw mErr;
 
-      // Récupère les accès boutiques pour tous les membres
       const memberIds = (membersData ?? []).map((m: any) => m.id);
       let accessMap: Record<string, string[]> = {};
       if (memberIds.length > 0) {
@@ -303,22 +260,16 @@ export default function ParametresPage() {
   }
 
   async function updateWorkspaceAccess(memberId: string, newIds: string[]) {
-    // Optimistic update
     setMembers(prev => prev.map(m => m.id === memberId ? { ...m, assignedWorkspaceIds: newIds } : m));
     try {
-      // Supprime tous les accès existants pour ce membre
       await supabase.from("member_workspace_access").delete().eq("member_id", memberId);
-      // Réinsère les nouveaux
       if (newIds.length > 0) {
         const rows = newIds.map(wsId => ({ member_id: memberId, workspace_id: wsId }));
         const { error } = await supabase.from("member_workspace_access").insert(rows);
         if (error) throw error;
       }
       setSuccessMsg("✅ Accès boutiques mis à jour."); setTimeout(() => setSuccessMsg(""), 3000);
-    } catch (e: any) {
-      setErrorMsg(e?.message ?? "Erreur mise à jour accès");
-      fetchAll(); // rollback
-    }
+    } catch (e: any) { setErrorMsg(e?.message ?? "Erreur mise à jour accès"); fetchAll(); }
   }
 
   async function toggleShop() {
@@ -332,6 +283,24 @@ export default function ParametresPage() {
       setTimeout(() => setSuccessMsg(""), 4000);
     } catch (e: any) { setErrorMsg(e?.message ?? "Erreur"); }
     finally { setTogglingShop(false); }
+  }
+
+  function buildMailto(inv: Invitation) {
+    const link = `${window.location.origin}/invite/${inv.token}`;
+    const roleLabel = ROLE_STYLES[inv.role]?.label ?? inv.role;
+    const subject = encodeURIComponent(`Invitation ClientFlow — ${activeWorkspace!.name}`);
+    const body = encodeURIComponent(
+`Bonjour,
+
+Vous avez été invité(e) à rejoindre la boutique "${activeWorkspace!.name}" sur ClientFlow en tant que ${roleLabel}.
+
+Cliquez sur le lien ci-dessous pour accepter l'invitation (valable 7 jours) :
+
+${link}
+
+À bientôt !`
+    );
+    return `mailto:${inv.invited_email}?subject=${subject}&body=${body}`;
   }
 
   async function sendInvitation() {
@@ -348,9 +317,10 @@ export default function ParametresPage() {
         .select("id,invited_email,role,token,expires_at,accepted_at,created_at")
         .single();
       if (error) throw error;
-      setInvitations(prev => [data as Invitation, ...prev]);
-      const link = `${window.location.origin}/invite/${(data as Invitation).token}`;
-      setSuccessMsg(`✅ Invitation créée ! Lien : ${link}`);
+      const inv = data as Invitation;
+      setInvitations(prev => [inv, ...prev]);
+      window.open(buildMailto(inv), "_blank");
+      setSuccessMsg("✅ Invitation créée — votre client mail s'est ouvert.");
       setInviteEmail("");
     } catch (e: any) { setErrorMsg(e?.message ?? "Erreur invitation"); }
     finally { setInviting(false); }
@@ -472,7 +442,7 @@ export default function ParametresPage() {
         <div className="ds-card-head">
           <div>
             <div className="ds-card-title">✉️ Inviter un membre</div>
-            <div className="ds-card-sub">Le lien d'invitation est valable 7 jours. Les boutiques accessibles seront assignées après acceptation.</div>
+            <div className="ds-card-sub">Le lien d'invitation est valable 7 jours. Votre client mail s'ouvrira automatiquement.</div>
           </div>
         </div>
         <div style={{ display: "flex", gap: 10, alignItems: "flex-end", flexWrap: "wrap" }}>
@@ -509,11 +479,7 @@ export default function ParametresPage() {
             <table className="ds-table" style={{ minWidth: 640 }}>
               <thead>
                 <tr>
-                  <th>Email</th>
-                  <th>Rôle</th>
-                  <th>Boutiques</th>
-                  <th>Depuis</th>
-                  <th className="ds-right">Actions</th>
+                  <th>Email</th><th>Rôle</th><th>Boutiques</th><th>Depuis</th><th className="ds-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -525,18 +491,9 @@ export default function ParametresPage() {
                         {m.email || m.invited_email || "—"}
                         {isSelf && <span style={{ marginLeft: 8, fontSize: 10, opacity: 0.45, fontWeight: 500 }}>(vous)</span>}
                       </td>
+                      <td><ThemedSelect value={m.role} onChange={v => changeRole(m.id, v as any)} options={ROLE_OPTIONS} /></td>
                       <td>
-                        <ThemedSelect value={m.role} onChange={v => changeRole(m.id, v as any)} options={ROLE_OPTIONS} />
-                      </td>
-                      <td>
-                        <WorkspaceAccessPicker
-                          memberId={m.id}
-                          memberRole={m.role}
-                          allWorkspaces={allWorkspaces}
-                          assignedIds={m.assignedWorkspaceIds ?? []}
-                          currentUserRole={role}
-                          onChange={updateWorkspaceAccess}
-                        />
+                        <WorkspaceAccessPicker memberId={m.id} memberRole={m.role} allWorkspaces={allWorkspaces} assignedIds={m.assignedWorkspaceIds ?? []} currentUserRole={role} onChange={updateWorkspaceAccess} />
                       </td>
                       <td style={{ opacity: 0.55, fontSize: 13 }}>{formatDate(m.created_at)}</td>
                       <td className="ds-right">
@@ -580,6 +537,10 @@ export default function ParametresPage() {
                     </td>
                     <td className="ds-right">
                       <div style={{ display: "inline-flex", gap: 8 }}>
+                        <button type="button" onClick={() => window.open(buildMailto(inv), "_blank")}
+                          style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(120,160,255,0.20)", background: "rgba(120,160,255,0.06)", color: "rgba(120,160,255,0.85)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                          ✉️ Renvoyer
+                        </button>
                         <button type="button" onClick={() => copyLink(inv.token)}
                           style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(120,160,255,0.20)", background: "rgba(120,160,255,0.06)", color: "rgba(120,160,255,0.85)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                           📋 Copier
