@@ -64,13 +64,15 @@ function ThemedSelect({ value, onChange, options }: {
   const [mounted, setMounted] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 0 });
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 0, openUp: false });
 
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => {
     if (!open || !btnRef.current) return;
     const r = btnRef.current.getBoundingClientRect();
-    setPos({ top: r.bottom + 4, left: r.left, width: r.width });
+    const dropH = options.length * 44 + 16;
+    const openUp = r.bottom + dropH > window.innerHeight - 16;
+    setPos({ top: openUp ? r.top - dropH - 8 : r.bottom + 4, left: r.left, width: r.width, openUp });
   }, [open]);
   useEffect(() => {
     if (!open) return;
@@ -130,8 +132,14 @@ function WorkspaceAccessPicker({
     if (!open || !btnRef.current) return;
     const r = btnRef.current.getBoundingClientRect();
     const dropW = Math.max(220, r.width);
+    const dropH = allWorkspaces.length * 44 + 56;
     const left = Math.min(r.left, window.innerWidth - dropW - 12);
-    setPos({ top: r.bottom + 4, left: Math.max(8, left), width: dropW });
+    const openUp = r.bottom + dropH > window.innerHeight - 16;
+    setPos({
+      top: openUp ? r.top - dropH - 8 : r.bottom + 4,
+      left: Math.max(8, left),
+      width: dropW,
+    });
   }, [open]);
   useEffect(() => {
     if (!open) return;
@@ -186,7 +194,7 @@ function WorkspaceAccessPicker({
 }
 
 export default function ParametresPage() {
-  const { activeWorkspace, workspaces: allWorkspaces } = useWorkspace();
+  const { activeWorkspace, workspaces: allWorkspaces, loading: wsLoading } = useWorkspace();
   const { role, can, loading: roleLoading } = useRole();
 
   const [members, setMembers] = useState<Member[]>([]);
@@ -208,7 +216,7 @@ export default function ParametresPage() {
   const [confirmText, setConfirmText] = useState("");
 
   useEffect(() => { setMounted(true); }, []);
-  useEffect(() => { if (activeWorkspace) fetchAll(); }, [activeWorkspace?.id]);
+  useEffect(() => { if (activeWorkspace?.id) fetchAll(); }, [activeWorkspace?.id]);
 
   async function fetchAll() {
     setLoading(true); setErrorMsg("");
@@ -368,6 +376,14 @@ ${link}
   }
   const isExpired = (iso: string) => new Date(iso) < new Date();
 
+  if (wsLoading || roleLoading) return (
+    <div className="ds-page">
+      <div className="ds-topline">Dashboard / Paramètres</div>
+      <h1 className="ds-title">Paramètres</h1>
+      <div style={{ padding: "60px 0", textAlign: "center", opacity: 0.5 }}>Chargement…</div>
+    </div>
+  );
+
   if (!activeWorkspace) return (
     <div className="ds-page">
       <div className="ds-topline">Dashboard / Paramètres</div>
@@ -379,7 +395,7 @@ ${link}
     </div>
   );
 
-  if (!roleLoading && !can.manageMembers) return (
+  if (!can.manageMembers) return (
     <div className="ds-page">
       <div className="ds-topline">Dashboard / Paramètres</div>
       <h1 className="ds-title">Paramètres</h1>
@@ -410,7 +426,6 @@ ${link}
       {errorMsg && <div style={{ padding: "12px 16px", borderRadius: 12, background: "rgba(255,80,80,0.08)", border: "1px solid rgba(255,80,80,0.20)", color: "rgba(255,120,120,0.95)", fontWeight: 700, fontSize: 13 }}>{errorMsg}</div>}
       {successMsg && <div style={{ padding: "12px 16px", borderRadius: 12, background: "rgba(80,200,120,0.08)", border: "1px solid rgba(80,200,120,0.20)", color: "rgba(100,220,140,0.95)", fontWeight: 700, fontSize: 13, wordBreak: "break-all" }}>{successMsg}</div>}
 
-      {/* ── Statut boutique ── */}
       <div className="ds-card">
         <div className="ds-card-head">
           <div>
@@ -437,7 +452,6 @@ ${link}
         </div>
       </div>
 
-      {/* ── Inviter un membre ── */}
       <div className="ds-card">
         <div className="ds-card-head">
           <div>
@@ -462,7 +476,6 @@ ${link}
         </div>
       </div>
 
-      {/* ── Membres actifs ── */}
       <div className="ds-card">
         <div className="ds-card-head">
           <div>
@@ -478,9 +491,7 @@ ${link}
           <div style={{ overflowX: "auto" }}>
             <table className="ds-table" style={{ minWidth: 640 }}>
               <thead>
-                <tr>
-                  <th>Email</th><th>Rôle</th><th>Boutiques</th><th>Depuis</th><th className="ds-right">Actions</th>
-                </tr>
+                <tr><th>Email</th><th>Rôle</th><th>Boutiques</th><th>Depuis</th><th className="ds-right">Actions</th></tr>
               </thead>
               <tbody>
                 {activeMembers.map(m => {
@@ -513,7 +524,6 @@ ${link}
         )}
       </div>
 
-      {/* ── Invitations en attente ── */}
       {invitations.length > 0 && (
         <div className="ds-card">
           <div className="ds-card-head">
@@ -559,7 +569,6 @@ ${link}
         </div>
       )}
 
-      {/* ── Modal confirmation ── */}
       {confirmOpen && mounted && createPortal(
         <div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", padding: 18, background: "rgba(0,0,0,0.60)", backdropFilter: "blur(10px)" }}
           onMouseDown={e => { if (e.target === e.currentTarget) setConfirmOpen(false); }}>

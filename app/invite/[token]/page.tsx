@@ -25,7 +25,6 @@ export default function InvitePage() {
   const [success, setSuccess] = useState(false);
   const [currentUser, setCurrentUser] = useState<any>(null);
 
-  // Auth form
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -37,11 +36,9 @@ export default function InvitePage() {
   async function init() {
     setLoading(true);
     try {
-      // Récupère l'utilisateur courant
       const { data: auth } = await supabase.auth.getUser();
       setCurrentUser(auth?.user ?? null);
 
-      // Récupère l'invitation
       const { data, error } = await supabase
         .from("workspace_invitations")
         .select("id,invited_email,role,token,expires_at,accepted_at,workspace_id")
@@ -52,7 +49,6 @@ export default function InvitePage() {
       if (data.accepted_at) { setError("Cette invitation a déjà été utilisée."); return; }
       if (new Date(data.expires_at) < new Date()) { setError("Cette invitation a expiré."); return; }
 
-      // Récupère le nom du workspace
       const { data: ws } = await supabase
         .from("workspaces")
         .select("name")
@@ -61,7 +57,6 @@ export default function InvitePage() {
 
       setInvitation({ ...data, workspace_name: ws?.name ?? "ce workspace" });
 
-      // Pré-rempli l'email
       if (auth?.user) {
         setEmail(auth.user.email ?? "");
       } else {
@@ -91,13 +86,11 @@ export default function InvitePage() {
     if (!invitation || !currentUser) return;
     setJoining(true); setError("");
     try {
-      // Vérifie que l'email correspond
       if (currentUser.email?.toLowerCase() !== invitation.invited_email.toLowerCase()) {
         setError(`Cette invitation est destinée à ${invitation.invited_email}. Connecte-toi avec cet email.`);
         return;
       }
 
-      // Ajoute le membre
       const { error: memberErr } = await supabase
         .from("workspace_members")
         .upsert({
@@ -110,16 +103,13 @@ export default function InvitePage() {
 
       if (memberErr) throw memberErr;
 
-      // Marque l'invitation comme acceptée
       await supabase
         .from("workspace_invitations")
         .update({ accepted_at: new Date().toISOString() })
         .eq("id", invitation.id);
 
       setSuccess(true);
-
-      // Redirige vers le dashboard après 2s
-      setTimeout(() => router.push("/dashboard"), 2000);
+      setTimeout(() => router.push("/dashboard/clients"), 2000);
     } catch (e: any) { setError(e?.message ?? "Erreur"); }
     finally { setJoining(false); }
   }
@@ -134,7 +124,6 @@ export default function InvitePage() {
     <div style={{ minHeight: "100vh", background: "linear-gradient(135deg, #0a0b0e 0%, #13131f 50%, #0a0b0e 100%)", display: "flex", alignItems: "center", justifyContent: "center", padding: 18, fontFamily: "'DM Sans', sans-serif" }}>
       <div style={{ width: 480, maxWidth: "100%" }}>
 
-        {/* Logo */}
         <div style={{ textAlign: "center", marginBottom: 32 }}>
           <div style={{ fontSize: 28, fontWeight: 900, letterSpacing: "-0.5px", background: "linear-gradient(135deg, #6378ff, #8b5cf6)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
             ClientFlow
@@ -153,7 +142,7 @@ export default function InvitePage() {
               <div style={{ fontSize: 36, marginBottom: 16 }}>🔒</div>
               <div style={{ fontSize: 18, fontWeight: 800, color: "rgba(255,255,255,0.9)", marginBottom: 8 }}>Invitation invalide</div>
               <div style={{ fontSize: 14, color: "rgba(255,120,120,0.9)", marginBottom: 24 }}>{error}</div>
-              <button type="button" onClick={() => router.push("/dashboard")}
+              <button type="button" onClick={() => router.push("/dashboard/clients")}
                 style={{ height: 44, padding: "0 24px", borderRadius: 12, border: "1px solid rgba(120,160,255,0.30)", background: "rgba(120,160,255,0.10)", color: "rgba(120,160,255,0.95)", fontWeight: 800, fontSize: 14, cursor: "pointer" }}>
                 Aller au dashboard
               </button>
@@ -167,7 +156,6 @@ export default function InvitePage() {
             </div>
           ) : invitation ? (
             <>
-              {/* Header invitation */}
               <div style={{ textAlign: "center", marginBottom: 24 }}>
                 <div style={{ width: 56, height: 56, borderRadius: "50%", background: "rgba(99,120,255,0.15)", border: "1px solid rgba(99,120,255,0.30)", margin: "0 auto 14px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 24 }}>✉️</div>
                 <div style={{ fontSize: 20, fontWeight: 900, color: "rgba(255,255,255,0.95)", marginBottom: 6 }}>Tu es invité(e) !</div>
@@ -177,7 +165,6 @@ export default function InvitePage() {
                 </div>
               </div>
 
-              {/* Info invitation */}
               <div style={{ padding: "12px 16px", borderRadius: 12, background: "rgba(99,120,255,0.06)", border: "1px solid rgba(99,120,255,0.15)", marginBottom: 20, fontSize: 13, color: "rgba(255,255,255,0.65)" }}>
                 Invitation envoyée à <strong style={{ color: "rgba(255,255,255,0.85)" }}>{invitation.invited_email}</strong>
               </div>
@@ -186,7 +173,6 @@ export default function InvitePage() {
                 <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 10, background: "rgba(255,80,80,0.08)", border: "1px solid rgba(255,80,80,0.20)", color: "rgba(255,120,120,0.95)", fontWeight: 700, fontSize: 13 }}>{error}</div>
               )}
 
-              {/* Si pas connecté → formulaire auth */}
               {!currentUser ? (
                 <>
                   <div style={{ display: "flex", gap: 8, marginBottom: 18 }}>
@@ -220,7 +206,6 @@ export default function InvitePage() {
                   </button>
                 </>
               ) : (
-                /* Si connecté → bouton rejoindre */
                 <>
                   <div style={{ padding: "12px 16px", borderRadius: 12, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.08)", marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
                     <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(99,120,255,0.15)", border: "1px solid rgba(99,120,255,0.25)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: "rgba(120,160,255,0.9)", flexShrink: 0 }}>
