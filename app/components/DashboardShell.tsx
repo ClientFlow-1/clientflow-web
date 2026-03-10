@@ -297,15 +297,6 @@ function WorkspacePicker() {
   );
 }
 
-const ALL_NAV_ITEMS = [
-  { href: "/dashboard/import",      label: "Import",      icon: "📥", vendeur: true  },
-  { href: "/dashboard/clients",     label: "Clients",     icon: "👤", vendeur: true  },
-  { href: "/dashboard/produits",    label: "Produits",    icon: "🛍️", vendeur: false },
-  { href: "/dashboard/relances",    label: "Relances",    icon: "🔔", vendeur: false },
-  { href: "/dashboard/analytiques", label: "Analytiques", icon: "📊", vendeur: false },
-  { href: "/dashboard/parametres",  label: "Paramètres",  icon: "⚙️", vendeur: false },
-];
-
 function RoleBadge({ role }: { role: string }) {
   const styles: Record<string, { color: string; bg: string; border: string; label: string }> = {
     owner:   { color: "#f5c842", bg: "rgba(245,200,66,0.10)",  border: "rgba(245,200,66,0.30)",  label: "Owner"   },
@@ -399,9 +390,18 @@ function AccessDenied({ reason }: { reason: "permission" | "closed" }) {
   );
 }
 
+const ALL_NAV_ITEMS = [
+  { href: "/dashboard/import",      label: "Import",      icon: "📥", showFor: ["owner"] },
+  { href: "/dashboard/clients",     label: "Clients",     icon: "👤", showFor: ["owner", "admin", "vendeur"] },
+  { href: "/dashboard/produits",    label: "Produits",    icon: "🛍️", showFor: ["owner", "admin", "vendeur"] },
+  { href: "/dashboard/relances",    label: "Relances",    icon: "🔔", showFor: ["owner", "admin", "vendeur"] },
+  { href: "/dashboard/analytiques", label: "Analytiques", icon: "📊", showFor: ["owner"] },
+  { href: "/dashboard/parametres",  label: "Paramètres",  icon: "⚙️", showFor: ["owner", "admin"] },
+];
+
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { role, loading: roleLoading, isVendeur, isBlocked: shopClosed } = useRole();
+  const { role, loading: roleLoading, isBlocked: shopClosed } = useRole();
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [displayChildren, setDisplayChildren] = useState(children);
 
@@ -411,20 +411,9 @@ export default function DashboardShell({ children }: { children: React.ReactNode
     return () => clearTimeout(t);
   }, [pathname]);
 
-  const VENDEUR_BLOCKED = [
-    "/dashboard/produits",
-    "/dashboard/relances",
-    "/dashboard/analytiques",
-    "/dashboard/parametres",
-  ];
-
-  const isPageBlocked = isVendeur && VENDEUR_BLOCKED.some(p => pathname.startsWith(p));
-
   const navItems = roleLoading
-    ? ALL_NAV_ITEMS.filter(i => i.vendeur)
-    : isVendeur
-    ? ALL_NAV_ITEMS.filter(i => i.vendeur)
-    : ALL_NAV_ITEMS;
+    ? []
+    : ALL_NAV_ITEMS.filter(i => role && i.showFor.includes(role));
 
   return (
     <>
@@ -555,8 +544,6 @@ export default function DashboardShell({ children }: { children: React.ReactNode
             <div className={`ds-page-wrapper ${isTransitioning ? "entering" : "visible"}`}>
               {shopClosed
                 ? <AccessDenied reason="closed" />
-                : isPageBlocked
-                ? <AccessDenied reason="permission" />
                 : displayChildren}
             </div>
           </main>
