@@ -43,9 +43,8 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       setAllWorkspaces(owned);
 
       // 2. Toutes les boutiques accessibles via fonction SECURITY DEFINER
-      const { data: accessibleData, error: rpcError } = await supabase
+      const { data: accessibleData } = await supabase
         .rpc("get_my_accessible_workspaces");
-      console.log("RPC accessible:", accessibleData, "error:", rpcError);
       const accessible = (accessibleData ?? []) as Workspace[];
       setWorkspaces(accessible);
 
