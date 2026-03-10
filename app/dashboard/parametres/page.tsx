@@ -202,6 +202,7 @@ export default function ParametresPage() {
   const [isOpen, setIsOpen] = useState(true);
   const [togglingShop, setTogglingShop] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [isActuallyOwner, setIsActuallyOwner] = useState(false);
 
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"owner" | "admin" | "vendeur">("vendeur");
@@ -211,7 +212,6 @@ export default function ParametresPage() {
   const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
   const [confirmText, setConfirmText] = useState("");
 
-  const isOwner = role === "owner";
   const isAdmin = role === "admin" || role === "owner";
 
   useEffect(() => { setMounted(true); }, []);
@@ -224,10 +224,17 @@ export default function ParametresPage() {
       if (!auth?.user) { window.location.href = "/login"; return; }
       setCurrentUserId(auth.user.id);
 
-      const { data: wsData } = await supabase.from("workspaces").select("is_open").eq("id", activeWorkspace!.id).single();
+      const { data: wsData } = await supabase
+        .from("workspaces")
+        .select("is_open,user_id")
+        .eq("id", activeWorkspace!.id)
+        .single();
       setIsOpen(wsData?.is_open !== false);
 
-      if (!isOwner) { setLoading(false); return; }
+      const ownerCheck = wsData?.user_id === auth.user.id;
+      setIsActuallyOwner(ownerCheck);
+
+      if (!ownerCheck) { setLoading(false); return; }
 
       const { data: membersData, error: mErr } = await supabase
         .from("workspace_members")
@@ -377,6 +384,48 @@ ${link}
   }
   const isExpired = (iso: string) => new Date(iso) < new Date();
 
+  const ToggleShopBlock = () => (
+    <div className="ds-card">
+      <div className="ds-card-head">
+        <div>
+          <div className="ds-card-title">{isOpen ? "🟢" : "🔴"} Statut de la boutique</div>
+          <div className="ds-card-sub">{isOpen ? "La boutique est ouverte — tous les membres ont accès." : "La boutique est fermée — les vendeurs sont bloqués."}</div>
+        </div>
+      </div>
+      <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+        <div
+          onClick={() => !togglingShop && confirm(isOpen ? "Fermer la boutique ? Les vendeurs n'auront plus accès." : "Ouvrir la boutique ?", toggleShop)}
+          style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 20px", borderRadius: 14, border: `1px solid ${isOpen ? "rgba(80,200,120,0.30)" : "rgba(255,80,80,0.30)"}`, background: isOpen ? "rgba(80,200,120,0.06)" : "rgba(255,80,80,0.06)", cursor: togglingShop ? "not-allowed" : "pointer", transition: "all 200ms", opacity: togglingShop ? 0.6 : 1 }}>
+          <div style={{ width: 48, height: 26, borderRadius: 999, background: isOpen ? "rgba(80,200,120,0.35)" : "rgba(255,80,80,0.25)", border: `1px solid ${isOpen ? "rgba(80,200,120,0.50)" : "rgba(255,80,80,0.40)"}`, position: "relative", transition: "all 200ms", flexShrink: 0 }}>
+            <div style={{ position: "absolute", top: 3, left: isOpen ? 24 : 3, width: 18, height: 18, borderRadius: "50%", background: isOpen ? "rgba(80,220,120,0.95)" : "rgba(255,100,80,0.95)", transition: "left 200ms", boxShadow: `0 0 8px ${isOpen ? "rgba(80,220,120,0.5)" : "rgba(255,80,80,0.5)"}` }} />
+          </div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 800, color: isOpen ? "rgba(100,220,140,0.95)" : "rgba(255,120,100,0.95)" }}>{togglingShop ? "En cours…" : isOpen ? "Boutique ouverte" : "Boutique fermée"}</div>
+            <div style={{ fontSize: 12, opacity: 0.55, marginTop: 2 }}>{isOpen ? "Cliquer pour fermer" : "Cliquer pour ouvrir"}</div>
+          </div>
+        </div>
+        <div style={{ flex: 1, minWidth: 200, padding: "12px 16px", borderRadius: 12, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", fontSize: 13, color: "rgba(255,255,255,0.50)", lineHeight: 1.6 }}>
+          {isOpen ? "✅ Les vendeurs peuvent ajouter des clients et des ventes normalement." : "⛔ Les vendeurs voient un message de boutique fermée et ne peuvent rien faire."}
+        </div>
+      </div>
+    </div>
+  );
+
+  const ConfirmModal = () => confirmOpen && mounted ? createPortal(
+    <div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", padding: 18, background: "rgba(0,0,0,0.60)", backdropFilter: "blur(10px)" }}
+      onMouseDown={e => { if (e.target === e.currentTarget) setConfirmOpen(false); }}>
+      <div style={{ width: 400, maxWidth: "100%", borderRadius: 18, padding: 24, background: "linear-gradient(180deg, rgba(20,22,28,0.99), rgba(12,13,16,0.99))", border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 30px 80px rgba(0,0,0,0.6)" }}>
+        <div style={{ fontSize: 18, fontWeight: 900, color: "rgba(255,255,255,0.95)", marginBottom: 10 }}>Confirmation</div>
+        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.65)", marginBottom: 24, lineHeight: 1.6 }}>{confirmText}</div>
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+          <button type="button" onClick={() => setConfirmOpen(false)} style={{ height: 40, padding: "0 18px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.7)", fontWeight: 700, cursor: "pointer" }}>Annuler</button>
+          <button type="button" onClick={() => { confirmAction?.(); setConfirmOpen(false); }} style={{ height: 40, padding: "0 18px", borderRadius: 999, border: "1px solid rgba(255,80,80,0.30)", background: "rgba(255,80,80,0.12)", color: "rgba(255,120,120,0.95)", fontWeight: 800, cursor: "pointer" }}>Confirmer</button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  ) : null;
+
   if (wsLoading || roleLoading) return (
     <div className="ds-page">
       <div className="ds-topline">Dashboard / Paramètres</div>
@@ -397,7 +446,7 @@ ${link}
   );
 
   // Admin : toggle boutique uniquement
-  if (isAdmin && !isOwner) return (
+  if (isAdmin && !isActuallyOwner) return (
     <div className="ds-page">
       <div className="ds-topline">Dashboard / Paramètres</div>
       <div className="ds-header">
@@ -413,49 +462,13 @@ ${link}
       </div>
       {errorMsg && <div style={{ padding: "12px 16px", borderRadius: 12, background: "rgba(255,80,80,0.08)", border: "1px solid rgba(255,80,80,0.20)", color: "rgba(255,120,120,0.95)", fontWeight: 700, fontSize: 13 }}>{errorMsg}</div>}
       {successMsg && <div style={{ padding: "12px 16px", borderRadius: 12, background: "rgba(80,200,120,0.08)", border: "1px solid rgba(80,200,120,0.20)", color: "rgba(100,220,140,0.95)", fontWeight: 700, fontSize: 13 }}>{successMsg}</div>}
-      <div className="ds-card">
-        <div className="ds-card-head">
-          <div>
-            <div className="ds-card-title">{isOpen ? "🟢" : "🔴"} Statut de la boutique</div>
-            <div className="ds-card-sub">{isOpen ? "La boutique est ouverte — tous les membres ont accès." : "La boutique est fermée — les vendeurs sont bloqués."}</div>
-          </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-          <div
-            onClick={() => !togglingShop && confirm(isOpen ? "Fermer la boutique ? Les vendeurs n'auront plus accès." : "Ouvrir la boutique ?", toggleShop)}
-            style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 20px", borderRadius: 14, border: `1px solid ${isOpen ? "rgba(80,200,120,0.30)" : "rgba(255,80,80,0.30)"}`, background: isOpen ? "rgba(80,200,120,0.06)" : "rgba(255,80,80,0.06)", cursor: togglingShop ? "not-allowed" : "pointer", transition: "all 200ms", opacity: togglingShop ? 0.6 : 1 }}>
-            <div style={{ width: 48, height: 26, borderRadius: 999, background: isOpen ? "rgba(80,200,120,0.35)" : "rgba(255,80,80,0.25)", border: `1px solid ${isOpen ? "rgba(80,200,120,0.50)" : "rgba(255,80,80,0.40)"}`, position: "relative", transition: "all 200ms", flexShrink: 0 }}>
-              <div style={{ position: "absolute", top: 3, left: isOpen ? 24 : 3, width: 18, height: 18, borderRadius: "50%", background: isOpen ? "rgba(80,220,120,0.95)" : "rgba(255,100,80,0.95)", transition: "left 200ms", boxShadow: `0 0 8px ${isOpen ? "rgba(80,220,120,0.5)" : "rgba(255,80,80,0.5)"}` }} />
-            </div>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: isOpen ? "rgba(100,220,140,0.95)" : "rgba(255,120,100,0.95)" }}>{togglingShop ? "En cours…" : isOpen ? "Boutique ouverte" : "Boutique fermée"}</div>
-              <div style={{ fontSize: 12, opacity: 0.55, marginTop: 2 }}>{isOpen ? "Cliquer pour fermer" : "Cliquer pour ouvrir"}</div>
-            </div>
-          </div>
-          <div style={{ flex: 1, minWidth: 200, padding: "12px 16px", borderRadius: 12, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", fontSize: 13, color: "rgba(255,255,255,0.50)", lineHeight: 1.6 }}>
-            {isOpen ? "✅ Les vendeurs peuvent ajouter des clients et des ventes normalement." : "⛔ Les vendeurs voient un message de boutique fermée et ne peuvent rien faire."}
-          </div>
-        </div>
-      </div>
-      {confirmOpen && mounted && createPortal(
-        <div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", padding: 18, background: "rgba(0,0,0,0.60)", backdropFilter: "blur(10px)" }}
-          onMouseDown={e => { if (e.target === e.currentTarget) setConfirmOpen(false); }}>
-          <div style={{ width: 400, maxWidth: "100%", borderRadius: 18, padding: 24, background: "linear-gradient(180deg, rgba(20,22,28,0.99), rgba(12,13,16,0.99))", border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 30px 80px rgba(0,0,0,0.6)" }}>
-            <div style={{ fontSize: 18, fontWeight: 900, color: "rgba(255,255,255,0.95)", marginBottom: 10 }}>Confirmation</div>
-            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.65)", marginBottom: 24, lineHeight: 1.6 }}>{confirmText}</div>
-            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-              <button type="button" onClick={() => setConfirmOpen(false)} style={{ height: 40, padding: "0 18px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.7)", fontWeight: 700, cursor: "pointer" }}>Annuler</button>
-              <button type="button" onClick={() => { confirmAction?.(); setConfirmOpen(false); }} style={{ height: 40, padding: "0 18px", borderRadius: 999, border: "1px solid rgba(255,80,80,0.30)", background: "rgba(255,80,80,0.12)", color: "rgba(255,120,120,0.95)", fontWeight: 800, cursor: "pointer" }}>Confirmer</button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      {loading ? <div style={{ padding: "40px 0", textAlign: "center", opacity: 0.5 }}>Chargement…</div> : <ToggleShopBlock />}
+      <ConfirmModal />
     </div>
   );
 
-  // Vendeur ou rôle inconnu : accès refusé total
-  if (!isAdmin) return (
+  // Ni owner ni admin
+  if (!isAdmin && !isActuallyOwner) return (
     <div className="ds-page">
       <div className="ds-topline">Dashboard / Paramètres</div>
       <h1 className="ds-title">Paramètres</h1>
@@ -488,30 +501,7 @@ ${link}
       {errorMsg && <div style={{ padding: "12px 16px", borderRadius: 12, background: "rgba(255,80,80,0.08)", border: "1px solid rgba(255,80,80,0.20)", color: "rgba(255,120,120,0.95)", fontWeight: 700, fontSize: 13 }}>{errorMsg}</div>}
       {successMsg && <div style={{ padding: "12px 16px", borderRadius: 12, background: "rgba(80,200,120,0.08)", border: "1px solid rgba(80,200,120,0.20)", color: "rgba(100,220,140,0.95)", fontWeight: 700, fontSize: 13, wordBreak: "break-all" }}>{successMsg}</div>}
 
-      <div className="ds-card">
-        <div className="ds-card-head">
-          <div>
-            <div className="ds-card-title">{isOpen ? "🟢" : "🔴"} Statut de la boutique</div>
-            <div className="ds-card-sub">{isOpen ? "La boutique est ouverte — tous les membres ont accès." : "La boutique est fermée — les vendeurs sont bloqués."}</div>
-          </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
-          <div
-            onClick={() => !togglingShop && confirm(isOpen ? "Fermer la boutique ? Les vendeurs n'auront plus accès." : "Ouvrir la boutique ?", toggleShop)}
-            style={{ display: "flex", alignItems: "center", gap: 12, padding: "14px 20px", borderRadius: 14, border: `1px solid ${isOpen ? "rgba(80,200,120,0.30)" : "rgba(255,80,80,0.30)"}`, background: isOpen ? "rgba(80,200,120,0.06)" : "rgba(255,80,80,0.06)", cursor: togglingShop ? "not-allowed" : "pointer", transition: "all 200ms", opacity: togglingShop ? 0.6 : 1 }}>
-            <div style={{ width: 48, height: 26, borderRadius: 999, background: isOpen ? "rgba(80,200,120,0.35)" : "rgba(255,80,80,0.25)", border: `1px solid ${isOpen ? "rgba(80,200,120,0.50)" : "rgba(255,80,80,0.40)"}`, position: "relative", transition: "all 200ms", flexShrink: 0 }}>
-              <div style={{ position: "absolute", top: 3, left: isOpen ? 24 : 3, width: 18, height: 18, borderRadius: "50%", background: isOpen ? "rgba(80,220,120,0.95)" : "rgba(255,100,80,0.95)", transition: "left 200ms", boxShadow: `0 0 8px ${isOpen ? "rgba(80,220,120,0.5)" : "rgba(255,80,80,0.5)"}` }} />
-            </div>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 800, color: isOpen ? "rgba(100,220,140,0.95)" : "rgba(255,120,100,0.95)" }}>{togglingShop ? "En cours…" : isOpen ? "Boutique ouverte" : "Boutique fermée"}</div>
-              <div style={{ fontSize: 12, opacity: 0.55, marginTop: 2 }}>{isOpen ? "Cliquer pour fermer" : "Cliquer pour ouvrir"}</div>
-            </div>
-          </div>
-          <div style={{ flex: 1, minWidth: 200, padding: "12px 16px", borderRadius: 12, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", fontSize: 13, color: "rgba(255,255,255,0.50)", lineHeight: 1.6 }}>
-            {isOpen ? "✅ Les vendeurs peuvent ajouter des clients et des ventes normalement." : "⛔ Les vendeurs voient un message de boutique fermée et ne peuvent rien faire."}
-          </div>
-        </div>
-      </div>
+      <ToggleShopBlock />
 
       <div className="ds-card">
         <div className="ds-card-head">
@@ -624,20 +614,7 @@ ${link}
         </div>
       )}
 
-      {confirmOpen && mounted && createPortal(
-        <div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", padding: 18, background: "rgba(0,0,0,0.60)", backdropFilter: "blur(10px)" }}
-          onMouseDown={e => { if (e.target === e.currentTarget) setConfirmOpen(false); }}>
-          <div style={{ width: 400, maxWidth: "100%", borderRadius: 18, padding: 24, background: "linear-gradient(180deg, rgba(20,22,28,0.99), rgba(12,13,16,0.99))", border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 30px 80px rgba(0,0,0,0.6)" }}>
-            <div style={{ fontSize: 18, fontWeight: 900, color: "rgba(255,255,255,0.95)", marginBottom: 10 }}>Confirmation</div>
-            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.65)", marginBottom: 24, lineHeight: 1.6 }}>{confirmText}</div>
-            <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
-              <button type="button" onClick={() => setConfirmOpen(false)} style={{ height: 40, padding: "0 18px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.7)", fontWeight: 700, cursor: "pointer" }}>Annuler</button>
-              <button type="button" onClick={() => { confirmAction?.(); setConfirmOpen(false); }} style={{ height: 40, padding: "0 18px", borderRadius: 999, border: "1px solid rgba(255,80,80,0.30)", background: "rgba(255,80,80,0.12)", color: "rgba(255,120,120,0.95)", fontWeight: 800, cursor: "pointer" }}>Confirmer</button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
+      <ConfirmModal />
     </div>
   );
 }
