@@ -50,6 +50,167 @@ const STATUS_OVERRIDE_TO_SEGMENT: Record<NonNullable<StatusOverride>, Segment> =
   vip: "vip", regular: "regulier", inactive: "inactif", new: "nouveau",
 };
 
+// ── Templates email par segment ──────────────────────────────────────────────
+const DEFAULT_TEMPLATES: Record<Segment | "all", { subject: string; body: string }> = {
+  all: {
+    subject: "Un message de notre part 💌",
+    body: `Bonjour,\n\nNous espérons que vous allez bien.\n\nNous tenions à vous remercier de votre fidélité et à vous informer de nos dernières nouveautés.\n\nN'hésitez pas à nous rendre visite !\n\nCordialement,\nL'équipe`,
+  },
+  vip: {
+    subject: "👑 Un avantage exclusif pour vous",
+    body: `Bonjour,\n\nEn tant que client VIP, vous bénéficiez d'avantages exclusifs.\n\nNous avons préparé une offre spéciale rien que pour vous. Venez nous rendre visite pour en profiter.\n\nMerci pour votre confiance,\nL'équipe`,
+  },
+  regulier: {
+    subject: "⭐ Merci pour votre fidélité !",
+    body: `Bonjour,\n\nVous faites partie de nos clients les plus fidèles et nous tenions à vous en remercier.\n\nDécouvrez nos nouveautés et profitez d'une attention particulière à votre prochaine visite.\n\nÀ très bientôt,\nL'équipe`,
+  },
+  inactif: {
+    subject: "😴 Vous nous manquez !",
+    body: `Bonjour,\n\nCela fait un moment que nous ne vous avons pas vu et vous nous manquez !\n\nNous avons de nouvelles offres qui pourraient vous intéresser. N'hésitez pas à repasser nous voir.\n\nÀ bientôt,\nL'équipe`,
+  },
+  nouveau: {
+    subject: "✨ Bienvenue parmi nous !",
+    body: `Bonjour,\n\nNous sommes ravis de vous compter parmi nos nouveaux clients !\n\nPour vous souhaiter la bienvenue, nous vous réservons une surprise lors de votre prochaine visite.\n\nÀ très bientôt,\nL'équipe`,
+  },
+  jamais: {
+    subject: "🎁 Une offre pour vous découvrir",
+    body: `Bonjour,\n\nNous serions ravis de vous accueillir pour la première fois !\n\nVenez découvrir nos services et profitez d'une offre de bienvenue spéciale.\n\nN'hésitez pas à nous contacter pour plus d'informations.\n\nCordialement,\nL'équipe`,
+  },
+};
+
+// ── Email Modal ───────────────────────────────────────────────────────────────
+function EmailModal({
+  segment, segmentLabel, segmentEmoji, segmentColor, segmentBg,
+  emailList, onClose,
+}: {
+  segment: Segment | "all";
+  segmentLabel: string;
+  segmentEmoji: string;
+  segmentColor: string;
+  segmentBg: string;
+  emailList: string[];
+  onClose: () => void;
+}) {
+  const def = DEFAULT_TEMPLATES[segment];
+  const [subject, setSubject] = useState(def.subject);
+  const [body, setBody] = useState(def.body);
+  const [copied, setCopied] = useState(false);
+
+  const validEmails = emailList.filter(Boolean);
+  const noEmails = validEmails.length === 0;
+
+  function openMailto() {
+    const to = validEmails.join(",");
+    const url = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.open(url, "_blank");
+  }
+
+  function copyEmails() {
+    navigator.clipboard.writeText(validEmails.join(", "));
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  function resetTemplate() {
+    setSubject(def.subject);
+    setBody(def.body);
+  }
+
+  return createPortal(
+    <div
+      style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", padding: 18, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(12px)", overflowY: "auto" }}
+      onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div
+        style={{ width: 580, maxWidth: "100%", borderRadius: 20, padding: 26, background: "linear-gradient(180deg, rgba(20,22,30,0.99), rgba(12,13,18,0.99))", border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 30px 90px rgba(0,0,0,0.7)", margin: "auto", display: "flex", flexDirection: "column", gap: 18 }}
+        onMouseDown={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+              <span style={{ fontSize: 22, fontWeight: 900, color: "rgba(255,255,255,0.95)" }}>✉ Relance email</span>
+              <span style={{ fontSize: 12, fontWeight: 800, padding: "3px 11px", borderRadius: 999, background: segmentBg, border: `1px solid ${segmentColor.replace("0.95","0.30")}`, color: segmentColor }}>
+                {segmentEmoji} {segmentLabel}
+              </span>
+            </div>
+            <div style={{ fontSize: 13, opacity: 0.50, marginTop: 2 }}>
+              {noEmails
+                ? "⚠️ Aucun email disponible dans ce segment"
+                : `${validEmails.length} destinataire${validEmails.length > 1 ? "s" : ""} · Modifie le template puis ouvre dans ta messagerie`}
+            </div>
+          </div>
+          <button type="button" onClick={onClose}
+            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 999, color: "rgba(255,255,255,0.7)", padding: "8px 14px", cursor: "pointer", fontWeight: 750, flexShrink: 0 }}>Fermer</button>
+        </div>
+
+        {/* Destinataires */}
+        <div style={{ padding: "12px 14px", borderRadius: 12, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.07)" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <span style={{ fontSize: 12, fontWeight: 800, opacity: 0.55, letterSpacing: 0.8, textTransform: "uppercase" }}>Destinataires ({validEmails.length})</span>
+            {validEmails.length > 0 && (
+              <button type="button" onClick={copyEmails}
+                style={{ height: 26, padding: "0 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.10)", background: copied ? "rgba(80,210,140,0.12)" : "rgba(255,255,255,0.04)", color: copied ? "rgba(80,210,140,0.9)" : "rgba(255,255,255,0.6)", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                {copied ? "✓ Copié !" : "📋 Copier les emails"}
+              </button>
+            )}
+          </div>
+          {noEmails ? (
+            <div style={{ fontSize: 13, opacity: 0.4 }}>Aucun client avec un email dans ce segment.</div>
+          ) : (
+            <div style={{ fontSize: 12, opacity: 0.65, lineHeight: 1.8, maxHeight: 72, overflowY: "auto", wordBreak: "break-all" }}>
+              {validEmails.join(", ")}
+            </div>
+          )}
+        </div>
+
+        {/* Objet */}
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 800, opacity: 0.75, marginBottom: 8, color: "rgba(255,255,255,0.92)" }}>Objet</div>
+          <input
+            value={subject}
+            onChange={e => setSubject(e.target.value)}
+            style={{ width: "100%", height: 44, borderRadius: 12, padding: "0 14px", background: "rgba(10,11,14,0.65)", color: "rgba(255,255,255,0.92)", border: "1px solid rgba(255,255,255,0.12)", outline: "none", fontSize: 14 }}
+          />
+        </div>
+
+        {/* Corps */}
+        <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
+            <div style={{ fontSize: 13, fontWeight: 800, opacity: 0.75, color: "rgba(255,255,255,0.92)" }}>Message</div>
+            <button type="button" onClick={resetTemplate}
+              style={{ height: 26, padding: "0 10px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.03)", color: "rgba(255,255,255,0.45)", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+              ↺ Réinitialiser
+            </button>
+          </div>
+          <textarea
+            value={body}
+            onChange={e => setBody(e.target.value)}
+            rows={9}
+            style={{ width: "100%", borderRadius: 12, padding: "12px 14px", background: "rgba(10,11,14,0.65)", color: "rgba(255,255,255,0.88)", border: "1px solid rgba(255,255,255,0.12)", outline: "none", fontSize: 13, lineHeight: 1.7, resize: "vertical", fontFamily: "inherit" }}
+          />
+        </div>
+
+        {/* Note mailto */}
+        <div style={{ fontSize: 12, opacity: 0.38, lineHeight: 1.6 }}>
+          ℹ️ Le bouton ci-dessous ouvre ta messagerie (Mail, Outlook, Gmail…) avec tous les destinataires en copie cachée (BCC). Certains clients de messagerie limitent le nombre de destinataires par email.
+        </div>
+
+        {/* Actions */}
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+          <button type="button" onClick={onClose}
+            style={{ height: 42, padding: "0 18px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.03)", color: "rgba(255,255,255,0.7)", fontWeight: 750, cursor: "pointer" }}>Annuler</button>
+          <button type="button" onClick={openMailto} disabled={noEmails}
+            style={{ height: 42, padding: "0 22px", borderRadius: 999, border: `1px solid ${noEmails ? "rgba(255,255,255,0.10)" : "rgba(120,160,255,0.40)"}`, background: noEmails ? "rgba(255,255,255,0.03)" : "rgba(120,160,255,0.16)", color: noEmails ? "rgba(255,255,255,0.30)" : "rgba(255,255,255,0.95)", fontWeight: 800, cursor: noEmails ? "not-allowed" : "pointer", display: "flex", alignItems: "center", gap: 8 }}>
+            ✉ Ouvrir dans ma messagerie
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 // ─── Status Picker Dropdown (desktop) ────────────────────────────────────────
 function StatusPickerDropdown({ client, computedSegment, onStatusChanged }: {
   client: ClientRow; computedSegment: Segment; onStatusChanged: (clientId: string, newStatus: StatusOverride) => void;
@@ -83,8 +244,6 @@ function StatusPickerDropdown({ client, computedSegment, onStatusChanged }: {
     if (!error) { onStatusChanged(client.id, newStatus); setOpen(false); }
   }
 
-  // Si statut manuel → affiche le statut manuel coloré
-  // Si Auto → affiche le segment calculé avec sa couleur + "(auto)" en petit
   const isAuto = !client.status_override;
   const seg = SEGMENTS.find(s => s.key === computedSegment)!;
   const manualOpt = STATUS_OPTIONS.find(o => o.value === client.status_override);
@@ -269,6 +428,7 @@ function PopupRow({ label, value, accent, alert, children }: { label: string; va
   );
 }
 
+// ── Page principale ───────────────────────────────────────────────────────────
 export default function RelancesPage() {
   const { activeWorkspace } = useWorkspace();
   const [clients, setClients] = useState<ClientRow[]>([]);
@@ -287,6 +447,9 @@ export default function RelancesPage() {
   const [tmpVip, setTmpVip] = useState(500);
   const [tmpNouveau, setTmpNouveau] = useState(30);
   const [tmpRegulierMinVentes, setTmpRegulierMinVentes] = useState(2);
+
+  // Email modal
+  const [emailModalOpen, setEmailModalOpen] = useState(false);
 
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => { fetchAll(); }, [activeWorkspace?.id]);
@@ -357,6 +520,12 @@ export default function RelancesPage() {
     return list.sort((a, b) => b.caTotal - a.caTotal);
   }, [clientStats, activeSegment, searchQ]);
 
+  // Emails du segment actif (filtrés)
+  const segmentEmails = useMemo(
+    () => filtered.map(f => f.client.email ?? "").filter(Boolean),
+    [filtered]
+  );
+
   function exportSegment() {
     const rows = filtered.map(cs => [
       cs.client.prenom ?? "", cs.client.nom ?? "", cs.client.email ?? "",
@@ -383,6 +552,13 @@ export default function RelancesPage() {
   );
 
   const activeSegInfo = SEGMENTS.find(s => s.key === activeSegment);
+
+  // Infos segment pour le modal email
+  const emailSegmentKey = activeSegment;
+  const emailSegmentLabel = activeSegment === "all" ? "Tous" : (activeSegInfo?.label ?? "Tous");
+  const emailSegmentEmoji = activeSegment === "all" ? "👥" : (activeSegInfo?.emoji ?? "👥");
+  const emailSegmentColor = activeSegment === "all" ? "rgba(120,160,255,0.95)" : (activeSegInfo?.color ?? "rgba(120,160,255,0.95)");
+  const emailSegmentBg = activeSegment === "all" ? "rgba(120,160,255,0.10)" : (activeSegInfo?.bg ?? "rgba(120,160,255,0.10)");
 
   return (
     <div className="ds-page">
@@ -427,7 +603,9 @@ export default function RelancesPage() {
             </div>
           ))}
         </div>
-      </div><div className="ds-card">
+      </div>
+
+      <div className="ds-card">
         <div className="ds-card-head" style={{ flexWrap: "wrap", gap: 12 }}>
           <div>
             <div className="ds-card-title" style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -442,6 +620,16 @@ export default function RelancesPage() {
               <input placeholder="Rechercher…" value={searchQ} onChange={e => setSearchQ(e.target.value)}
                 style={{ height: 36, borderRadius: 10, padding: "0 12px 0 32px", background: "rgba(10,11,14,0.65)", color: "rgba(255,255,255,0.92)", border: "1px solid rgba(255,255,255,0.10)", outline: "none", fontSize: 13, width: 200 }} />
             </div>
+            {/* ✉ Bouton relance email */}
+            <button type="button" onClick={() => setEmailModalOpen(true)}
+              style={{ height: 36, padding: "0 14px", borderRadius: 10, border: "1px solid rgba(120,160,255,0.35)", background: "rgba(120,160,255,0.12)", color: "rgba(165,180,255,0.95)", fontSize: 13, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 6 }}>
+              ✉ Relancer par email
+              {segmentEmails.length > 0 && (
+                <span style={{ fontSize: 11, fontWeight: 700, padding: "1px 7px", borderRadius: 999, background: "rgba(120,160,255,0.18)", color: "rgba(165,180,255,0.9)" }}>
+                  {segmentEmails.length}
+                </span>
+              )}
+            </button>
             <button type="button" onClick={exportSegment}
               style={{ height: 36, padding: "0 14px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.80)", fontSize: 13, fontWeight: 750, cursor: "pointer", whiteSpace: "nowrap" }}>
               ↓ Exporter CSV
@@ -478,11 +666,7 @@ export default function RelancesPage() {
                             <div style={{ fontSize: 12, opacity: 0.5, marginTop: 1 }}>{client.email || "—"}</div>
                           </td>
                           <td>
-                            <StatusPickerDropdown
-                              client={client}
-                              computedSegment={segment}
-                              onStatusChanged={handleStatusChanged}
-                            />
+                            <StatusPickerDropdown client={client} computedSegment={segment} onStatusChanged={handleStatusChanged} />
                           </td>
                           <td className="ds-right" style={{ fontWeight: 800, color: "rgba(120,160,255,0.9)" }}>{formatEUR(caTotal)}</td>
                           <td className="ds-right" style={{ fontWeight: 700, opacity: 0.8 }}>{nbVentes}</td>
@@ -520,6 +704,19 @@ export default function RelancesPage() {
           </>
         )}
       </div>
+
+      {/* ── Modal Email ── */}
+      {emailModalOpen && mounted && (
+        <EmailModal
+          segment={emailSegmentKey}
+          segmentLabel={emailSegmentLabel}
+          segmentEmoji={emailSegmentEmoji}
+          segmentColor={emailSegmentColor}
+          segmentBg={emailSegmentBg}
+          emailList={segmentEmails}
+          onClose={() => setEmailModalOpen(false)}
+        />
+      )}
 
       {/* ── Modal Paramètres ── */}
       {settingsOpen && mounted && createPortal(
