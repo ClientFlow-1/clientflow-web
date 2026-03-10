@@ -21,24 +21,11 @@ export function useRole() {
       const { data: auth } = await supabase.auth.getUser();
       const user = auth?.user;
       if (!user) { setRole(null); setLoading(false); return; }
-
       const [{ data: memberData }, { data: wsData }] = await Promise.all([
-        supabase
-          .from("workspace_members")
-          .select("role")
-          .eq("workspace_id", activeWorkspace!.id)
-          .eq("user_id", user.id)
-          .eq("status", "active")
-          .single(),
-        supabase
-          .from("workspaces")
-          .select("user_id,is_open")
-          .eq("id", activeWorkspace!.id)
-          .single(),
+        supabase.from("workspace_members").select("role").eq("workspace_id", activeWorkspace!.id).eq("user_id", user.id).eq("status", "active").single(),
+        supabase.from("workspaces").select("user_id,is_open").eq("id", activeWorkspace!.id).single(),
       ]);
-
       setIsOpen(wsData?.is_open !== false);
-
       if (!memberData) {
         setRole(wsData?.user_id === user.id ? "owner" : null);
       } else {
@@ -57,8 +44,11 @@ export function useRole() {
     deleteClients:    isAdmin,
     editSales:        isAdmin,
     deleteSales:      isAdmin,
-    viewRelances:     isAdmin,
-    viewProduits:     isAdmin,
+    viewRelances:     isAdmin || isVendeur,
+    viewProduits:     isAdmin || isVendeur,
+    viewAnalytiques:  isOwner,
+    viewCA:           isOwner,
+    toggleShop:       isAdmin,
     manageMembers:    isOwner,
     manageWorkspaces: isOwner,
   };

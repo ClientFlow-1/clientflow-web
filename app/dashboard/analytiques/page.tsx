@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useWorkspace } from "@/lib/workspaceContext";
+import { useRole } from "@/lib/useRole";
 
 type SaleRow = {
   id: string;
@@ -120,28 +121,21 @@ function getUpcomingBirthdays(clients: ClientRow[], days = 30) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const results: { client: ClientRow; daysUntil: number; dateStr: string }[] = [];
-
   for (const c of clients) {
     if (!c.birthdate) continue;
     const [year, month, day] = c.birthdate.split("-").map(Number);
     if (!year || !month || !day) continue;
-
     let nextBirthday = new Date(today.getFullYear(), month - 1, day);
     nextBirthday.setHours(0, 0, 0, 0);
-    if (nextBirthday < today) {
-      nextBirthday = new Date(today.getFullYear() + 1, month - 1, day);
-    }
-
+    if (nextBirthday < today) nextBirthday = new Date(today.getFullYear() + 1, month - 1, day);
     const diffMs = nextBirthday.getTime() - today.getTime();
     const daysUntil = Math.round(diffMs / 86400000);
-
     if (daysUntil <= days) {
       const age = nextBirthday.getFullYear() - year;
       const dateStr = `${pad2(day)}/${pad2(month)} · ${age} ans`;
       results.push({ client: c, daysUntil, dateStr });
     }
   }
-
   return results.sort((a, b) => a.daysUntil - b.daysUntil);
 }
 
@@ -353,6 +347,7 @@ function LineChart({ data }: { data: { label: string; value: number }[] }) {
 
 export default function AnalytiquesPage() {
   const { activeWorkspace } = useWorkspace();
+  const { can, loading: roleLoading } = useRole();
 
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [sales, setSales] = useState<SaleRow[]>([]);
@@ -363,7 +358,7 @@ export default function AnalytiquesPage() {
   const [customTo, setCustomTo] = useState(toISODate(new Date()));
   const [showCustom, setShowCustom] = useState(false);
 
-  useEffect(() => { fetchAll(); }, [activeWorkspace?.id]);
+  useEffect(() => { if (!roleLoading && can.viewAnalytiques) fetchAll(); }, [activeWorkspace?.id, roleLoading]);
 
   async function fetchAll() {
     setLoading(true); setErrorMsg("");
@@ -373,32 +368,21 @@ export default function AnalytiquesPage() {
       if (!activeWorkspace) { setClients([]); setSales([]); setLoading(false); return; }
 
       const [{ data: cData, error: cErr }, { data: sData, error: sErr }] = await Promise.all([
-        supabase.from("clients").select("id,email,prenom,nom")
-          .eq("workspace_id", activeWorkspace.id).limit(1000),
-        supabase.from("sales").select("id,client_id,amount,created_at")
-          .eq("workspace_id", activeWorkspace.id)
-          .order("created_at", { ascending: false }).limit(5000),
+        supabase.from("clients").select("id,email,prenom,nom").eq("workspace_id", activeWorkspace.id).limit(1000),
+        supabase.from("sales").select("id,client_id,amount,created_at").eq("workspace_id", activeWorkspace.id).order("created_at", { ascending: false }).limit(5000),
       ]);
       if (cErr) throw cErr;
       if (sErr) throw sErr;
 
       const baseClients = (cData ?? []) as ClientRow[];
-
-      // Tentative silencieuse — si birthdate n'existe pas en base, on ignore
       let clientsWithBirthdate: ClientRow[] = baseClients;
       try {
-        const { data: bData, error: bErr } = await supabase
-          .from("clients")
-          .select("id,birthdate")
-          .eq("workspace_id", activeWorkspace.id)
-          .limit(1000);
+        const { data: bData, error: bErr } = await supabase.from("clients").select("id,birthdate").eq("workspace_id", activeWorkspace.id).limit(1000);
         if (!bErr && bData) {
           const bdMap = new Map((bData as { id: string; birthdate: string | null }[]).map(r => [r.id, r.birthdate]));
           clientsWithBirthdate = baseClients.map(c => ({ ...c, birthdate: bdMap.get(c.id) ?? null }));
         }
-      } catch {
-        // colonne inexistante → anniversaires désactivés silencieusement
-      }
+      } catch {}
 
       setClients(clientsWithBirthdate);
       setSales((sData ?? []) as SaleRow[]);
@@ -416,15 +400,9 @@ export default function AnalytiquesPage() {
   const top10 = useMemo(() => {
     const caTotal = sales.reduce((acc, s) => acc + moneyToNumberAny(s.amount), 0);
     const map = new Map<string, number>();
-    for (const s of sales) {
-      if (!s.client_id) continue;
-      map.set(s.client_id, (map.get(s.client_id) ?? 0) + moneyToNumberAny(s.amount));
-    }
+    for (const s of sales) { if (!s.client_id) continue; map.set(s.client_id, (map.get(s.client_id) ?? 0) + moneyToNumberAny(s.amount)); }
     const clientById = new Map(clients.map((c) => [c.id, c]));
-    return Array.from(map.entries())
-      .sort((a, b) => b[1] - a[1]).slice(0, 10)
-      .map(([id, total]) => ({ client: clientById.get(id), total, pct: caTotal > 0 ? (total / caTotal) * 100 : 0 }))
-      .filter((x) => x.client);
+    return Array.from(map.entries()).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([id, total]) => ({ client: clientById.get(id), total, pct: caTotal > 0 ? (total / caTotal) * 100 : 0 })).filter((x) => x.client);
   }, [sales, clients]);
 
   const recentSales = useMemo(() => {
@@ -442,6 +420,26 @@ export default function AnalytiquesPage() {
     { key: "custom", label: "Personnalisé" },
   ];
 
+  if (roleLoading) return (
+    <div className="ds-page">
+      <div className="ds-topline">Dashboard / Analytiques</div>
+      <h1 className="ds-title">Analytiques</h1>
+      <div style={{ padding: "60px 0", textAlign: "center", opacity: 0.5 }}>Chargement…</div>
+    </div>
+  );
+
+  if (!can.viewAnalytiques) return (
+    <div className="ds-page">
+      <div className="ds-topline">Dashboard / Analytiques</div>
+      <h1 className="ds-title">Analytiques</h1>
+      <div style={{ padding: "60px 0", textAlign: "center" }}>
+        <div style={{ fontSize: 32, marginBottom: 12 }}>🔒</div>
+        <div style={{ fontSize: 16, fontWeight: 800, color: "rgba(255,255,255,0.7)" }}>Accès réservé au propriétaire</div>
+        <div style={{ fontSize: 13, marginTop: 6, color: "rgba(255,255,255,0.4)" }}>Seul l'owner peut consulter les analytiques.</div>
+      </div>
+    </div>
+  );
+
   if (!activeWorkspace) return (
     <div className="ds-page">
       <div className="ds-topline">Dashboard / Analytiques</div>
@@ -449,7 +447,6 @@ export default function AnalytiquesPage() {
       <div style={{ padding: "60px 0", textAlign: "center", opacity: 0.5 }}>
         <div style={{ fontSize: 32, marginBottom: 12 }}>▲</div>
         <div style={{ fontSize: 16, fontWeight: 800, color: "rgba(255,255,255,0.7)" }}>Aucun workspace sélectionné</div>
-        <div style={{ fontSize: 13, marginTop: 6, color: "rgba(255,255,255,0.4)" }}>Crée ou sélectionne une boutique dans le menu à gauche.</div>
       </div>
     </div>
   );

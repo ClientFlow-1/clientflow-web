@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useWorkspace } from "@/lib/workspaceContext";
+import { useRole } from "@/lib/useRole";
 
 type StatusOverride = "vip" | "regular" | "inactive" | "new" | null;
 type ClientRow = { id: string; email: string | null; prenom: string | null; nom: string | null; created_at?: string | null; birthdate?: string | null; notes?: string | null; status_override?: StatusOverride; };
@@ -68,8 +69,8 @@ function InfoRow({ label, value, accent }: { label: string; value: string; accen
   );
 }
 
-function MobileClientCard({ c, total, checked, onToggle, onEdit, onDelete, loading }: {
-  c: ClientRow; total: number; checked: boolean; onToggle: () => void; onEdit: () => void; onDelete: () => void; loading: boolean;
+function MobileClientCard({ c, total, checked, onToggle, onEdit, onDelete, loading, canEdit, canDelete }: {
+  c: ClientRow; total: number; checked: boolean; onToggle: () => void; onEdit: () => void; onDelete: () => void; loading: boolean; canEdit: boolean; canDelete: boolean;
 }) {
   const [popupOpen, setPopupOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -77,12 +78,10 @@ function MobileClientCard({ c, total, checked, onToggle, onEdit, onDelete, loadi
 
   return (
     <div style={{ display: "flex", alignItems: "center", padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)", gap: 10, background: checked ? "rgba(120,160,255,0.06)" : "transparent", transition: "background 120ms" }}>
-      {/* Checkbox */}
       <div onClick={onToggle}
         style={{ width: 22, height: 22, borderRadius: 7, border: `1.5px solid ${checked ? "rgba(120,160,255,0.9)" : "rgba(255,255,255,0.20)"}`, background: checked ? "rgba(120,160,255,0.9)" : "rgba(255,255,255,0.03)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", transition: "all 120ms" }}>
         {checked && <span style={{ fontSize: 12, color: "#fff", fontWeight: 900 }}>✓</span>}
       </div>
-
       <div style={{ width: 38, height: 38, borderRadius: "50%", background: "rgba(99,120,255,0.15)", border: "1px solid rgba(99,120,255,0.25)", flexShrink: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: "rgba(120,160,255,0.9)" }}>
         {(c.prenom?.[0] ?? c.email?.[0] ?? "?").toUpperCase()}
       </div>
@@ -117,10 +116,14 @@ function MobileClientCard({ c, total, checked, onToggle, onEdit, onDelete, loadi
               {c.status_override && <InfoRow label="Statut forcé" value={STATUS_OPTIONS.find(s => s.value === c.status_override)?.label ?? c.status_override} />}
             </div>
             <div style={{ display: "flex", gap: 10 }}>
-              <button type="button" onClick={() => { setPopupOpen(false); onEdit(); }}
-                style={{ flex: 1, height: 46, borderRadius: 12, border: "1px solid rgba(99,120,255,0.30)", background: "rgba(99,120,255,0.12)", color: "rgba(120,160,255,0.95)", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>✏️ Modifier</button>
-              <button type="button" onClick={() => { setPopupOpen(false); onDelete(); }} disabled={loading}
-                style={{ flex: 1, height: 46, borderRadius: 12, border: "1px solid rgba(255,80,80,0.25)", background: "rgba(255,80,80,0.08)", color: "rgba(255,120,120,0.95)", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>🗑 Supprimer</button>
+              {canEdit && (
+                <button type="button" onClick={() => { setPopupOpen(false); onEdit(); }}
+                  style={{ flex: 1, height: 46, borderRadius: 12, border: "1px solid rgba(99,120,255,0.30)", background: "rgba(99,120,255,0.12)", color: "rgba(120,160,255,0.95)", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>✏️ Modifier</button>
+              )}
+              {canDelete && (
+                <button type="button" onClick={() => { setPopupOpen(false); onDelete(); }} disabled={loading}
+                  style={{ flex: 1, height: 46, borderRadius: 12, border: "1px solid rgba(255,80,80,0.25)", background: "rgba(255,80,80,0.08)", color: "rgba(255,120,120,0.95)", fontSize: 14, fontWeight: 800, cursor: "pointer" }}>🗑 Supprimer</button>
+              )}
             </div>
             <button type="button" onClick={() => setPopupOpen(false)}
               style={{ width: "100%", marginTop: 10, height: 44, borderRadius: 12, border: "1px solid rgba(255,255,255,0.08)", background: "transparent", color: "rgba(255,255,255,0.45)", fontSize: 14, cursor: "pointer" }}>Fermer</button>
@@ -346,9 +349,7 @@ function ExportMenu({ clients, sales, clientById, perClientTotals, saleProductsM
       )}
     </>
   );
-}
-
-function ClientPicker({ clients, valueClientId, onChange, disabled, placeholder }: { clients: ClientRow[]; valueClientId: string; onChange: (id: string) => void; disabled?: boolean; placeholder?: string; }) {
+}function ClientPicker({ clients, valueClientId, onChange, disabled, placeholder }: { clients: ClientRow[]; valueClientId: string; onChange: (id: string) => void; disabled?: boolean; placeholder?: string; }) {
   const [open, setOpen] = useState(false); const [q, setQ] = useState(""); const [mounted, setMounted] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null); const dropRef = useRef<HTMLDivElement>(null);
   const [dropPos, setDropPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 });
@@ -550,10 +551,9 @@ function DrawerField({ label, value, onChange, placeholder, type = "text" }: { l
         onBlur={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }} />
     </div>
   );
-}
-
-export default function ClientsPage() {
+}export default function ClientsPage() {
   const { activeWorkspace } = useWorkspace();
+  const { can } = useRole();
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [sales, setSales] = useState<SaleRow[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -839,9 +839,9 @@ export default function ClientsPage() {
 
       <div className="ds-stats-grid">
         <div className="ds-stat-card"><div className="ds-stat-label">Clients</div><div className="ds-stat-value">{stats.countClients}</div></div>
-        <div className="ds-stat-card"><div className="ds-stat-label">CA total</div><div className="ds-stat-value">{formatEUR(stats.caTotal)}</div></div>
-        <div className="ds-stat-card"><div className="ds-stat-label">CA clients</div><div className="ds-stat-value">{formatEUR(stats.caClients)}</div></div>
-        <div className="ds-stat-card"><div className="ds-stat-label">Panier moyen</div><div className="ds-stat-value">{formatEUR(stats.panierClients)}</div></div>
+        {can.viewCA && <div className="ds-stat-card"><div className="ds-stat-label">CA total</div><div className="ds-stat-value">{formatEUR(stats.caTotal)}</div></div>}
+        {can.viewCA && <div className="ds-stat-card"><div className="ds-stat-label">CA clients</div><div className="ds-stat-value">{formatEUR(stats.caClients)}</div></div>}
+        {can.viewCA && <div className="ds-stat-card"><div className="ds-stat-label">Panier moyen</div><div className="ds-stat-value">{formatEUR(stats.panierClients)}</div></div>}
       </div>
 
       <div className="ds-card">
@@ -858,7 +858,7 @@ export default function ClientsPage() {
             <div className="cl-sep" />
             <button className="cl-action-btn cl-ghost" type="button" onClick={selectAllFiltered} disabled={loading || filtered.length === 0}>Tout sélectionner</button>
             <button className="cl-action-btn cl-ghost" type="button" onClick={clearSelection} disabled={loading || selectedCount === 0}>Désélectionner</button>
-            {selectedCount > 0 && <button className="cl-action-btn cl-danger" type="button" onClick={deleteSelected} disabled={loading}>Supprimer ({selectedCount})</button>}
+            {selectedCount > 0 && can.deleteClients && <button className="cl-action-btn cl-danger" type="button" onClick={deleteSelected} disabled={loading}>Supprimer ({selectedCount})</button>}
           </div>
         </div>
 
@@ -868,7 +868,6 @@ export default function ClientsPage() {
           <div className="cl-empty"><div className="cl-empty-icon">∅</div><div className="cl-empty-title">Aucun client trouvé</div><div className="cl-empty-sub">Importe un CSV ou crée un client manuellement.</div></div>
         ) : (
           <>
-            {/* Desktop */}
             <div className="cl-desktop-table">
               <div className="ds-table-wrap">
                 <table className="ds-table">
@@ -890,7 +889,7 @@ export default function ClientsPage() {
                                 onMouseEnter={e => { e.currentTarget.style.background = "rgba(99,120,255,0.12)"; e.currentTarget.style.color = "#8899ff"; e.currentTarget.style.borderColor = "rgba(99,120,255,0.25)"; }}
                                 onMouseLeave={e => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; e.currentTarget.style.color = "rgba(238,238,245,0.5)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }}
                               >✏️ Modifier</button>
-                              <button className="cl-delete-btn" type="button" onClick={() => deleteOne(c.id)} disabled={loading}>Suppr.</button>
+                              {can.deleteClients && <button className="cl-delete-btn" type="button" onClick={() => deleteOne(c.id)} disabled={loading}>Suppr.</button>}
                             </div>
                           </td>
                         </tr>
@@ -901,7 +900,6 @@ export default function ClientsPage() {
               </div>
             </div>
 
-            {/* Mobile */}
             <div className="cl-mobile-list">
               {selectedCount > 0 && (
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(120,160,255,0.06)" }}>
@@ -909,8 +907,10 @@ export default function ClientsPage() {
                   <div style={{ display: "flex", gap: 8 }}>
                     <button type="button" onClick={clearSelection}
                       style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.10)", background: "transparent", color: "rgba(255,255,255,0.55)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>Désélectionner</button>
-                    <button type="button" onClick={deleteSelected} disabled={loading}
-                      style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(255,80,80,0.25)", background: "rgba(255,80,80,0.08)", color: "rgba(255,120,120,0.9)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>🗑 Supprimer</button>
+                    {can.deleteClients && (
+                      <button type="button" onClick={deleteSelected} disabled={loading}
+                        style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(255,80,80,0.25)", background: "rgba(255,80,80,0.08)", color: "rgba(255,120,120,0.9)", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>🗑 Supprimer</button>
+                    )}
                   </div>
                 </div>
               )}
@@ -924,12 +924,15 @@ export default function ClientsPage() {
                   onEdit={() => setEditingClient(c)}
                   onDelete={() => deleteOne(c.id)}
                   loading={loading}
+                  canEdit={true}
+                  canDelete={can.deleteClients}
                 />
               ))}
             </div>
           </>
         )}
-      </div>{/* ── HISTORIQUE ── */}
+      </div>
+
       {historyOpen && (
         <div className="cf-overlay" onMouseDown={e => { if (e.target === e.currentTarget) setHistoryOpen(false); }}>
           <div className="cf-modal" style={{ width: 1060 }}>
@@ -961,8 +964,8 @@ export default function ClientsPage() {
                             <td className="ds-right" style={{ fontWeight: 800, color: "rgba(120,160,255,0.9)" }}>{formatEUR(moneyToNumberAny(s.amount))}</td>
                             <td className="ds-right">
                               <div style={{ display: "inline-flex", gap: 8 }}>
-                                <button type="button" className="cl-action-btn cl-ghost" onClick={() => { openEditSaleModal(s); setHistoryOpen(false); }} disabled={loading}>Modifier</button>
-                                <button type="button" className="cl-action-btn cl-danger" onClick={() => deleteSale(s.id)} disabled={loading}>Supprimer</button>
+                                {can.editSales && <button type="button" className="cl-action-btn cl-ghost" onClick={() => { openEditSaleModal(s); setHistoryOpen(false); }} disabled={loading}>Modifier</button>}
+                                {can.deleteSales && <button type="button" className="cl-action-btn cl-danger" onClick={() => deleteSale(s.id)} disabled={loading}>Supprimer</button>}
                               </div>
                             </td>
                           </tr>
@@ -977,7 +980,6 @@ export default function ClientsPage() {
         </div>
       )}
 
-      {/* ── EDIT VENTE ── */}
       {editOpen && (
         <div className="cf-overlay" onMouseDown={e => { if (e.target === e.currentTarget) { setEditOpen(false); setEditCalendarOpen(false); } }}>
           <div className="cf-modal" style={{ width: 900 }}>
@@ -999,7 +1001,7 @@ export default function ClientsPage() {
                 <input className="cf-input" placeholder="ex: 49,90" value={editAmount} onChange={e => setEditAmount(e.target.value)} inputMode="decimal" />
               </div>
               <div className="cf-full">
-                <div className="cf-label">Produits <span style={{ opacity: 0.5 }}>(optionnel — coche autant que tu veux)</span></div>
+                <div className="cf-label">Produits <span style={{ opacity: 0.5 }}>(optionnel)</span></div>
                 <MultiProductPicker products={products} selected={editSelectedProducts} onChange={items => setEditSelectedProducts(items)} />
               </div>
               <div className="cf-full">
@@ -1018,7 +1020,6 @@ export default function ClientsPage() {
         </div>
       )}
 
-      {/* ── CRÉER CLIENT ── */}
       {clientOpen && (
         <div className="cf-overlay" onMouseDown={e => { if (e.target === e.currentTarget) setClientOpen(false); }}>
           <div className="cf-modal" style={{ width: 760 }}>
@@ -1040,7 +1041,6 @@ export default function ClientsPage() {
         </div>
       )}
 
-      {/* ── AJOUTER VENTE ── */}
       {saleOpen && (
         <div className="cf-overlay" onMouseDown={e => { if (e.target === e.currentTarget) { setSaleOpen(false); setCalendarOpen(false); } }}>
           <div className="cf-modal" style={{ width: 900 }}>
@@ -1067,7 +1067,7 @@ export default function ClientsPage() {
                 <input className="cf-input" placeholder="ex: 49,90" value={saleAmount} onChange={e => setSaleAmount(e.target.value)} inputMode="decimal" />
               </div>
               <div className="cf-full">
-                <div className="cf-label">Produits <span style={{ opacity: 0.5 }}>(optionnel — coche autant que tu veux)</span></div>
+                <div className="cf-label">Produits <span style={{ opacity: 0.5 }}>(optionnel)</span></div>
                 <MultiProductPicker products={products} selected={saleSelectedProducts} onChange={items => setSaleSelectedProducts(items)} />
               </div>
               {saleMode === "create" && (
@@ -1096,12 +1096,7 @@ export default function ClientsPage() {
 
       <CalendarOverlay open={calendarOpen} valueIso={saleDateIso} onPick={iso => setSaleDateIso(clampToToday(iso))} onClose={() => setCalendarOpen(false)} />
       <CalendarOverlay open={editCalendarOpen} valueIso={editDateIso} onPick={iso => setEditDateIso(clampToToday(iso))} onClose={() => setEditCalendarOpen(false)} />
-
-      <ClientEditDrawer
-        client={editingClient}
-        onClose={() => setEditingClient(null)}
-        onSaved={handleClientSaved}
-      />
+      <ClientEditDrawer client={editingClient} onClose={() => setEditingClient(null)} onSaved={handleClientSaved} />
 
       <style jsx global>{`
         .cf-error { margin-top: 8px; color: rgba(255,120,120,0.95); font-weight: 800; }
