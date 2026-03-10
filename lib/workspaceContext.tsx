@@ -33,58 +33,27 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
       if (!auth?.user) { setLoading(false); return; }
       const userId = auth.user.id;
 
-      // 1. Toutes les boutiques que l'user possède (owner via workspaces.user_id)
+      // 1. Boutiques owned (pour page Paramètres)
       const { data: ownedData } = await supabase
         .from("workspaces")
         .select("id,name")
         .eq("user_id", userId)
         .order("created_at", { ascending: true });
       const owned = (ownedData ?? []) as Workspace[];
-
-      // 2. Boutiques accessibles via membership (admin/vendeur)
-      // On récupère les member_ids de cet user
-      const { data: memberData } = await supabase
-        .from("workspace_members")
-        .select("id,workspace_id,role")
-        .eq("user_id", userId)
-        .eq("status", "active");
-
-      let memberWorkspaces: Workspace[] = [];
-      if (memberData && memberData.length > 0) {
-        // Pour chaque membership, on regarde les boutiques assignées via member_workspace_access
-        const memberIds = memberData.map((m: any) => m.id);
-        const { data: accessData } = await supabase
-          .from("member_workspace_access")
-          .select("workspace_id")
-          .in("member_id", memberIds);
-
-        const assignedWsIds = [...new Set((accessData ?? []).map((a: any) => a.workspace_id))];
-
-        if (assignedWsIds.length > 0) {
-          const { data: assignedWs } = await supabase
-            .from("workspaces")
-            .select("id,name")
-            .in("id", assignedWsIds)
-            .order("created_at", { ascending: true });
-          memberWorkspaces = (assignedWs ?? []) as Workspace[];
-        }
-      }
-
-      // 3. Toutes les boutiques de l'owner (pour la page Paramètres)
-      // allWorkspaces = toutes les boutiques owned (pour que l'owner puisse les assigner)
       setAllWorkspaces(owned);
 
-      // 4. workspaces = boutiques visibles dans le picker (owned + assignées)
-      const merged = [...owned];
-      memberWorkspaces.forEach(w => {
-        if (!merged.find(o => o.id === w.id)) merged.push(w);
-      });
-      setWorkspaces(merged);
+      // 2. Toutes les boutiques accessibles via fonction SECURITY DEFINER
+      const { data: accessibleData, error: rpcError } = await supabase
+        .rpc("get_my_accessible_workspaces");
+      console.log("RPC accessible:", accessibleData, "error:", rpcError);
+      const accessible = (accessibleData ?? []) as Workspace[];
+      setWorkspaces(accessible);
 
-      // 5. Workspace actif
+      // 3. Workspace actif
       const savedId = localStorage.getItem("activeWorkspaceId");
-      const found = merged.find(w => w.id === savedId) ?? merged[0] ?? null;
+      const found = accessible.find(w => w.id === savedId) ?? accessible[0] ?? null;
       setActiveWorkspaceState(found);
+      if (found && !savedId) localStorage.setItem("activeWorkspaceId", found.id);
       setLoading(false);
     })();
   }, []);
