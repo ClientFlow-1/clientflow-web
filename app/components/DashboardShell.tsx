@@ -390,11 +390,14 @@ function AccessDenied({ reason }: { reason: "permission" | "closed" }) {
   );
 }
 
+// ── Nav items ── //
+// 📦 Inventaire ajouté entre Produits et Relances
 const ALL_NAV_ITEMS = [
   { href: "/dashboard/import",      label: "Import",      icon: "📥", showFor: ["owner"] },
   { href: "/dashboard/clients",     label: "Clients",     icon: "👤", showFor: ["owner", "admin", "vendeur"] },
   { href: "/dashboard/produits",    label: "Produits",    icon: "🛍️", showFor: ["owner", "admin", "vendeur"] },
-  { href: "/dashboard/relances",    label: "Relances",    icon: "🔔", showFor: ["owner", "admin", "vendeur"] },
+  { href: "/dashboard/inventaire",  label: "Inventaire",  icon: "📦", showFor: ["owner", "admin", "vendeur"] },
+  { href: "/dashboard/relances",    label: "Relances",    icon: "🔔", showFor: ["owner", "admin"] },
   { href: "/dashboard/analytiques", label: "Analytiques", icon: "📊", showFor: ["owner"] },
   { href: "/dashboard/parametres",  label: "Paramètres",  icon: "⚙️", showFor: ["owner", "admin"] },
 ];

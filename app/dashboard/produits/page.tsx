@@ -9,12 +9,30 @@ type Product = {
   name: string;
   category: string | null;
   price: number;
+  stock: number | null;
+  stock_alert: number | null;
   created_at: string;
 };
 
 function formatEUR(n: number) {
   const v = Number.isFinite(n) ? n : 0;
   try { return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(v); } catch { return `${v.toFixed(2)} €`; }
+}
+
+function StockBadge({ stock, stockAlert }: { stock: number | null; stockAlert: number | null }) {
+  if (stock === null) return <span style={{ opacity: 0.3 }}>—</span>;
+  const isAlert = stockAlert !== null && stock <= stockAlert;
+  const isEmpty = stock === 0;
+  const color = isEmpty
+    ? { bg: "rgba(255,80,80,0.12)", border: "rgba(255,80,80,0.28)", text: "rgba(255,110,110,0.95)" }
+    : isAlert
+    ? { bg: "rgba(255,160,50,0.12)", border: "rgba(255,160,50,0.30)", text: "rgba(255,180,60,0.95)" }
+    : { bg: "rgba(80,210,140,0.10)", border: "rgba(80,210,140,0.25)", text: "rgba(80,210,140,0.95)" };
+  return (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: color.bg, border: `1px solid ${color.border}`, color: color.text }}>
+      {isEmpty ? "⛔" : isAlert ? "⚠️" : "✓"} {stock}
+    </span>
+  );
 }
 
 export default function ProduitsPage() {
@@ -32,6 +50,8 @@ export default function ProduitsPage() {
   const [formName, setFormName] = useState("");
   const [formCategory, setFormCategory] = useState("");
   const [formPrice, setFormPrice] = useState("");
+  const [formStock, setFormStock] = useState("");
+  const [formStockAlert, setFormStockAlert] = useState("");
   const [formSaving, setFormSaving] = useState(false);
 
   // Modal catégorie
@@ -54,7 +74,7 @@ export default function ProduitsPage() {
       if (!auth?.user) { window.location.href = "/login"; return; }
       if (!activeWorkspace) { setProducts([]); setLoading(false); return; }
       const { data, error } = await supabase
-        .from("products").select("id,name,category,price,created_at")
+        .from("products").select("id,name,category,price,stock,stock_alert,created_at")
         .eq("workspace_id", activeWorkspace.id)
         .order("category", { ascending: true }).order("name", { ascending: true });
       if (error) throw error;
@@ -81,28 +101,41 @@ export default function ProduitsPage() {
     return list;
   }, [products, filterCat, search]);
 
+  const stockAlertCount = useMemo(() =>
+    products.filter(p => p.stock !== null && p.stock_alert !== null && p.stock <= p.stock_alert).length,
+  [products]);
+
   function openCreate() {
-    setEditId(null); setFormName(""); setFormCategory(""); setFormPrice(""); setModalOpen(true); setErrorMsg("");
+    setEditId(null); setFormName(""); setFormCategory(""); setFormPrice("");
+    setFormStock(""); setFormStockAlert(""); setModalOpen(true); setErrorMsg("");
   }
   function openEdit(p: Product) {
-    setEditId(p.id); setFormName(p.name); setFormCategory(p.category ?? ""); setFormPrice(String(p.price)); setModalOpen(true); setErrorMsg("");
+    setEditId(p.id); setFormName(p.name); setFormCategory(p.category ?? "");
+    setFormPrice(String(p.price));
+    setFormStock(p.stock !== null ? String(p.stock) : "");
+    setFormStockAlert(p.stock_alert !== null ? String(p.stock_alert) : "");
+    setModalOpen(true); setErrorMsg("");
   }
 
   async function saveProduct() {
     if (!formName.trim()) { setErrorMsg("Le nom est requis."); return; }
     const price = parseFloat(formPrice.replace(",", "."));
     if (isNaN(price) || price < 0) { setErrorMsg("Prix invalide."); return; }
+    const stock = formStock.trim() === "" ? null : parseInt(formStock, 10);
+    const stockAlert = formStockAlert.trim() === "" ? null : parseInt(formStockAlert, 10);
+    if (stock !== null && isNaN(stock)) { setErrorMsg("Stock invalide."); return; }
+    if (stockAlert !== null && isNaN(stockAlert)) { setErrorMsg("Seuil d'alerte invalide."); return; }
     setFormSaving(true); setErrorMsg("");
     try {
       const { data: auth } = await supabase.auth.getUser();
       const user = auth?.user; if (!user) { window.location.href = "/login"; return; }
-      const payload = { name: formName.trim(), category: formCategory.trim() || null, price, user_id: user.id, workspace_id: activeWorkspace?.id };
+      const payload = { name: formName.trim(), category: formCategory.trim() || null, price, stock, stock_alert: stockAlert, user_id: user.id, workspace_id: activeWorkspace?.id };
       if (editId) {
         const { error } = await supabase.from("products").update(payload).eq("id", editId);
         if (error) throw error;
         setProducts(prev => prev.map(p => p.id === editId ? { ...p, ...payload } : p));
       } else {
-        const { data, error } = await supabase.from("products").insert(payload).select("id,name,category,price,created_at").single();
+        const { data, error } = await supabase.from("products").insert(payload).select("id,name,category,price,stock,stock_alert,created_at").single();
         if (error) throw error;
         setProducts(prev => [data as Product, ...prev]);
       }
@@ -127,8 +160,7 @@ export default function ProduitsPage() {
     if (!name) { setCatError("Nom requis."); return; }
     if (categories.includes(name)) { setCatError("Cette catégorie existe déjà."); return; }
     setExtraCategories(prev => [...prev, name]);
-    setCatName("");
-    setCatError("");
+    setCatName(""); setCatError("");
   }
 
   async function renameCategory(oldName: string) {
@@ -185,7 +217,14 @@ export default function ProduitsPage() {
       <div className="ds-header">
         <div>
           <h1 className="ds-title">Produits</h1>
-          <p className="ds-subtitle">Catalogue produits — <strong style={{ color: "rgba(99,120,255,0.9)" }}>{activeWorkspace.name}</strong></p>
+          <p className="ds-subtitle">
+            Catalogue produits — <strong style={{ color: "rgba(99,120,255,0.9)" }}>{activeWorkspace.name}</strong>
+            {stockAlertCount > 0 && (
+              <span style={{ marginLeft: 10, fontSize: 12, fontWeight: 800, padding: "2px 10px", borderRadius: 999, background: "rgba(255,160,50,0.12)", border: "1px solid rgba(255,160,50,0.30)", color: "rgba(255,180,60,0.95)" }}>
+                ⚠️ {stockAlertCount} alerte{stockAlertCount > 1 ? "s" : ""} stock
+              </span>
+            )}
+          </p>
           {errorMsg && <p style={{ marginTop: 8, color: "rgba(255,120,120,0.95)", fontWeight: 800 }}>Erreur : {errorMsg}</p>}
         </div>
         <div className="ds-right-tools">
@@ -206,7 +245,10 @@ export default function ProduitsPage() {
         <div className="ds-stat-card"><div className="ds-stat-label">Produits</div><div className="ds-stat-value">{products.length}</div></div>
         <div className="ds-stat-card"><div className="ds-stat-label">Catégories</div><div className="ds-stat-value">{categories.length}</div></div>
         <div className="ds-stat-card"><div className="ds-stat-label">Prix moyen</div><div className="ds-stat-value">{formatEUR(products.length > 0 ? products.reduce((a, p) => a + p.price, 0) / products.length : 0)}</div></div>
-        <div className="ds-stat-card"><div className="ds-stat-label">Prix max</div><div className="ds-stat-value">{formatEUR(products.length > 0 ? Math.max(...products.map(p => p.price)) : 0)}</div></div>
+        <div className="ds-stat-card">
+          <div className="ds-stat-label">Alertes stock</div>
+          <div className="ds-stat-value" style={{ color: stockAlertCount > 0 ? "rgba(255,180,60,0.95)" : "var(--text-primary)" }}>{stockAlertCount}</div>
+        </div>
       </div>
 
       {/* Recherche + filtre */}
@@ -250,7 +292,13 @@ export default function ProduitsPage() {
           <div className="ds-table-wrap">
             <table className="ds-table">
               <thead>
-                <tr><th>Produit</th><th>Catégorie</th><th className="ds-right">Prix</th><th className="ds-right">Action</th></tr>
+                <tr>
+                  <th>Produit</th>
+                  <th>Catégorie</th>
+                  <th className="ds-right">Prix</th>
+                  <th className="ds-right">Stock</th>
+                  <th className="ds-right">Action</th>
+                </tr>
               </thead>
               <tbody>
                 {filtered.map(p => (
@@ -262,6 +310,9 @@ export default function ProduitsPage() {
                       ) : <span style={{ opacity: 0.35 }}>—</span>}
                     </td>
                     <td className="ds-right" style={{ fontWeight: 800, color: "rgba(120,160,255,0.9)" }}>{formatEUR(p.price)}</td>
+                    <td className="ds-right">
+                      <StockBadge stock={p.stock} stockAlert={p.stock_alert} />
+                    </td>
                     <td className="ds-right">
                       <div style={{ display: "inline-flex", gap: 8 }}>
                         <button type="button" onClick={() => openEdit(p)}
@@ -295,7 +346,6 @@ export default function ProduitsPage() {
 
             {catError && <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 10, background: "rgba(255,80,80,0.08)", border: "1px solid rgba(255,80,80,0.20)", color: "rgba(255,120,120,0.95)", fontWeight: 700, fontSize: 13 }}>{catError}</div>}
 
-            {/* Créer */}
             <div style={{ marginBottom: 20, padding: 16, borderRadius: 14, background: "rgba(255,200,80,0.05)", border: "1px solid rgba(255,200,80,0.15)" }}>
               <div style={{ fontSize: 13, fontWeight: 800, color: "rgba(255,210,80,0.9)", marginBottom: 10 }}>＋ Nouvelle catégorie</div>
               <div style={{ display: "flex", gap: 8 }}>
@@ -309,7 +359,6 @@ export default function ProduitsPage() {
               </div>
             </div>
 
-            {/* Liste */}
             <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1, opacity: 0.4, textTransform: "uppercase", marginBottom: 10 }}>Catégories existantes ({categories.length})</div>
             {categories.length === 0 ? (
               <div style={{ padding: "20px 0", textAlign: "center", opacity: 0.4, fontSize: 13 }}>Aucune catégorie pour l'instant</div>
@@ -387,6 +436,24 @@ export default function ProduitsPage() {
                   <input value={formPrice} onChange={e => setFormPrice(e.target.value)} placeholder="ex: 49,90" inputMode="decimal"
                     style={{ width: "100%", height: 44, borderRadius: 12, padding: "0 14px", background: "rgba(10,11,14,0.65)", color: "rgba(255,255,255,0.92)", border: "1px solid rgba(255,255,255,0.12)", outline: "none", fontSize: 14 }} />
                 </div>
+              </div>
+
+              {/* Stock */}
+              <div style={{ padding: "14px 16px", borderRadius: 14, background: "rgba(80,210,140,0.04)", border: "1px solid rgba(80,210,140,0.12)" }}>
+                <div style={{ fontSize: 13, fontWeight: 800, color: "rgba(80,210,140,0.8)", marginBottom: 12 }}>📦 Gestion du stock <span style={{ opacity: 0.5, fontWeight: 500 }}>(optionnel)</span></div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, opacity: 0.65, marginBottom: 6, color: "rgba(255,255,255,0.9)" }}>Stock actuel</div>
+                    <input value={formStock} onChange={e => setFormStock(e.target.value)} placeholder="ex: 50" inputMode="numeric"
+                      style={{ width: "100%", height: 40, borderRadius: 10, padding: "0 12px", background: "rgba(10,11,14,0.65)", color: "rgba(255,255,255,0.92)", border: "1px solid rgba(80,210,140,0.20)", outline: "none", fontSize: 13 }} />
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, opacity: 0.65, marginBottom: 6, color: "rgba(255,255,255,0.9)" }}>Seuil d'alerte</div>
+                    <input value={formStockAlert} onChange={e => setFormStockAlert(e.target.value)} placeholder="ex: 5" inputMode="numeric"
+                      style={{ width: "100%", height: 40, borderRadius: 10, padding: "0 12px", background: "rgba(10,11,14,0.65)", color: "rgba(255,255,255,0.92)", border: "1px solid rgba(255,160,50,0.20)", outline: "none", fontSize: 13 }} />
+                  </div>
+                </div>
+                <div style={{ fontSize: 11, opacity: 0.4, marginTop: 8 }}>Laisser vide pour ne pas suivre le stock de ce produit.</div>
               </div>
             </div>
 
