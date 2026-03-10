@@ -80,6 +80,7 @@ export default function InventairePage() {
   const [movNote, setMovNote] = useState("");
   const [movSaving, setMovSaving] = useState(false);
   const [movError, setMovError] = useState("");
+  const [initMode, setInitMode] = useState(false);
 
   // Filtre historique
   const [histFilter, setHistFilter] = useState<"all" | MovementType>("all");
@@ -154,13 +155,25 @@ export default function InventairePage() {
     setMovQty("");
     setMovNote("");
     setMovError("");
+    setInitMode(false);
+    setModalOpen(true);
+  }
+
+  function openInitModal(product: Product) {
+    setModalProduct(product);
+    setMovType("adjustment");
+    setMovQty("");
+    setMovNote("");
+    setMovError("");
+    setInitMode(true);
     setModalOpen(true);
   }
 
   async function saveMovement() {
     if (!modalProduct || !activeWorkspace) return;
     const qty = parseInt(movQty, 10);
-    if (isNaN(qty) || qty <= 0) { setMovError("Quantité invalide (doit être > 0)."); return; }
+    if (isNaN(qty) || qty < 0) { setMovError("Quantité invalide."); return; }
+    if (!initMode && qty <= 0) { setMovError("Quantité invalide (doit être > 0)."); return; }
 
     // Vérif stock négatif pour sortie
     if (movType === "out" && modalProduct.stock !== null && modalProduct.stock < qty) {
@@ -174,29 +187,27 @@ export default function InventairePage() {
       if (!user) { window.location.href = "/login"; return; }
 
       // Calcul nouveau stock
-      let newStock: number | null = modalProduct.stock;
-      if (newStock !== null) {
-        if (movType === "in")         newStock = newStock + qty;
-        else if (movType === "out")   newStock = newStock - qty;
-        else                          newStock = qty; // adjustment = set absolu
-      }
+      let newStock: number;
+      if (initMode || modalProduct.stock === null) {
+        newStock = qty; // initialisation = valeur absolue
+      } else if (movType === "in")         { newStock = modalProduct.stock + qty; }
+      else if (movType === "out")          { newStock = modalProduct.stock - qty; }
+      else                                 { newStock = qty; } // adjustment = set absolu
 
       // Insérer mouvement
       const { error: e1 } = await supabase.from("stock_movements").insert({
         product_id: modalProduct.id,
         workspace_id: activeWorkspace.id,
-        type: movType,
+        type: initMode ? "adjustment" : movType,
         quantity: qty,
         note: movNote.trim() || null,
         created_by: user.id,
       });
       if (e1) throw e1;
 
-      // Mettre à jour le stock produit si suivi
-      if (modalProduct.stock !== null) {
-        const { error: e2 } = await supabase.from("products").update({ stock: newStock }).eq("id", modalProduct.id);
-        if (e2) throw e2;
-      }
+      // Toujours mettre à jour le stock produit (init ou mouvement)
+      const { error: e2 } = await supabase.from("products").update({ stock: newStock }).eq("id", modalProduct.id);
+      if (e2) throw e2;
 
       // Maj local
       setProducts(prev => prev.map(p => p.id === modalProduct.id ? { ...p, stock: newStock } : p));
@@ -355,7 +366,10 @@ export default function InventairePage() {
                                 style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(140,160,255,0.20)", background: "rgba(140,160,255,0.06)", color: "rgba(140,160,255,0.85)", fontSize: 12, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}>≈ Ajuster</button>
                             </div>
                           ) : (
-                            <span style={{ fontSize: 12, opacity: 0.35 }}>Stock non configuré</span>
+                            <button type="button" onClick={() => openInitModal(p)}
+                              style={{ height: 30, padding: "0 14px", borderRadius: 8, border: "1px solid rgba(99,120,255,0.25)", background: "rgba(99,120,255,0.08)", color: "rgba(140,160,255,0.85)", fontSize: 12, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}>
+                              ＋ Initialiser le stock
+                            </button>
                           )}
                         </td>
                       </tr>
@@ -451,10 +465,12 @@ export default function InventairePage() {
 
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
               <div>
-                <div style={{ fontSize: 20, fontWeight: 900, color: "rgba(255,255,255,0.95)" }}>Mouvement de stock</div>
+                <div style={{ fontSize: 20, fontWeight: 900, color: "rgba(255,255,255,0.95)" }}>
+                  {initMode ? "Initialiser le stock" : "Mouvement de stock"}
+                </div>
                 <div style={{ fontSize: 13, opacity: 0.55, marginTop: 2 }}>
                   {modalProduct.name}
-                  {modalProduct.stock !== null && (
+                  {!initMode && modalProduct.stock !== null && (
                     <span style={{ marginLeft: 8, fontSize: 12, fontWeight: 700, color: "rgba(120,160,255,0.8)" }}>stock actuel : {modalProduct.stock}</span>
                   )}
                 </div>
@@ -465,31 +481,34 @@ export default function InventairePage() {
 
             {movError && <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 10, background: "rgba(255,80,80,0.08)", border: "1px solid rgba(255,80,80,0.20)", color: "rgba(255,120,120,0.95)", fontWeight: 700, fontSize: 13 }}>{movError}</div>}
 
-            {/* Type selector */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 18 }}>
-              {(["in", "out", "adjustment"] as MovementType[]).map(t => {
-                const info = TYPE_LABELS[t];
-                const active = movType === t;
-                return (
-                  <button key={t} type="button" onClick={() => setMovType(t)}
-                    style={{ height: 44, borderRadius: 12, border: `1px solid ${active ? info.border : "rgba(255,255,255,0.08)"}`, background: active ? info.bg : "rgba(255,255,255,0.02)", color: active ? info.color : "rgba(255,255,255,0.50)", fontWeight: active ? 800 : 500, fontSize: 13, cursor: "pointer", transition: "all 150ms" }}>
-                    {info.sign} {info.label}
-                  </button>
-                );
-              })}
-            </div>
+            {/* Type selector — masqué en mode init */}
+            {!initMode && (
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 18 }}>
+                {(["in", "out", "adjustment"] as MovementType[]).map(t => {
+                  const info = TYPE_LABELS[t];
+                  const active = movType === t;
+                  return (
+                    <button key={t} type="button" onClick={() => setMovType(t)}
+                      style={{ height: 44, borderRadius: 12, border: `1px solid ${active ? info.border : "rgba(255,255,255,0.08)"}`, background: active ? info.bg : "rgba(255,255,255,0.02)", color: active ? info.color : "rgba(255,255,255,0.50)", fontWeight: active ? 800 : 500, fontSize: 13, cursor: "pointer", transition: "all 150ms" }}>
+                      {info.sign} {info.label}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
-            {/* Description type */}
+            {/* Description */}
             <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)", fontSize: 12, opacity: 0.55 }}>
-              {movType === "in"         && "Ajoute la quantité au stock existant."}
-              {movType === "out"        && "Retire la quantité du stock existant."}
-              {movType === "adjustment" && "Définit le stock à la valeur exacte saisie (écrase la valeur actuelle)."}
+              {initMode                            && "Définit le stock de départ pour ce produit. Vous pourrez ensuite faire des entrées et sorties."}
+              {!initMode && movType === "in"       && "Ajoute la quantité au stock existant."}
+              {!initMode && movType === "out"      && "Retire la quantité du stock existant."}
+              {!initMode && movType === "adjustment" && "Définit le stock à la valeur exacte saisie (écrase la valeur actuelle)."}
             </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 800, opacity: 0.75, marginBottom: 8, color: "rgba(255,255,255,0.92)" }}>
-                  {movType === "adjustment" ? "Nouveau stock" : "Quantité"} <span style={{ color: "rgba(255,100,100,0.7)" }}>*</span>
+                  {initMode ? "Stock initial" : movType === "adjustment" ? "Nouveau stock" : "Quantité"} <span style={{ color: "rgba(255,100,100,0.7)" }}>*</span>
                 </div>
                 <input
                   autoFocus
