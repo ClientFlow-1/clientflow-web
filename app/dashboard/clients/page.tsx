@@ -69,13 +69,12 @@ function InfoRow({ label, value, accent }: { label: string; value: string; accen
   );
 }
 
-function MobileClientCard({ c, total, checked, onToggle, onEdit, onDelete, loading, canEdit, canDelete }: {
-  c: ClientRow; total: number; checked: boolean; onToggle: () => void; onEdit: () => void; onDelete: () => void; loading: boolean; canEdit: boolean; canDelete: boolean;
+function MobileClientCard({ c, total, checked, onToggle, onEdit, onDelete, loading, canEdit, canDelete, canViewCA }: {
+  c: ClientRow; total: number; checked: boolean; onToggle: () => void; onEdit: () => void; onDelete: () => void; loading: boolean; canEdit: boolean; canDelete: boolean; canViewCA: boolean;
 }) {
   const [popupOpen, setPopupOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
-
   return (
     <div style={{ display: "flex", alignItems: "center", padding: "12px 14px", borderBottom: "1px solid rgba(255,255,255,0.05)", gap: 10, background: checked ? "rgba(120,160,255,0.06)" : "transparent", transition: "background 120ms" }}>
       <div onClick={onToggle}
@@ -89,11 +88,10 @@ function MobileClientCard({ c, total, checked, onToggle, onEdit, onDelete, loadi
         <div style={{ fontWeight: 800, fontSize: 14, color: "rgba(255,255,255,0.92)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {`${c.prenom ?? ""} ${c.nom ?? ""}`.trim() || c.email || "—"}
         </div>
-        <div style={{ fontSize: 12, color: "rgba(120,160,255,0.85)", fontWeight: 700, marginTop: 2 }}>{formatEUR(total)}</div>
+        {canViewCA && <div style={{ fontSize: 12, color: "rgba(120,160,255,0.85)", fontWeight: 700, marginTop: 2 }}>{formatEUR(total)}</div>}
       </div>
       <button type="button" onClick={() => setPopupOpen(true)}
         style={{ width: 32, height: 32, borderRadius: 9, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.5)", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>···</button>
-
       {popupOpen && mounted && createPortal(
         <div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "flex-end", justifyContent: "center", background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}
           onMouseDown={e => { if (e.target === e.currentTarget) setPopupOpen(false); }}>
@@ -109,7 +107,7 @@ function MobileClientCard({ c, total, checked, onToggle, onEdit, onDelete, loadi
               </div>
             </div>
             <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 20 }}>
-              <InfoRow label="CA total" value={formatEUR(total)} accent />
+              {canViewCA && <InfoRow label="CA total" value={formatEUR(total)} accent />}
               {c.email && <InfoRow label="Email" value={c.email} />}
               {c.birthdate && <InfoRow label="Date de naissance" value={toFRDateDisplay(c.birthdate)} />}
               {c.notes && <InfoRow label="Notes" value={c.notes} />}
@@ -349,7 +347,9 @@ function ExportMenu({ clients, sales, clientById, perClientTotals, saleProductsM
       )}
     </>
   );
-}function ClientPicker({ clients, valueClientId, onChange, disabled, placeholder }: { clients: ClientRow[]; valueClientId: string; onChange: (id: string) => void; disabled?: boolean; placeholder?: string; }) {
+}
+
+function ClientPicker({ clients, valueClientId, onChange, disabled, placeholder }: { clients: ClientRow[]; valueClientId: string; onChange: (id: string) => void; disabled?: boolean; placeholder?: string; }) {
   const [open, setOpen] = useState(false); const [q, setQ] = useState(""); const [mounted, setMounted] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null); const dropRef = useRef<HTMLDivElement>(null);
   const [dropPos, setDropPos] = useState<{ top: number; left: number; width: number }>({ top: 0, left: 0, width: 0 });
@@ -551,9 +551,12 @@ function DrawerField({ label, value, onChange, placeholder, type = "text" }: { l
         onBlur={e => { e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)"; }} />
     </div>
   );
-}export default function ClientsPage() {
+}
+
+export default function ClientsPage() {
   const { activeWorkspace } = useWorkspace();
-  const { can } = useRole();
+  // ← FIX CRITIQUE : on récupère `loading` du role séparément
+  const { can, loading: roleLoading } = useRole();
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [sales, setSales] = useState<SaleRow[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
@@ -561,9 +564,8 @@ function DrawerField({ label, value, onChange, placeholder, type = "text" }: { l
   const [query, setQuery] = useState("");
   const [historyQuery, setHistoryQuery] = useState("");
   const [selected, setSelected] = useState<Record<string, boolean>>({});
-  const [loading, setLoading] = useState(true);
+  const [dataLoading, setDataLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string>("");
-
   const [sortKey, setSortKey] = useState<SortKey>("date_desc");
   const [filterOpen, setFilterOpen] = useState(false);
   const filterBtnRef = useRef<HTMLButtonElement>(null);
@@ -584,7 +586,6 @@ function DrawerField({ label, value, onChange, placeholder, type = "text" }: { l
     const h = (e: MouseEvent) => { const t = e.target as Node; if (filterBtnRef.current?.contains(t) || filterRef.current?.contains(t)) return; setFilterOpen(false); };
     document.addEventListener("mousedown", h); return () => document.removeEventListener("mousedown", h);
   }, [filterOpen]);
-
   const [editingClient, setEditingClient] = useState<ClientRow | null>(null);
   const [saleOpen, setSaleOpen] = useState(false);
   const [saleMode, setSaleMode] = useState<"client" | "anonymous" | "create">("client");
@@ -607,6 +608,9 @@ function DrawerField({ label, value, onChange, placeholder, type = "text" }: { l
   const [newNom, setNewNom] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [newBirthIso, setNewBirthIso] = useState("");
+
+  // loading combiné : données ET rôle
+  const loading = dataLoading || roleLoading;
 
   useEffect(() => { fetchAll(); }, [activeWorkspace?.id]);
   useEffect(() => { if (saleSelectedProducts.length > 0) setSaleAmount(saleSelectedProducts.reduce((acc, p) => acc + p.price * p.quantity, 0).toFixed(2)); }, [saleSelectedProducts]);
@@ -657,11 +661,11 @@ function DrawerField({ label, value, onChange, placeholder, type = "text" }: { l
   function saleDateToIso(s: SaleRow) { if (!s.created_at) return toISODateInput(new Date()); const d = new Date(s.created_at); if (Number.isNaN(d.getTime())) return toISODateInput(new Date()); return toISODateInput(d); }
 
   async function fetchAll() {
-    setLoading(true); setErrorMsg("");
+    setDataLoading(true); setErrorMsg("");
     try {
       const { data: auth } = await supabase.auth.getUser();
       if (!auth?.user) { window.location.href = "/login"; return; }
-      if (!activeWorkspace) { setClients([]); setSales([]); setProducts([]); setSaleProductsMap(new Map()); setLoading(false); return; }
+      if (!activeWorkspace) { setClients([]); setSales([]); setProducts([]); setSaleProductsMap(new Map()); setDataLoading(false); return; }
       const [{ data: cData, error: cErr }, { data: sData, error: sErr }, { data: pData, error: pErr }, { data: spData, error: spErr }] = await Promise.all([
         supabase.from("clients").select("id,email,prenom,nom,created_at,birthdate,notes,status_override").eq("workspace_id", activeWorkspace.id).order("created_at", { ascending: false }).limit(1000),
         supabase.from("sales").select("id,user_id,client_id,amount,created_at,product_id,product_name").eq("workspace_id", activeWorkspace.id).order("created_at", { ascending: false }).limit(5000),
@@ -676,18 +680,18 @@ function DrawerField({ label, value, onChange, placeholder, type = "text" }: { l
       setSaleProductsMap(spMap); setSelected({});
       if (!saleClientId && cs.length > 0) setSaleClientId(cs[0].id);
     } catch (e: any) { setErrorMsg(e?.message ?? "Erreur inconnue"); }
-    finally { setLoading(false); }
+    finally { setDataLoading(false); }
   }
 
   async function deleteOne(id: string) {
     if (!confirm("Supprimer ce client ?")) return;
-    try { setLoading(true); const { error } = await supabase.from("clients").delete().eq("id", id); if (error) throw error; setClients(prev => prev.filter(c => c.id !== id)); setSelected(prev => { const copy = { ...prev }; delete copy[id]; return copy; }); }
-    catch (e: any) { setErrorMsg(e?.message ?? "Erreur suppression"); } finally { setLoading(false); }
+    try { setDataLoading(true); const { error } = await supabase.from("clients").delete().eq("id", id); if (error) throw error; setClients(prev => prev.filter(c => c.id !== id)); setSelected(prev => { const copy = { ...prev }; delete copy[id]; return copy; }); }
+    catch (e: any) { setErrorMsg(e?.message ?? "Erreur suppression"); } finally { setDataLoading(false); }
   }
   async function deleteSelected() {
     if (selectedCount === 0 || !confirm(`Supprimer ${selectedCount} client(s) ?`)) return;
-    try { setLoading(true); const { error } = await supabase.from("clients").delete().in("id", selectedIds); if (error) throw error; const toDelete = new Set(selectedIds); setClients(prev => prev.filter(c => !toDelete.has(c.id))); setSelected({}); }
-    catch (e: any) { setErrorMsg(e?.message ?? "Erreur suppression"); } finally { setLoading(false); }
+    try { setDataLoading(true); const { error } = await supabase.from("clients").delete().in("id", selectedIds); if (error) throw error; const toDelete = new Set(selectedIds); setClients(prev => prev.filter(c => !toDelete.has(c.id))); setSelected({}); }
+    catch (e: any) { setErrorMsg(e?.message ?? "Erreur suppression"); } finally { setDataLoading(false); }
   }
   function normalizeEmail(s: string) { return s.trim().toLowerCase(); }
   function isValidEmail(s: string) { const v = normalizeEmail(s); if (!v) return true; return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
@@ -704,8 +708,8 @@ function DrawerField({ label, value, onChange, placeholder, type = "text" }: { l
   function openEditSaleModal(s: SaleRow) { const dateIso = clampToToday(saleDateToIso(s)); setEditSaleId(s.id); setEditMode(s.client_id ? "client" : "anonymous"); setEditClientId(s.client_id ?? (clients[0]?.id ?? "")); setEditAmount(String(moneyToNumberAny(s.amount))); setEditDateIso(dateIso); setEditSelectedProducts(saleProductsMap.get(s.id) ?? []); setEditCalendarOpen(false); setEditOpen(true); }
   async function deleteSale(id: string) {
     if (!confirm("Supprimer cette vente ?")) return;
-    try { setLoading(true); const { error } = await supabase.from("sales").delete().eq("id", id); if (error) throw error; setSales(prev => prev.filter(x => x.id !== id)); setSaleProductsMap(prev => { const next = new Map(prev); next.delete(id); return next; }); }
-    catch (e: any) { setErrorMsg(e?.message ?? "Erreur suppression vente"); } finally { setLoading(false); }
+    try { setDataLoading(true); const { error } = await supabase.from("sales").delete().eq("id", id); if (error) throw error; setSales(prev => prev.filter(x => x.id !== id)); setSaleProductsMap(prev => { const next = new Map(prev); next.delete(id); return next; }); }
+    catch (e: any) { setErrorMsg(e?.message ?? "Erreur suppression vente"); } finally { setDataLoading(false); }
   }
   async function saveSaleProducts(saleId: string, items: SaleProduct[]) {
     await supabase.from("sale_products").delete().eq("sale_id", saleId);
@@ -714,7 +718,7 @@ function DrawerField({ label, value, onChange, placeholder, type = "text" }: { l
   }
   async function saveEditedSale() {
     try {
-      setLoading(true); setErrorMsg("");
+      setDataLoading(true); setErrorMsg("");
       const amount = moneyToNumberAny(editAmount); if (!(amount > 0)) { setErrorMsg("Montant invalide."); return; }
       const dateIso = clampToToday(editDateIso);
       const client_id = editMode === "anonymous" ? null : editClientId || null;
@@ -725,11 +729,11 @@ function DrawerField({ label, value, onChange, placeholder, type = "text" }: { l
       setSales(prev => prev.map(s => s.id === (data as SaleRow).id ? data as SaleRow : s));
       await saveSaleProducts(editSaleId, editSelectedProducts);
       setEditOpen(false); setEditCalendarOpen(false);
-    } catch (e: any) { setErrorMsg(e?.message ?? "Erreur modification vente"); } finally { setLoading(false); }
+    } catch (e: any) { setErrorMsg(e?.message ?? "Erreur modification vente"); } finally { setDataLoading(false); }
   }
   async function saveClientOnly() {
     try {
-      setLoading(true); setErrorMsg("");
+      setDataLoading(true); setErrorMsg("");
       const { data: auth } = await supabase.auth.getUser(); const user = auth?.user; if (!user) { window.location.href = "/login"; return; }
       const p = newPrenom.trim(); const n = newNom.trim(); const e = normalizeEmail(newEmail); const b = (newBirthIso || "").trim();
       if (!p || !n) { setErrorMsg("Prénom et nom requis."); return; }
@@ -739,11 +743,11 @@ function DrawerField({ label, value, onChange, placeholder, type = "text" }: { l
       const res = await insertClientWithFallback(clientPayload);
       if (res.error) throw res.error;
       setClients(prev => [res.data as ClientRow, ...prev]); setSaleClientId((res.data as ClientRow).id); setClientOpen(false);
-    } catch (e: any) { setErrorMsg(e?.message ?? "Erreur création client"); } finally { setLoading(false); }
+    } catch (e: any) { setErrorMsg(e?.message ?? "Erreur création client"); } finally { setDataLoading(false); }
   }
   async function saveSale() {
     try {
-      setLoading(true); setErrorMsg("");
+      setDataLoading(true); setErrorMsg("");
       const { data: auth } = await supabase.auth.getUser(); const user = auth?.user; if (!user) { window.location.href = "/login"; return; }
       const amount = moneyToNumberAny(saleAmount); if (!(amount > 0)) { setErrorMsg("Montant invalide."); return; }
       const dateIso = clampToToday(saleDateIso);
@@ -765,7 +769,7 @@ function DrawerField({ label, value, onChange, placeholder, type = "text" }: { l
       const newSale = data as SaleRow; setSales(prev => [newSale, ...prev]);
       await saveSaleProducts(newSale.id, saleSelectedProducts);
       setSaleOpen(false); setCalendarOpen(false);
-    } catch (e: any) { setErrorMsg(e?.message ?? "Erreur enregistrement vente"); } finally { setLoading(false); }
+    } catch (e: any) { setErrorMsg(e?.message ?? "Erreur enregistrement vente"); } finally { setDataLoading(false); }
   }
 
   const handleClientSaved = (updated: ClientRow) => {
@@ -782,6 +786,17 @@ function DrawerField({ label, value, onChange, placeholder, type = "text" }: { l
       <div style={{ padding: "60px 0", textAlign: "center", opacity: 0.5 }}>
         <div style={{ fontSize: 32, marginBottom: 12 }}>◈</div>
         <div style={{ fontSize: 16, fontWeight: 800, color: "rgba(255,255,255,0.7)" }}>Aucun workspace sélectionné</div>
+      </div>
+    </div>
+  );
+
+  // ← FIX CRITIQUE : on attend que le rôle soit chargé avant de rendre la page
+  if (roleLoading) return (
+    <div className="ds-page">
+      <div className="ds-topline">Dashboard / Clients</div>
+      <h1 className="ds-title">Clients</h1>
+      <div style={{ padding: "60px 0", textAlign: "center", opacity: 0.4 }}>
+        <div style={{ fontSize: 16, fontWeight: 700 }}>Chargement…</div>
       </div>
     </div>
   );
@@ -871,7 +886,16 @@ function DrawerField({ label, value, onChange, placeholder, type = "text" }: { l
             <div className="cl-desktop-table">
               <div className="ds-table-wrap">
                 <table className="ds-table">
-                  <thead><tr><th style={{ width: 40 }}></th><th>Email</th><th>Prénom</th><th>Nom</th><th className="ds-right">Total</th><th className="ds-right">Actions</th></tr></thead>
+                  <thead>
+                    <tr>
+                      <th style={{ width: 40 }}></th>
+                      <th>Email</th>
+                      <th>Prénom</th>
+                      <th>Nom</th>
+                      {can.viewCA && <th className="ds-right">Total</th>}
+                      <th className="ds-right">Actions</th>
+                    </tr>
+                  </thead>
                   <tbody>
                     {filtered.map(c => {
                       const checked = !!selected[c.id]; const total = perClientTotals.get(c.id) ?? 0;
@@ -881,7 +905,7 @@ function DrawerField({ label, value, onChange, placeholder, type = "text" }: { l
                           <td className="ds-mono" style={{ color: "rgba(255,255,255,0.65)", fontSize: 13 }}>{c.email || "—"}</td>
                           <td style={{ fontWeight: 700 }}>{c.prenom || "—"}</td>
                           <td style={{ fontWeight: 700 }}>{c.nom || "—"}</td>
-                          <td className="ds-right" style={{ fontWeight: 800, color: "rgba(120,160,255,0.9)" }}>{formatEUR(total)}</td>
+                          {can.viewCA && <td className="ds-right" style={{ fontWeight: 800, color: "rgba(120,160,255,0.9)" }}>{formatEUR(total)}</td>}
                           <td className="ds-right">
                             <div style={{ display: "inline-flex", gap: 8, alignItems: "center" }}>
                               <button type="button" onClick={e => { e.stopPropagation(); setEditingClient(c); }}
@@ -926,6 +950,7 @@ function DrawerField({ label, value, onChange, placeholder, type = "text" }: { l
                   loading={loading}
                   canEdit={true}
                   canDelete={can.deleteClients}
+                  canViewCA={can.viewCA}
                 />
               ))}
             </div>
@@ -950,7 +975,15 @@ function DrawerField({ label, value, onChange, placeholder, type = "text" }: { l
               {filteredSales.length === 0 ? <div className="cl-empty"><div className="cl-empty-title">Aucune vente</div></div> : (
                 <div className="ds-table-wrap">
                   <table className="ds-table">
-                    <thead><tr><th>Date</th><th>Client</th><th>Produits</th><th className="ds-right">Montant</th><th className="ds-right">Action</th></tr></thead>
+                    <thead>
+                      <tr>
+                        <th>Date</th>
+                        <th>Client</th>
+                        <th>Produits</th>
+                        {can.viewCA && <th className="ds-right">Montant</th>}
+                        <th className="ds-right">Action</th>
+                      </tr>
+                    </thead>
                     <tbody>
                       {filteredSales.map(s => {
                         const iso = saleDateToIso(s);
@@ -961,7 +994,7 @@ function DrawerField({ label, value, onChange, placeholder, type = "text" }: { l
                             <td className="ds-mono">{toFRDateDisplay(iso)}</td>
                             <td>{clientLabel(s.client_id)}</td>
                             <td>{prodLabel ? <span style={{ fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: "rgba(120,160,255,0.10)", border: "1px solid rgba(120,160,255,0.20)", color: "rgba(120,160,255,0.9)" }}>{prodLabel}</span> : <span style={{ opacity: 0.3 }}>—</span>}</td>
-                            <td className="ds-right" style={{ fontWeight: 800, color: "rgba(120,160,255,0.9)" }}>{formatEUR(moneyToNumberAny(s.amount))}</td>
+                            {can.viewCA && <td className="ds-right" style={{ fontWeight: 800, color: "rgba(120,160,255,0.9)" }}>{formatEUR(moneyToNumberAny(s.amount))}</td>}
                             <td className="ds-right">
                               <div style={{ display: "inline-flex", gap: 8 }}>
                                 {can.editSales && <button type="button" className="cl-action-btn cl-ghost" onClick={() => { openEditSaleModal(s); setHistoryOpen(false); }} disabled={loading}>Modifier</button>}
@@ -1101,51 +1134,48 @@ function DrawerField({ label, value, onChange, placeholder, type = "text" }: { l
       <style jsx global>{`
         .cf-error { margin-top: 8px; color: rgba(255,120,120,0.95); font-weight: 800; }
         .cl-pill { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: 999px; background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.10); font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.75); }
-        .cl-pill-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(120,220,120,0.85); flex-shrink: 0; }
-        .cl-search-wrap { position: relative; margin-top: 16px; margin-bottom: 20px; display: flex; align-items: center; }
-        .cl-search-icon { position: absolute; left: 14px; font-size: 18px; opacity: 0.4; pointer-events: none; }
-        .cl-search-input { width: 100%; height: 48px; border-radius: 14px; padding: 0 120px 0 44px; background: rgba(10,11,14,0.65); color: rgba(255,255,255,0.92); border: 1px solid rgba(255,255,255,0.10); outline: none; font-size: 14px; transition: border-color 140ms, box-shadow 140ms; }
-        .cl-search-input::placeholder { color: rgba(255,255,255,0.35); }
-        .cl-search-input:focus { border-color: rgba(120,160,255,0.45); box-shadow: 0 0 0 3px rgba(120,160,255,0.12); }
-        .cl-search-clear { position: absolute; right: 118px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); border-radius: 6px; color: rgba(255,255,255,0.6); font-size: 11px; padding: 3px 8px; cursor: pointer; }
+        .cl-pill-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(99,199,99,0.9); }
+        .cl-search-wrap { position: relative; display: flex; align-items: center; margin-bottom: 16px; }
+        .cl-search-icon { position: absolute; left: 14px; font-size: 18px; opacity: 0.35; pointer-events: none; }
+        .cl-search-input { width: 100%; height: 48px; border-radius: 14px; padding: 0 140px 0 44px; background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.92); border: 1px solid rgba(255,255,255,0.10); outline: none; font-size: 14px; }
+        .cl-search-input:focus { border-color: rgba(120,160,255,0.40); }
+        .cl-search-clear { position: absolute; right: 100px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10); border-radius: 6px; color: rgba(255,255,255,0.6); font-size: 11px; padding: 3px 8px; cursor: pointer; }
         .cl-actions-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-        .cl-action-btn { height: 36px; padding: 0 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.12); background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.88); font-size: 13px; font-weight: 750; cursor: pointer; white-space: nowrap; transition: background 120ms; }
-        .cl-action-btn:hover:not(:disabled) { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.20); }
+        .cl-action-btn { height: 34px; padding: 0 14px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.85); font-size: 13px; font-weight: 700; cursor: pointer; white-space: nowrap; font-family: inherit; }
+        .cl-action-btn:hover { background: rgba(255,255,255,0.08); }
         .cl-action-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-        .cl-action-btn.cl-ghost { background: rgba(255,255,255,0.02); border-color: rgba(255,255,255,0.08); color: rgba(255,255,255,0.65); }
-        .cl-action-btn.cl-danger { background: rgba(255,80,80,0.08); border-color: rgba(255,80,80,0.25); color: rgba(255,120,120,0.95); }
-        .cl-sep { width: 1px; height: 24px; background: rgba(255,255,255,0.10); margin: 0 2px; }
-        .cl-row-selected td { background: rgba(120,160,255,0.06); }
-        .cl-checkbox { display: inline-flex; align-items: center; cursor: pointer; }
+        .cl-action-btn.cl-ghost { color: rgba(255,255,255,0.50); }
+        .cl-action-btn.cl-danger { border-color: rgba(255,80,80,0.25); background: rgba(255,80,80,0.08); color: rgba(255,120,120,0.9); }
+        .cl-sep { width: 1px; height: 24px; background: rgba(255,255,255,0.10); margin: 0 4px; }
+        .cl-delete-btn { height: 28px; padding: 0 10px; border-radius: 8px; border: 1px solid rgba(255,80,80,0.20); background: rgba(255,80,80,0.06); color: rgba(255,120,120,0.85); font-size: 12px; cursor: pointer; font-family: inherit; }
+        .cl-checkbox { display: inline-flex; cursor: pointer; }
         .cl-checkbox input { display: none; }
-        .cl-checkbox-ui { width: 18px; height: 18px; border-radius: 6px; border: 1.5px solid rgba(255,255,255,0.20); background: rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center; }
-        .cl-checkbox input:checked + .cl-checkbox-ui { background: rgba(120,160,255,0.25); border-color: rgba(120,160,255,0.60); }
-        .cl-checkbox input:checked + .cl-checkbox-ui::after { content: "✓"; font-size: 11px; color: rgba(255,255,255,0.95); font-weight: 900; }
-        .cl-delete-btn { height: 30px; padding: 0 12px; border-radius: 8px; border: 1px solid rgba(255,80,80,0.20); background: rgba(255,80,80,0.06); color: rgba(255,120,120,0.85); font-size: 12px; font-weight: 750; cursor: pointer; }
-        .cl-delete-btn:hover:not(:disabled) { background: rgba(255,80,80,0.12); }
-        .cl-delete-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-        .cl-empty { padding: 40px 0; text-align: center; }
-        .cl-empty-icon { font-size: 28px; opacity: 0.3; margin-bottom: 10px; }
-        .cl-empty-title { font-size: 16px; font-weight: 800; color: rgba(255,255,255,0.70); }
-        .cl-empty-sub { font-size: 13px; opacity: 0.45; margin-top: 4px; }
-        .cf-overlay { position: fixed; inset: 0; z-index: 70; display: flex; align-items: flex-start; justify-content: center; padding: 18px; overflow-y: auto; background: radial-gradient(1200px 700px at 50% 30%, rgba(120,160,255,0.12), rgba(0,0,0,0) 55%), rgba(0,0,0,0.58); backdrop-filter: blur(10px); }
-        .cf-modal { width: 820px; max-width: 100%; border-radius: 18px; padding: 18px; background: linear-gradient(180deg, rgba(20,22,28,0.96), rgba(12,13,16,0.96)); border: 1px solid rgba(255,255,255,0.10); box-shadow: 0 30px 80px rgba(0,0,0,0.55); }
+        .cl-checkbox-ui { width: 18px; height: 18px; border-radius: 6px; border: 1.5px solid rgba(255,255,255,0.20); background: rgba(255,255,255,0.03); display: flex; align-items: center; justify-content: center; transition: all 120ms; }
+        .cl-checkbox input:checked + .cl-checkbox-ui { background: rgba(120,160,255,0.9); border-color: rgba(120,160,255,0.9); }
+        .cl-checkbox input:checked + .cl-checkbox-ui::after { content: "✓"; font-size: 11px; color: #fff; font-weight: 900; }
+        .cl-row-selected { background: rgba(120,160,255,0.06) !important; }
+        .cl-empty { padding: 60px 0; text-align: center; }
+        .cl-empty-icon { font-size: 32px; opacity: 0.3; margin-bottom: 12px; }
+        .cl-empty-title { font-size: 16px; font-weight: 800; color: rgba(255,255,255,0.6); }
+        .cl-empty-sub { font-size: 13px; color: rgba(255,255,255,0.35); margin-top: 6px; }
+        .cf-overlay { position: fixed; inset: 0; z-index: 9998; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(0,0,0,0.65); backdrop-filter: blur(10px); }
+        .cf-modal { width: 820px; max-width: 100%; border-radius: 18px; padding: 18px; background: linear-gradient(180deg, rgba(20,22,28,0.96), rgba(12,13,16,0.96)); border: 1px solid rgba(255,255,255,0.10); box-shadow: 0 30px 80px rgba(0,0,0,0.55); max-height: 90vh; overflow-y: auto; }
         .cf-modalTop { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
         .cf-modalTitle { font-size: 20px; font-weight: 900; color: rgba(255,255,255,0.95); }
         .cf-modalSub { opacity: 0.6; margin-top: 2px; font-size: 13px; }
-        .cf-btn { border-radius: 999px; border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.92); padding: 10px 14px; font-weight: 750; cursor: pointer; }
+        .cf-btn { border-radius: 999px; border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.92); padding: 10px 14px; font-weight: 750; cursor: pointer; font-family: inherit; }
         .cf-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         .cf-btnGhost { background: rgba(255,255,255,0.02); }
         .cf-btnPrimary { background: rgba(120,160,255,0.16); border-color: rgba(120,160,255,0.35); }
         .cf-btnPrimary:hover { background: rgba(120,160,255,0.22); }
         .cf-btnIcon { width: 44px; height: 44px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; }
         .cf-chips { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
-        .cf-chip { border-radius: 999px; padding: 10px 14px; font-weight: 800; border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.03); color: rgba(255,255,255,0.90); cursor: pointer; }
+        .cf-chip { border-radius: 999px; padding: 10px 14px; font-weight: 800; border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.03); color: rgba(255,255,255,0.90); cursor: pointer; font-family: inherit; }
         .cf-chip.isOn { background: rgba(120,160,255,0.16); border-color: rgba(120,160,255,0.40); }
         .cf-grid { display: grid; grid-template-columns: 1.25fr 1fr; gap: 14px; margin-top: 14px; }
         .cf-full { grid-column: 1 / -1; }
         .cf-label { font-size: 13px; font-weight: 800; opacity: 0.75; margin-bottom: 8px; color: rgba(255,255,255,0.92); }
-        .cf-input { width: 100%; height: 44px; border-radius: 12px; padding: 0 12px; background: rgba(10,11,14,0.65); color: rgba(255,255,255,0.92); border: 1px solid rgba(255,255,255,0.10); outline: none; display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-size: 14px; }
+        .cf-input { width: 100%; height: 44px; border-radius: 12px; padding: 0 12px; background: rgba(10,11,14,0.65); color: rgba(255,255,255,0.92); border: 1px solid rgba(255,255,255,0.10); outline: none; display: flex; align-items: center; justify-content: space-between; cursor: pointer; font-size: 14px; font-family: inherit; box-sizing: border-box; }
         .cf-input::placeholder { color: rgba(255,255,255,0.35); }
         .cf-input:focus { border-color: rgba(120,160,255,0.55); box-shadow: 0 0 0 3px rgba(120,160,255,0.12); }
         .cf-dateRow { display: grid; grid-template-columns: 1fr 44px; gap: 10px; align-items: center; }
@@ -1153,7 +1183,7 @@ function DrawerField({ label, value, onChange, placeholder, type = "text" }: { l
         .cf-ghostTitle { font-weight: 800; color: rgba(255,255,255,0.80); font-size: 14px; }
         .cf-ghostSub { opacity: 0.55; font-size: 12px; }
         .cf-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 16px; }
-        .cf-row { width: 100%; text-align: left; padding: 12px 14px; border: none; background: transparent; color: rgba(255,255,255,0.92); cursor: pointer; transition: background 100ms; }
+        .cf-row { width: 100%; text-align: left; padding: 12px 14px; border: none; background: transparent; color: rgba(255,255,255,0.92); cursor: pointer; transition: background 100ms; font-family: inherit; }
         .cf-row:hover { background: rgba(255,255,255,0.04); }
         .cf-row.isActive { background: rgba(120,160,255,0.12); }
         .cf-rowTitle { font-weight: 800; }
@@ -1163,6 +1193,8 @@ function DrawerField({ label, value, onChange, placeholder, type = "text" }: { l
         @media (max-width: 768px) {
           .cl-desktop-table { display: none; }
           .cl-mobile-list { display: block; border-radius: 12px; border: 1px solid rgba(255,255,255,0.06); overflow: hidden; }
+          .cf-grid { grid-template-columns: 1fr; }
+          .cf-full { grid-column: 1; }
         }
       `}</style>
     </div>
