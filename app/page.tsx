@@ -281,20 +281,31 @@ const CSS = `
   .lp-hamburger.open span:nth-child(2) { opacity:0; transform:scaleX(0); }
   .lp-hamburger.open span:nth-child(3) { transform:translateY(-7px) rotate(-45deg); }
 
-  /* ── Mobile full-screen drawer ── */
+  /* ── Mobile drawer overlay ── */
+  .lp-drawer-overlay {
+    display:none; position:fixed; inset:0; z-index:1004;
+    background:rgba(0,0,0,0.55); backdrop-filter:blur(3px);
+  }
+  .lp-drawer-overlay.open { display:block; }
+
+  /* ── Mobile side drawer (slide from left) ── */
   .lp-drawer {
-    display:none; position:fixed; inset:0; z-index:1005;
-    background:rgba(8,8,14,0.98); backdrop-filter:blur(24px);
-    flex-direction:column; padding:80px 28px 40px; gap:8px;
-    animation:fadeIn 0.2s ease both;
+    position:fixed; top:0; left:0; bottom:0; z-index:1006;
+    width:280px; max-width:82vw;
+    background:#0d0d1a; border-right:1px solid rgba(255,255,255,0.08);
+    display:flex; flex-direction:column;
+    transform:translateX(-100%); transition:transform 0.32s cubic-bezier(0.4,0,0.2,1);
+    box-shadow:4px 0 48px rgba(0,0,0,0.65);
   }
-  .lp-drawer.open { display:flex; }
+  .lp-drawer.open { transform:translateX(0); }
   .lp-drawer-link {
-    display:block; padding:16px 0; font-size:22px; font-weight:700;
-    color:rgba(255,255,255,0.75); border-bottom:1px solid rgba(255,255,255,0.06);
-    text-decoration:none; transition:color 0.15s;
+    display:flex; align-items:center; gap:14px;
+    padding:14px 24px; font-size:15px; font-weight:600;
+    color:rgba(255,255,255,0.68); border-bottom:1px solid rgba(255,255,255,0.05);
+    text-decoration:none; transition:background 0.15s, color 0.15s;
   }
-  .lp-drawer-link:hover { color:rgba(255,255,255,0.97); }
+  .lp-drawer-link:hover { color:rgba(255,255,255,0.97); background:rgba(255,255,255,0.03); }
+  .lp-drawer-link-icon { width:18px; height:18px; flex-shrink:0; opacity:0.55; }
 
   /* ── Announce short text (mobile only) ── */
   .lp-announce-short { display:none; }
@@ -304,12 +315,12 @@ const CSS = `
     /* Navbar */
     .lp-nav-links      { display:none !important; }
     .lp-nav-live-badge { display:none !important; }
-    .lp-nav-btn-connect { display:inline-flex !important; padding:6px 12px !important; font-size:12px !important; height:auto !important; line-height:1 !important; }
-    .lp-nav-btn-start  { padding:6px 12px !important; font-size:12px !important; height:auto !important; line-height:1 !important; }
+    .lp-nav-btn-connect { display:inline-flex !important; padding:5px 11px !important; font-size:11px !important; height:auto !important; line-height:1 !important; }
+    .lp-nav-btn-start  { padding:5px 11px !important; font-size:11px !important; height:auto !important; line-height:1 !important; }
     .lp-hamburger      { display:flex; }
-    .lp-nav-inner      { position:relative !important; padding:0 16px !important; }
-    .lp-nav-logo       { position:absolute !important; left:50% !important; transform:translateX(-50%) !important; margin-left:0 !important; }
-    .lp-nav-logo span  { display:none !important; }
+    .lp-nav-inner      { position:relative !important; padding:0 14px !important; }
+    .lp-nav-logo       { position:absolute !important; left:50% !important; transform:translateX(-50%) !important; margin-left:0 !important; pointer-events:none; }
+    .lp-nav-logo span  { font-size:10px !important; letter-spacing:1.5px !important; }
     .lp-nav-right      { gap:6px !important; padding-right:0 !important; }
 
     /* Announcement bar */
@@ -938,16 +949,42 @@ export default function LandingPage() {
         </div>
       </header>
 
-      {/* ══════════ MOBILE DRAWER ══════════ */}
-      <div className={`lp-drawer${drawerOpen ? " open" : ""}`} style={{ paddingTop: announcementDismissed ? 72 : 112 }}>
-        <button onClick={() => setDrawerOpen(false)} style={{ position: "absolute", top: announcementDismissed ? 18 : 58, right: 24, background: "none", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.6)", fontSize: 24, lineHeight: 1 }}>✕</button>
-        {[["Fonctionnalités","#features"],["Comment ça marche","#how-it-works"],["Tarif","#pricing"],["Témoignages","#testimonials"]].map(([label, href]) => (
-          <a key={href} href={href} className="lp-drawer-link" onClick={() => setDrawerOpen(false)}>{label}</a>
-        ))}
-        <div style={{ marginTop: 32, display: "flex", flexDirection: "column", gap: 12 }}>
-          <Link href="/login" onClick={() => setDrawerOpen(false)} style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 52, borderRadius: 12, border: "1px solid rgba(255,255,255,0.18)", color: "rgba(255,255,255,0.78)", fontWeight: 700, fontSize: 15, textDecoration: "none" }}>Connexion</Link>
-          <a href="#stripe-placeholder" className="lp-btn-primary" onClick={() => setDrawerOpen(false)} style={{ height: 52, fontSize: 15, borderRadius: 12, justifyContent: "center" }}>Démarrer →</a>
+      {/* ══════════ DRAWER OVERLAY ══════════ */}
+      <div className={`lp-drawer-overlay${drawerOpen ? " open" : ""}`} onClick={() => setDrawerOpen(false)} />
+
+      {/* ══════════ MOBILE DRAWER (slide from left) ══════════ */}
+      <div className={`lp-drawer${drawerOpen ? " open" : ""}`}>
+
+        {/* Header */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "18px 20px", borderBottom: "1px solid rgba(255,255,255,0.07)", flexShrink: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 30, height: 30, borderRadius: 8, background: `linear-gradient(135deg,${ACCENT},${ACCENT_MID})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#fff", fontFamily: "'DM Mono',monospace", boxShadow: "0 0 12px rgba(99,120,255,0.40)" }}>CF</div>
+            <span style={{ fontFamily: "'DM Mono',monospace", fontWeight: 600, fontSize: 11, letterSpacing: 1.5, color: "rgba(255,255,255,0.90)", whiteSpace: "nowrap" }}>CLIENTFLOW</span>
+          </div>
+          <button onClick={() => setDrawerOpen(false)} style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)", color: "rgba(255,255,255,0.70)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, lineHeight: 1, fontFamily: "inherit" }}>✕</button>
         </div>
+
+        {/* Nav links */}
+        <nav style={{ flex: 1, overflowY: "auto" }}>
+          {[
+            { label: "Fonctionnalités",    href: "#features",      icon: <svg className="lp-drawer-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> },
+            { label: "Comment ça marche",  href: "#how-it-works",  icon: <svg className="lp-drawer-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg> },
+            { label: "Tarif",              href: "#pricing",       icon: <svg className="lp-drawer-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg> },
+            { label: "Témoignages",        href: "#testimonials",  icon: <svg className="lp-drawer-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg> },
+          ].map(({ label, href, icon }) => (
+            <a key={href} href={href} className="lp-drawer-link" onClick={() => setDrawerOpen(false)}>
+              {icon}
+              {label}
+            </a>
+          ))}
+        </nav>
+
+        {/* Bottom buttons */}
+        <div style={{ padding: "20px", borderTop: "1px solid rgba(255,255,255,0.07)", display: "flex", flexDirection: "column", gap: 10, flexShrink: 0 }}>
+          <Link href="/login" onClick={() => setDrawerOpen(false)} style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 46, borderRadius: 10, border: "1px solid rgba(255,255,255,0.18)", color: "rgba(255,255,255,0.78)", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>Connexion</Link>
+          <a href="#stripe-placeholder" className="lp-btn-primary" onClick={() => setDrawerOpen(false)} style={{ height: 46, fontSize: 14, borderRadius: 10, justifyContent: "center" }}>Démarrer →</a>
+        </div>
+
       </div>
 
       {/* ══════════ HERO ══════════ */}
