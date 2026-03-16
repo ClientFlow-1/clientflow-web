@@ -2,7 +2,7 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { supabase } from "./supabaseClient";
 
-export type Workspace = { id: string; name: string; };
+export type Workspace = { id: string; name: string; is_open?: boolean };
 
 type WorkspaceCtx = {
   workspaces: Workspace[];

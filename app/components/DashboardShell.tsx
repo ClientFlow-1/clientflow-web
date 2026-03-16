@@ -374,21 +374,6 @@ function ProfileMenu({ role }: { role: string | null }) {
   );
 }
 
-function AccessDenied({ reason }: { reason: "permission" | "closed" }) {
-  return (
-    <div style={{ padding: "80px 0", textAlign: "center" }}>
-      <div style={{ fontSize: 48, marginBottom: 16 }}>{reason === "closed" ? "⛔" : "🔒"}</div>
-      <div style={{ fontSize: 20, fontWeight: 900, color: "rgba(255,255,255,0.9)", marginBottom: 8 }}>
-        {reason === "closed" ? "Boutique fermée" : "Accès restreint"}
-      </div>
-      <div style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", maxWidth: 320, margin: "0 auto", lineHeight: 1.6 }}>
-        {reason === "closed"
-          ? "La boutique est actuellement fermée. Contacte le propriétaire pour y accéder."
-          : "Tu n'as pas les permissions nécessaires pour accéder à cette page."}
-      </div>
-    </div>
-  );
-}
 
 // ── Nav items ── //
 // 📦 Inventaire ajouté entre Produits et Relances
@@ -407,6 +392,8 @@ export default function DashboardShell({ children }: { children: React.ReactNode
   const { role, loading: roleLoading, isBlocked: shopClosed } = useRole();
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [displayChildren, setDisplayChildren] = useState(children);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   useEffect(() => {
     setIsTransitioning(true);
@@ -545,9 +532,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           </div>
           <main className="ds-content">
             <div className={`ds-page-wrapper ${isTransitioning ? "entering" : "visible"}`}>
-              {shopClosed
-                ? <AccessDenied reason="closed" />
-                : displayChildren}
+              {displayChildren}
             </div>
           </main>
         </div>
@@ -556,6 +541,60 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           {navItems.map(item => <BottomNavItem key={item.href} {...item} />)}
         </nav>
       </div>
+
+      {/* ── Overlay boutique fermée (vendeurs uniquement) ── */}
+      {shopClosed && mounted && createPortal(
+        <div style={{
+          position: "fixed", inset: 0, zIndex: 999999,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          background: "rgba(6,6,12,0.82)",
+          backdropFilter: "blur(18px)",
+          WebkitBackdropFilter: "blur(18px)",
+          padding: 24,
+          pointerEvents: "all",
+        }}>
+          <div style={{
+            display: "flex", flexDirection: "column", alignItems: "center", gap: 20,
+            maxWidth: 420, width: "100%",
+            borderRadius: 24, padding: "48px 40px",
+            background: "linear-gradient(180deg, rgba(18,18,30,0.95), rgba(10,10,18,0.98))",
+            border: "1px solid rgba(255,255,255,0.08)",
+            boxShadow: "0 40px 120px rgba(0,0,0,0.8)",
+          }}>
+            {/* Icône cadenas */}
+            <div style={{
+              width: 72, height: 72, borderRadius: "50%",
+              background: "rgba(255,80,80,0.10)",
+              border: "1px solid rgba(255,80,80,0.22)",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              fontSize: 32,
+              boxShadow: "0 0 40px rgba(255,60,60,0.15)",
+            }}>🔒</div>
+
+            {/* Texte */}
+            <div style={{ textAlign: "center" }}>
+              <div style={{ fontSize: 22, fontWeight: 900, color: "rgba(255,255,255,0.95)", marginBottom: 10, letterSpacing: "-0.5px" }}>
+                Boutique fermée
+              </div>
+              <div style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", lineHeight: 1.65, fontWeight: 400 }}>
+                Le propriétaire a temporairement désactivé l'accès.<br />Revenez plus tard.
+              </div>
+            </div>
+
+            {/* Badge rôle */}
+            <div style={{
+              display: "inline-flex", alignItems: "center", gap: 8,
+              height: 34, padding: "0 16px", borderRadius: 999,
+              background: "rgba(255,255,255,0.04)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.35)",
+            }}>
+              Connecté en tant que <span style={{ color: "rgba(78,205,196,0.85)", marginLeft: 4 }}>Vendeur</span>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </>
   );
 }
