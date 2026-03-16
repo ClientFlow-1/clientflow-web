@@ -463,7 +463,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         .ds-content::-webkit-scrollbar-thumb { background: var(--surface-2); border-radius: 10px; }
         .ds-page-wrapper { transition: opacity 0.18s ease, transform 0.18s ease; }
         .ds-page-wrapper.entering { opacity: 0; transform: translateY(7px); }
-        .ds-page-wrapper.visible { opacity: 1; transform: translateY(0); }
+        .ds-page-wrapper.visible { opacity: 1; }
         .ds-page { display: flex; flex-direction: column; gap: 20px; }
         .ds-topline { font-size: 12px; color: var(--text-tertiary); font-family: var(--font-mono); letter-spacing: 0.5px; }
         .ds-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; }

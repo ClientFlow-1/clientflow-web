@@ -204,6 +204,13 @@ export default function ParametresPage() {
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [isActuallyOwner, setIsActuallyOwner] = useState(false);
 
+  // Resend
+  const [resendApiKey, setResendApiKey] = useState("");
+  const [resendApiKeyInput, setResendApiKeyInput] = useState("");
+  const [savingResend, setSavingResend] = useState(false);
+  const [testingResend, setTestingResend] = useState(false);
+  const [resendTestResult, setResendTestResult] = useState<{ ok: boolean; msg: string } | null>(null);
+
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<"owner" | "admin" | "vendeur">("vendeur");
   const [inviting, setInviting] = useState(false);
@@ -226,10 +233,13 @@ export default function ParametresPage() {
 
       const { data: wsData } = await supabase
         .from("workspaces")
-        .select("is_open,user_id")
+        .select("is_open,user_id,resend_api_key")
         .eq("id", activeWorkspace!.id)
         .single();
       setIsOpen(wsData?.is_open !== false);
+      const savedKey = wsData?.resend_api_key ?? "";
+      setResendApiKey(savedKey);
+      setResendApiKeyInput(savedKey);
 
       const ownerCheck = wsData?.user_id === auth.user.id;
       setIsActuallyOwner(ownerCheck);
@@ -286,6 +296,41 @@ export default function ParametresPage() {
       }
       setSuccessMsg("✅ Accès boutiques mis à jour."); setTimeout(() => setSuccessMsg(""), 3000);
     } catch (e: any) { setErrorMsg(e?.message ?? "Erreur mise à jour accès"); fetchAll(); }
+  }
+
+  async function saveResendApiKey() {
+    setSavingResend(true); setErrorMsg(""); setResendTestResult(null);
+    try {
+      const { error } = await supabase
+        .from("workspaces")
+        .update({ resend_api_key: resendApiKeyInput.trim() || null })
+        .eq("id", activeWorkspace!.id);
+      if (error) throw error;
+      setResendApiKey(resendApiKeyInput.trim());
+      setSuccessMsg("✅ Clé Resend enregistrée."); setTimeout(() => setSuccessMsg(""), 3000);
+    } catch (e: any) { setErrorMsg(e?.message ?? "Erreur"); }
+    finally { setSavingResend(false); }
+  }
+
+  async function testResendConnection() {
+    const key = resendApiKeyInput.trim();
+    if (!key) { setResendTestResult({ ok: false, msg: "Saisissez une clé API avant de tester." }); return; }
+    setTestingResend(true); setResendTestResult(null);
+    try {
+      const res = await fetch("/api/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey: key, test: true }),
+      });
+      const json = await res.json();
+      if (json.success) {
+        setResendTestResult({ ok: true, msg: "✅ Connexion Resend réussie — la clé est valide." });
+      } else {
+        setResendTestResult({ ok: false, msg: `❌ ${json.error ?? "Clé invalide"}` });
+      }
+    } catch (e: any) {
+      setResendTestResult({ ok: false, msg: `❌ ${e?.message ?? "Erreur réseau"}` });
+    } finally { setTestingResend(false); }
   }
 
   async function toggleShop() {
@@ -502,6 +547,51 @@ ${link}
       {successMsg && <div style={{ padding: "12px 16px", borderRadius: 12, background: "rgba(80,200,120,0.08)", border: "1px solid rgba(80,200,120,0.20)", color: "rgba(100,220,140,0.95)", fontWeight: 700, fontSize: 13, wordBreak: "break-all" }}>{successMsg}</div>}
 
       <ToggleShopBlock />
+
+      {/* ── Envoi d'emails Resend ── */}
+      <div className="ds-card">
+        <div className="ds-card-head">
+          <div>
+            <div className="ds-card-title">📧 Envoi d'emails</div>
+            <div className="ds-card-sub">Connectez votre compte Resend pour envoyer des campagnes depuis la page Relances.</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 800, opacity: 0.55, marginBottom: 6 }}>Clé API Resend</div>
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              <input
+                type="password"
+                value={resendApiKeyInput}
+                onChange={e => { setResendApiKeyInput(e.target.value); setResendTestResult(null); }}
+                placeholder="re_xxxxxxxxxxxxxxxxxxxx"
+                style={{ flex: 1, minWidth: 240, height: 44, borderRadius: 12, padding: "0 14px", background: "rgba(10,11,14,0.65)", color: "rgba(255,255,255,0.92)", border: "1px solid rgba(255,255,255,0.10)", outline: "none", fontSize: 14, fontFamily: "monospace" }}
+              />
+              <button type="button" onClick={testResendConnection} disabled={testingResend}
+                style={{ height: 44, padding: "0 18px", borderRadius: 12, border: "1px solid rgba(255,255,255,0.14)", background: "rgba(255,255,255,0.05)", color: "rgba(255,255,255,0.70)", fontWeight: 700, fontSize: 13, cursor: testingResend ? "not-allowed" : "pointer", opacity: testingResend ? 0.6 : 1, whiteSpace: "nowrap" }}>
+                {testingResend ? "Test…" : "🔌 Tester la connexion"}
+              </button>
+              <button type="button" onClick={saveResendApiKey} disabled={savingResend || resendApiKeyInput.trim() === resendApiKey}
+                style={{ height: 44, padding: "0 18px", borderRadius: 12, border: "1px solid rgba(120,160,255,0.40)", background: "rgba(120,160,255,0.16)", color: "rgba(255,255,255,0.95)", fontWeight: 800, fontSize: 13, cursor: savingResend || resendApiKeyInput.trim() === resendApiKey ? "not-allowed" : "pointer", opacity: savingResend || resendApiKeyInput.trim() === resendApiKey ? 0.5 : 1, whiteSpace: "nowrap" }}>
+                {savingResend ? "Enregistrement…" : "Enregistrer"}
+              </button>
+            </div>
+          </div>
+          {resendTestResult && (
+            <div style={{ padding: "10px 14px", borderRadius: 10, background: resendTestResult.ok ? "rgba(80,200,120,0.08)" : "rgba(255,80,80,0.08)", border: `1px solid ${resendTestResult.ok ? "rgba(80,200,120,0.25)" : "rgba(255,80,80,0.25)"}`, color: resendTestResult.ok ? "rgba(100,220,140,0.95)" : "rgba(255,120,120,0.95)", fontSize: 13, fontWeight: 700 }}>
+              {resendTestResult.msg}
+            </div>
+          )}
+          {resendApiKey && (
+            <div style={{ fontSize: 12, color: "rgba(100,220,140,0.75)", fontWeight: 600 }}>
+              ✅ Clé configurée — les relances email sont actives.
+            </div>
+          )}
+          <div style={{ fontSize: 12, color: "rgba(255,255,255,0.28)", lineHeight: 1.6, padding: "8px 12px", borderRadius: 10, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.05)" }}>
+            💡 Créez votre clé sur <strong style={{ color: "rgba(255,255,255,0.45)" }}>resend.com</strong>. Pour envoyer depuis votre propre domaine, configurez-le dans votre compte Resend et utilisez une adresse vérifiée.
+          </div>
+        </div>
+      </div>
 
       <div className="ds-card">
         <div className="ds-card-head">
