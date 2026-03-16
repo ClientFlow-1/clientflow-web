@@ -389,6 +389,7 @@ const ALL_NAV_ITEMS = [
 
 export default function DashboardShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { role, loading: roleLoading, isBlocked: shopClosed } = useRole();
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [displayChildren, setDisplayChildren] = useState(children);
@@ -553,6 +554,26 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           padding: 24,
           pointerEvents: "all",
         }}>
+          {/* Bouton déconnexion haut droite */}
+          <button
+            type="button"
+            onClick={async () => { await supabase.auth.signOut(); router.push("/login"); }}
+            style={{
+              position: "absolute", top: 20, right: 20,
+              display: "flex", alignItems: "center", gap: 6,
+              height: 32, padding: "0 14px", borderRadius: 8,
+              border: "1px solid rgba(255,255,255,0.08)",
+              background: "rgba(255,255,255,0.04)",
+              color: "rgba(255,255,255,0.35)",
+              fontSize: 12, fontWeight: 600, cursor: "pointer",
+              transition: "color 150ms, background 150ms",
+            }}
+            onMouseEnter={e => { e.currentTarget.style.color = "rgba(255,120,120,0.85)"; e.currentTarget.style.background = "rgba(255,80,80,0.08)"; }}
+            onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.35)"; e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
+          >
+            🚪 Se déconnecter
+          </button>
+
           <div style={{
             display: "flex", flexDirection: "column", alignItems: "center", gap: 20,
             maxWidth: 420, width: "100%",

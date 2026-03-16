@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { useWorkspace } from "@/lib/workspaceContext";
@@ -321,11 +321,11 @@ function SectionDivider({ label }: { label: string }) {
 // ── Email Modal ───────────────────────────────────────────────────────────────
 function EmailModal({
   segment, segmentLabel, segmentEmoji, segmentColor, segmentBg,
-  emailList, shopName, resendApiKey, onClose,
+  emailList, shopName, resendApiKey, workspaceId, onClose,
 }: {
   segment: Segment | "all"; segmentLabel: string; segmentEmoji: string;
   segmentColor: string; segmentBg: string; emailList: string[];
-  shopName: string; resendApiKey: string; onClose: () => void;
+  shopName: string; resendApiKey: string; workspaceId: string; onClose: () => void;
 }) {
   const def = DEFAULT_TEMPLATES[segment];
   // Contenu
@@ -356,7 +356,71 @@ function EmailModal({
   const [copiedHtml,  setCopiedHtml]  = useState(false);
   const [sending,     setSending]     = useState(false);
   const [sendResult,  setSendResult]  = useState<{ ok: boolean; msg: string } | null>(null);
+  // Persistence template
+  const [templateLoading, setTemplateLoading] = useState(true);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved">("idle");
+  const isReadyRef  = useRef(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileInputRef = { current: null as HTMLInputElement | null };
+
+  // ── Chargement du template sauvegardé ──────────────────────────────────────
+  useEffect(() => {
+    async function loadTemplate() {
+      setTemplateLoading(true);
+      isReadyRef.current = false;
+      try {
+        const { data } = await supabase
+          .from("email_templates")
+          .select("template_data")
+          .eq("workspace_id", workspaceId)
+          .eq("segment_type", segment)
+          .single();
+        if (data?.template_data) {
+          const t = data.template_data as Record<string, unknown>;
+          if (typeof t.subject      === "string") setSubject(t.subject);
+          if (typeof t.body         === "string") setBody(t.body);
+          if (typeof t.promoEnabled === "boolean") setPromoEnabled(t.promoEnabled);
+          if (typeof t.promoCode    === "string") setPromoCode(t.promoCode);
+          if (typeof t.promoDesc    === "string") setPromoDesc(t.promoDesc);
+          if (typeof t.accentColor  === "string") setAccentColor(t.accentColor);
+          if (typeof t.heroSrc      === "string") setHeroSrc(t.heroSrc);
+          if (typeof t.ctaText      === "string") setCtaText(t.ctaText);
+          if (typeof t.ctaUrl       === "string") setCtaUrl(t.ctaUrl);
+          if (typeof t.shopInfoEnabled === "boolean") setShopInfoEnabled(t.shopInfoEnabled);
+          if (typeof t.shopAddress  === "string") setShopAddress(t.shopAddress);
+          if (typeof t.shopHours    === "string") setShopHours(t.shopHours);
+          if (typeof t.shopPhone    === "string") setShopPhone(t.shopPhone);
+          if (Array.isArray(t.sectionOrder)) setSectionOrder(t.sectionOrder as EmailSectionKey[]);
+        }
+      } catch { /* pas de template sauvegardé — on garde les défauts */ }
+      finally {
+        setTemplateLoading(false);
+        setTimeout(() => { isReadyRef.current = true; }, 0);
+      }
+    }
+    loadTemplate();
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Sauvegarde automatique avec debounce 1s ────────────────────────────────
+  useEffect(() => {
+    if (!isReadyRef.current) return;
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    setSaveStatus("saving");
+    saveTimerRef.current = setTimeout(async () => {
+      const templateData = {
+        subject, body, promoEnabled, promoCode, promoDesc,
+        accentColor, heroSrc, ctaText, ctaUrl,
+        shopInfoEnabled, shopAddress, shopHours, shopPhone, sectionOrder,
+      };
+      await supabase.from("email_templates").upsert(
+        { workspace_id: workspaceId, segment_type: segment, template_data: templateData, updated_at: new Date().toISOString() },
+        { onConflict: "workspace_id,segment_type" }
+      );
+      setSaveStatus("saved");
+      setTimeout(() => setSaveStatus("idle"), 2000);
+    }, 1000);
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+  }, [subject, body, promoEnabled, promoCode, promoDesc, accentColor, heroSrc, ctaText, ctaUrl, shopInfoEnabled, shopAddress, shopHours, shopPhone, sectionOrder]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function moveSection(index: number, dir: -1 | 1) {
     const next = index + dir;
@@ -443,8 +507,11 @@ function EmailModal({
                 {segmentEmoji} {segmentLabel}
               </span>
             </div>
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.38)" }}>
-              {noEmails ? "⚠️ Aucun email disponible" : `${validEmails.length} destinataire${validEmails.length > 1 ? "s" : ""} · ${shopName}`}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 13, color: "rgba(255,255,255,0.38)" }}>
+              <span>{noEmails ? "⚠️ Aucun email disponible" : `${validEmails.length} destinataire${validEmails.length > 1 ? "s" : ""} · ${shopName}`}</span>
+              {templateLoading && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.28)" }}>⟳ Chargement…</span>}
+              {!templateLoading && saveStatus === "saving" && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.30)" }}>⟳ Sauvegarde…</span>}
+              {!templateLoading && saveStatus === "saved"  && <span style={{ fontSize: 11, color: "rgba(100,210,140,0.75)", fontWeight: 700 }}>✓ Sauvegardé</span>}
             </div>
           </div>
           <button type="button" onClick={onClose}
@@ -464,7 +531,11 @@ function EmailModal({
         {/* ── Scroll body ── */}
         <div style={{ padding: "20px 28px", display: "flex", flexDirection: "column", gap: 14, overflowY: "auto", flex: "1 1 auto" }}>
 
-          {activeTab === "compose" ? (<>
+          {templateLoading ? (
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "60px 0", opacity: 0.45, fontSize: 14, gap: 10 }}>
+              <span>⟳</span><span>Chargement du template…</span>
+            </div>
+          ) : activeTab === "compose" ? (<>
 
             {/* Destinataires */}
             <div style={{ padding: "11px 16px", borderRadius: 12, background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.07)" }}>
@@ -1258,6 +1329,7 @@ export default function RelancesPage() {
           emailList={segmentEmails}
           shopName={activeWorkspace.name}
           resendApiKey={resendApiKey}
+          workspaceId={activeWorkspace.id}
           onClose={() => setEmailModalOpen(false)}
         />
       )}

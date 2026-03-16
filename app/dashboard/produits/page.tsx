@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { useWorkspace } from "@/lib/workspaceContext";
@@ -7,7 +7,7 @@ import { useWorkspace } from "@/lib/workspaceContext";
 type Product = {
   id: string;
   name: string;
-  category: string | null;
+  category: string[] | null;
   price: number;
   stock: number | null;
   stock_alert: number | null;
@@ -17,6 +17,12 @@ type Product = {
 function formatEUR(n: number) {
   const v = Number.isFinite(n) ? n : 0;
   try { return new Intl.NumberFormat("fr-FR", { style: "currency", currency: "EUR" }).format(v); } catch { return `${v.toFixed(2)} €`; }
+}
+
+function getCategories(p: Product): string[] {
+  if (Array.isArray(p.category)) return p.category;
+  if (typeof p.category === "string" && p.category) return [p.category];
+  return [];
 }
 
 function StockBadge({ stock, stockAlert }: { stock: number | null; stockAlert: number | null }) {
@@ -35,6 +41,99 @@ function StockBadge({ stock, stockAlert }: { stock: number | null; stockAlert: n
   );
 }
 
+function CategoryMultiSelect({ selected, onChange, suggestions }: {
+  selected: string[];
+  onChange: (cats: string[]) => void;
+  suggestions: string[];
+}) {
+  const [input, setInput] = useState("");
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [open]);
+
+  const filtered = suggestions.filter(s => !selected.includes(s) && s.toLowerCase().includes(input.toLowerCase()));
+  const canAdd = input.trim() !== "" && !selected.includes(input.trim()) && !suggestions.includes(input.trim());
+
+  function add(cat: string) {
+    const trimmed = cat.trim();
+    if (trimmed && !selected.includes(trimmed)) onChange([...selected, trimmed]);
+    setInput("");
+    inputRef.current?.focus();
+  }
+
+  function remove(cat: string) {
+    onChange(selected.filter(c => c !== cat));
+  }
+
+  return (
+    <div ref={containerRef} style={{ position: "relative" }}>
+      <div
+        onClick={() => { inputRef.current?.focus(); setOpen(true); }}
+        style={{
+          minHeight: 44, padding: "6px 10px", borderRadius: 12, cursor: "text",
+          background: "rgba(10,11,14,0.65)", border: "1px solid rgba(255,255,255,0.12)",
+          display: "flex", flexWrap: "wrap", gap: 6, alignItems: "center",
+        }}
+      >
+        {selected.map(cat => (
+          <span key={cat} style={{ display: "inline-flex", alignItems: "center", gap: 4, height: 26, padding: "0 8px 0 10px", borderRadius: 999, background: "rgba(120,160,255,0.14)", border: "1px solid rgba(120,160,255,0.30)", color: "rgba(160,185,255,0.95)", fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+            {cat}
+            <button type="button" onMouseDown={e => { e.preventDefault(); remove(cat); }}
+              style={{ background: "none", border: "none", cursor: "pointer", color: "rgba(120,160,255,0.6)", fontSize: 14, padding: 0, lineHeight: 1, display: "flex", alignItems: "center", marginLeft: 2 }}>×</button>
+          </span>
+        ))}
+        <input
+          ref={inputRef}
+          value={input}
+          onChange={e => { setInput(e.target.value); setOpen(true); }}
+          onFocus={() => setOpen(true)}
+          onKeyDown={e => {
+            if (e.key === "Enter") { e.preventDefault(); if (input.trim()) add(filtered[0] ?? input); }
+            if (e.key === "Backspace" && !input && selected.length > 0) remove(selected[selected.length - 1]);
+            if (e.key === "Escape") setOpen(false);
+          }}
+          placeholder={selected.length === 0 ? "Sélectionne ou tape une catégorie…" : ""}
+          style={{ flex: 1, minWidth: 120, background: "none", border: "none", outline: "none", color: "rgba(255,255,255,0.92)", fontSize: 14, padding: "2px 4px" }}
+        />
+      </div>
+
+      {open && (filtered.length > 0 || canAdd) && (
+        <div style={{ position: "absolute", top: "calc(100% + 4px)", left: 0, right: 0, zIndex: 9999, borderRadius: 12, overflow: "hidden", background: "linear-gradient(180deg, rgba(18,20,28,0.99), rgba(10,11,16,0.99))", border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 16px 40px rgba(0,0,0,0.6)" }}>
+          {filtered.map(cat => (
+            <button key={cat} type="button"
+              onMouseDown={e => { e.preventDefault(); add(cat); }}
+              style={{ width: "100%", padding: "9px 14px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", color: "rgba(255,255,255,0.85)", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 8 }}
+              onMouseEnter={e => { e.currentTarget.style.background = "rgba(120,160,255,0.10)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+            >
+              <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 999, background: "rgba(120,160,255,0.10)", border: "1px solid rgba(120,160,255,0.20)", color: "rgba(120,160,255,0.9)" }}>{cat}</span>
+            </button>
+          ))}
+          {canAdd && (
+            <button type="button"
+              onMouseDown={e => { e.preventDefault(); add(input); }}
+              style={{ width: "100%", padding: "9px 14px", background: "transparent", border: "none", cursor: "pointer", textAlign: "left", color: "rgba(255,255,255,0.55)", fontSize: 13, fontWeight: 600, display: "flex", alignItems: "center", gap: 8, borderTop: filtered.length > 0 ? "1px solid rgba(255,255,255,0.06)" : "none" }}
+              onMouseEnter={e => { e.currentTarget.style.background = "rgba(255,255,255,0.04)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
+            >
+              <span style={{ opacity: 0.5 }}>＋</span> Créer "{input.trim()}"
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ProduitsPage() {
   const { activeWorkspace } = useWorkspace();
   const [products, setProducts] = useState<Product[]>([]);
@@ -48,7 +147,7 @@ export default function ProduitsPage() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
   const [formName, setFormName] = useState("");
-  const [formCategory, setFormCategory] = useState("");
+  const [formCategories, setFormCategories] = useState<string[]>([]);
   const [formPrice, setFormPrice] = useState("");
   const [formStock, setFormStock] = useState("");
   const [formStockAlert, setFormStockAlert] = useState("");
@@ -76,7 +175,7 @@ export default function ProduitsPage() {
       const { data, error } = await supabase
         .from("products").select("id,name,category,price,stock,stock_alert,created_at")
         .eq("workspace_id", activeWorkspace.id)
-        .order("category", { ascending: true }).order("name", { ascending: true });
+        .order("name", { ascending: true });
       if (error) throw error;
       setProducts((data ?? []) as Product[]);
     } catch (e: any) { setErrorMsg(e?.message ?? "Erreur inconnue"); }
@@ -84,19 +183,18 @@ export default function ProduitsPage() {
   }
 
   const categories = useMemo(() => {
-    const cats = new Set([
-      ...products.map(p => p.category ?? "Sans catégorie"),
-      ...extraCategories,
-    ]);
+    const cats = new Set<string>();
+    products.forEach(p => getCategories(p).forEach(c => cats.add(c)));
+    extraCategories.forEach(c => cats.add(c));
     return Array.from(cats).sort();
   }, [products, extraCategories]);
 
   const filtered = useMemo(() => {
     let list = products;
-    if (filterCat !== "all") list = list.filter(p => (p.category ?? "Sans catégorie") === filterCat);
+    if (filterCat !== "all") list = list.filter(p => getCategories(p).includes(filterCat));
     if (search.trim()) {
       const q = search.trim().toLowerCase();
-      list = list.filter(p => p.name.toLowerCase().includes(q) || (p.category ?? "").toLowerCase().includes(q));
+      list = list.filter(p => p.name.toLowerCase().includes(q) || getCategories(p).some(c => c.toLowerCase().includes(q)));
     }
     return list;
   }, [products, filterCat, search]);
@@ -106,11 +204,11 @@ export default function ProduitsPage() {
   [products]);
 
   function openCreate() {
-    setEditId(null); setFormName(""); setFormCategory(""); setFormPrice("");
+    setEditId(null); setFormName(""); setFormCategories([]); setFormPrice("");
     setFormStock(""); setFormStockAlert(""); setModalOpen(true); setErrorMsg("");
   }
   function openEdit(p: Product) {
-    setEditId(p.id); setFormName(p.name); setFormCategory(p.category ?? "");
+    setEditId(p.id); setFormName(p.name); setFormCategories(getCategories(p));
     setFormPrice(String(p.price));
     setFormStock(p.stock !== null ? String(p.stock) : "");
     setFormStockAlert(p.stock_alert !== null ? String(p.stock_alert) : "");
@@ -129,7 +227,12 @@ export default function ProduitsPage() {
     try {
       const { data: auth } = await supabase.auth.getUser();
       const user = auth?.user; if (!user) { window.location.href = "/login"; return; }
-      const payload = { name: formName.trim(), category: formCategory.trim() || null, price, stock, stock_alert: stockAlert, user_id: user.id, workspace_id: activeWorkspace?.id };
+      const payload = {
+        name: formName.trim(),
+        category: formCategories.length > 0 ? formCategories : null,
+        price, stock, stock_alert: stockAlert,
+        user_id: user.id, workspace_id: activeWorkspace?.id,
+      };
       if (editId) {
         const { error } = await supabase.from("products").update(payload).eq("id", editId);
         if (error) throw error;
@@ -169,13 +272,16 @@ export default function ProduitsPage() {
     if (categories.includes(newName)) { setCatError("Cette catégorie existe déjà."); return; }
     setCatSaving(true); setCatError("");
     try {
-      const toUpdate = products.filter(p => (p.category ?? "Sans catégorie") === oldName);
-      await Promise.all(toUpdate.map(p =>
-        supabase.from("products").update({ category: newName === "Sans catégorie" ? null : newName }).eq("id", p.id)
-      ));
-      setProducts(prev => prev.map(p =>
-        (p.category ?? "Sans catégorie") === oldName ? { ...p, category: newName === "Sans catégorie" ? null : newName } : p
-      ));
+      const toUpdate = products.filter(p => getCategories(p).includes(oldName));
+      await Promise.all(toUpdate.map(p => {
+        const newCats = getCategories(p).map(c => c === oldName ? newName : c);
+        return supabase.from("products").update({ category: newCats }).eq("id", p.id);
+      }));
+      setProducts(prev => prev.map(p => {
+        const cats = getCategories(p);
+        if (!cats.includes(oldName)) return p;
+        return { ...p, category: cats.map(c => c === oldName ? newName : c) };
+      }));
       setExtraCategories(prev => prev.map(c => c === oldName ? newName : c));
       if (filterCat === oldName) setFilterCat(newName);
       setRenamingCat(null); setRenameVal("");
@@ -184,16 +290,20 @@ export default function ProduitsPage() {
   }
 
   async function deleteCategory(name: string) {
-    if (!confirm(`Supprimer la catégorie "${name}" ? Les produits associés passeront en "Sans catégorie".`)) return;
+    if (!confirm(`Supprimer la catégorie "${name}" ? Les produits associés perdront cette catégorie.`)) return;
     setCatSaving(true); setCatError("");
     try {
-      const toUpdate = products.filter(p => (p.category ?? "Sans catégorie") === name);
-      await Promise.all(toUpdate.map(p =>
-        supabase.from("products").update({ category: null }).eq("id", p.id)
-      ));
-      setProducts(prev => prev.map(p =>
-        (p.category ?? "Sans catégorie") === name ? { ...p, category: null } : p
-      ));
+      const toUpdate = products.filter(p => getCategories(p).includes(name));
+      await Promise.all(toUpdate.map(p => {
+        const newCats = getCategories(p).filter(c => c !== name);
+        return supabase.from("products").update({ category: newCats.length > 0 ? newCats : null }).eq("id", p.id);
+      }));
+      setProducts(prev => prev.map(p => {
+        const cats = getCategories(p);
+        if (!cats.includes(name)) return p;
+        const newCats = cats.filter(c => c !== name);
+        return { ...p, category: newCats.length > 0 ? newCats : null };
+      }));
       setExtraCategories(prev => prev.filter(c => c !== name));
       if (filterCat === name) setFilterCat("all");
     } catch (e: any) { setCatError(e?.message ?? "Erreur suppression"); }
@@ -294,35 +404,42 @@ export default function ProduitsPage() {
               <thead>
                 <tr>
                   <th>Produit</th>
-                  <th>Catégorie</th>
+                  <th>Catégories</th>
                   <th className="ds-right">Prix</th>
                   <th className="ds-right">Stock</th>
                   <th className="ds-right">Action</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map(p => (
-                  <tr key={p.id}>
-                    <td style={{ fontWeight: 700 }}>{p.name}</td>
-                    <td>
-                      {p.category ? (
-                        <span style={{ fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: "rgba(120,160,255,0.10)", border: "1px solid rgba(120,160,255,0.20)", color: "rgba(120,160,255,0.9)" }}>{p.category}</span>
-                      ) : <span style={{ opacity: 0.35 }}>—</span>}
-                    </td>
-                    <td className="ds-right" style={{ fontWeight: 800, color: "rgba(120,160,255,0.9)" }}>{formatEUR(p.price)}</td>
-                    <td className="ds-right">
-                      <StockBadge stock={p.stock} stockAlert={p.stock_alert} />
-                    </td>
-                    <td className="ds-right">
-                      <div style={{ display: "inline-flex", gap: 8 }}>
-                        <button type="button" onClick={() => openEdit(p)}
-                          style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.80)", fontSize: 12, fontWeight: 750, cursor: "pointer" }}>Modifier</button>
-                        <button type="button" onClick={() => deleteProduct(p.id)}
-                          style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(255,80,80,0.20)", background: "rgba(255,80,80,0.06)", color: "rgba(255,120,120,0.85)", fontSize: 12, fontWeight: 750, cursor: "pointer" }}>Suppr.</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {filtered.map(p => {
+                  const cats = getCategories(p);
+                  return (
+                    <tr key={p.id}>
+                      <td style={{ fontWeight: 700 }}>{p.name}</td>
+                      <td>
+                        {cats.length > 0 ? (
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                            {cats.map(cat => (
+                              <span key={cat} style={{ fontSize: 12, fontWeight: 700, padding: "3px 10px", borderRadius: 999, background: "rgba(120,160,255,0.10)", border: "1px solid rgba(120,160,255,0.20)", color: "rgba(120,160,255,0.9)", whiteSpace: "nowrap" }}>{cat}</span>
+                            ))}
+                          </div>
+                        ) : <span style={{ opacity: 0.35 }}>—</span>}
+                      </td>
+                      <td className="ds-right" style={{ fontWeight: 800, color: "rgba(120,160,255,0.9)" }}>{formatEUR(p.price)}</td>
+                      <td className="ds-right">
+                        <StockBadge stock={p.stock} stockAlert={p.stock_alert} />
+                      </td>
+                      <td className="ds-right">
+                        <div style={{ display: "inline-flex", gap: 8 }}>
+                          <button type="button" onClick={() => openEdit(p)}
+                            style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.80)", fontSize: 12, fontWeight: 750, cursor: "pointer" }}>Modifier</button>
+                          <button type="button" onClick={() => deleteProduct(p.id)}
+                            style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(255,80,80,0.20)", background: "rgba(255,80,80,0.06)", color: "rgba(255,120,120,0.85)", fontSize: 12, fontWeight: 750, cursor: "pointer" }}>Suppr.</button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -365,7 +482,7 @@ export default function ProduitsPage() {
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 300, overflowY: "auto" }}>
                 {categories.map(cat => {
-                  const count = products.filter(p => (p.category ?? "Sans catégorie") === cat).length;
+                  const count = products.filter(p => getCategories(p).includes(cat)).length;
                   return (
                     <div key={cat}>
                       {renamingCat === cat ? (
@@ -416,26 +533,31 @@ export default function ProduitsPage() {
             {errorMsg && <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 10, background: "rgba(255,80,80,0.08)", border: "1px solid rgba(255,80,80,0.20)", color: "rgba(255,120,120,0.95)", fontWeight: 700, fontSize: 13 }}>{errorMsg}</div>}
 
             <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {/* Nom */}
               <div>
                 <div style={{ fontSize: 13, fontWeight: 800, opacity: 0.75, marginBottom: 8, color: "rgba(255,255,255,0.92)" }}>Nom du produit <span style={{ color: "rgba(255,100,100,0.7)" }}>*</span></div>
                 <input value={formName} onChange={e => setFormName(e.target.value)} placeholder="ex: Coupe femme, Massage 1h…"
                   style={{ width: "100%", height: 44, borderRadius: 12, padding: "0 14px", background: "rgba(10,11,14,0.65)", color: "rgba(255,255,255,0.92)", border: "1px solid rgba(255,255,255,0.12)", outline: "none", fontSize: 14 }} />
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 800, opacity: 0.75, marginBottom: 8, color: "rgba(255,255,255,0.92)" }}>Catégorie <span style={{ opacity: 0.5 }}>(optionnel)</span></div>
-                  <input value={formCategory} onChange={e => setFormCategory(e.target.value)} placeholder="ex: Soins, Coupes…"
-                    list="cat-suggestions"
-                    style={{ width: "100%", height: 44, borderRadius: 12, padding: "0 14px", background: "rgba(10,11,14,0.65)", color: "rgba(255,255,255,0.92)", border: "1px solid rgba(255,255,255,0.12)", outline: "none", fontSize: 14 }} />
-                  <datalist id="cat-suggestions">
-                    {categories.map(c => <option key={c} value={c} />)}
-                  </datalist>
+
+              {/* Catégories */}
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 800, opacity: 0.75, marginBottom: 8, color: "rgba(255,255,255,0.92)" }}>
+                  Catégories <span style={{ opacity: 0.5, fontWeight: 500 }}>(optionnel)</span>
                 </div>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 800, opacity: 0.75, marginBottom: 8, color: "rgba(255,255,255,0.92)" }}>Prix (€) <span style={{ color: "rgba(255,100,100,0.7)" }}>*</span></div>
-                  <input value={formPrice} onChange={e => setFormPrice(e.target.value)} placeholder="ex: 49,90" inputMode="decimal"
-                    style={{ width: "100%", height: 44, borderRadius: 12, padding: "0 14px", background: "rgba(10,11,14,0.65)", color: "rgba(255,255,255,0.92)", border: "1px solid rgba(255,255,255,0.12)", outline: "none", fontSize: 14 }} />
-                </div>
+                <CategoryMultiSelect
+                  selected={formCategories}
+                  onChange={setFormCategories}
+                  suggestions={categories}
+                />
+                <div style={{ fontSize: 11, opacity: 0.4, marginTop: 6 }}>Tape pour chercher ou créer une catégorie. Entrée ou clic pour ajouter. Backspace pour supprimer le dernier tag.</div>
+              </div>
+
+              {/* Prix */}
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 800, opacity: 0.75, marginBottom: 8, color: "rgba(255,255,255,0.92)" }}>Prix (€) <span style={{ color: "rgba(255,100,100,0.7)" }}>*</span></div>
+                <input value={formPrice} onChange={e => setFormPrice(e.target.value)} placeholder="ex: 49,90" inputMode="decimal"
+                  style={{ width: "100%", height: 44, borderRadius: 12, padding: "0 14px", background: "rgba(10,11,14,0.65)", color: "rgba(255,255,255,0.92)", border: "1px solid rgba(255,255,255,0.12)", outline: "none", fontSize: 14 }} />
               </div>
 
               {/* Stock */}
