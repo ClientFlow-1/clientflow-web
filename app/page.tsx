@@ -304,9 +304,13 @@ const CSS = `
     /* Navbar */
     .lp-nav-links      { display:none !important; }
     .lp-nav-live-badge { display:none !important; }
-    .lp-nav-btn-connect { display:none !important; }
-    .lp-nav-btn-start  { padding:8px 14px !important; font-size:13px !important; }
+    .lp-nav-btn-connect { display:inline-flex !important; padding:6px 12px !important; font-size:12px !important; height:auto !important; line-height:1 !important; }
+    .lp-nav-btn-start  { padding:6px 12px !important; font-size:12px !important; height:auto !important; line-height:1 !important; }
     .lp-hamburger      { display:flex; }
+    .lp-nav-inner      { position:relative !important; padding:0 16px !important; }
+    .lp-nav-logo       { position:absolute !important; left:50% !important; transform:translateX(-50%) !important; margin-left:0 !important; }
+    .lp-nav-logo span  { display:none !important; }
+    .lp-nav-right      { gap:6px !important; padding-right:0 !important; }
 
     /* Announcement bar */
     .lp-announcement-bar { font-size:12px !important; gap:8px !important; padding:0 12px !important; }
@@ -329,8 +333,10 @@ const CSS = `
 
     /* How it works */
     .lp-section-howitworks { padding:56px 20px; }
-    .lp-hiw-steps { flex-direction:column !important; align-items:stretch !important; }
-    .lp-hiw-connector { display:none !important; }
+    .lp-hiw-steps { flex-direction:column !important; align-items:center !important; gap:0 !important; padding:0 8px; }
+    .lp-hiw-step  { width:100% !important; max-width:none !important; padding:0 16px; }
+    .lp-hiw-connector { display:block !important; flex:none !important; width:2px !important; height:44px !important; margin:4px auto !important; background:repeating-linear-gradient(to bottom,rgba(99,120,255,0.60) 0,rgba(99,120,255,0.60) 4px,transparent 4px,transparent 9px) !important; }
+    .lp-hiw-connector svg { display:none !important; }
 
     /* Pricing */
     .lp-section-pricing { padding:56px 20px; }
@@ -895,10 +901,19 @@ export default function LandingPage() {
 
       {/* ══════════ NAVBAR ══════════ */}
       <header style={{ position: "fixed", top: announcementDismissed ? 0 : 40, left: 0, right: 0, zIndex: 1000, height: 64, background: scrolled?"rgba(10,10,15,0.90)":"transparent", backdropFilter: scrolled?"blur(20px)":"none", borderBottom: scrolled?"1px solid rgba(99,120,255,0.10)":"1px solid transparent", transition: "background 0.3s, backdrop-filter 0.3s, border-color 0.3s, top 0.3s" }}>
-        <div style={{ maxWidth: 1200, margin: "0 auto", height: "100%", padding: "0 32px", display: "flex", alignItems: "center" }}>
+        <div className="lp-nav-inner" style={{ maxWidth: 1200, margin: "0 auto", height: "100%", padding: "0 32px", display: "flex", alignItems: "center" }}>
+
+          {/* Hamburger — affiché à gauche sur mobile uniquement */}
+          <button
+            className={`lp-hamburger${drawerOpen ? " open" : ""}`}
+            onClick={() => setDrawerOpen(v => !v)}
+            aria-label={drawerOpen ? "Fermer le menu" : "Ouvrir le menu"}
+          >
+            <span /><span /><span />
+          </button>
 
           {/* Zone gauche — logo */}
-          <div style={{ flex: "0 0 auto", display: "flex", alignItems: "center", gap: 10, marginLeft: 8 }}>
+          <div className="lp-nav-logo" style={{ flex: "0 0 auto", display: "flex", alignItems: "center", gap: 10, marginLeft: 8 }}>
             <div style={{ width: 32, height: 32, borderRadius: 9, background: `linear-gradient(135deg,${ACCENT},${ACCENT_MID})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, color: "#fff", fontFamily: "'DM Mono',monospace", boxShadow: "0 0 16px rgba(99,120,255,0.40)" }}>CF</div>
             <span style={{ fontFamily: "'DM Mono',monospace", fontWeight: 600, fontSize: 13, letterSpacing: 2, color: "rgba(255,255,255,0.92)", whiteSpace: "nowrap" }}>CLIENTFLOW</span>
           </div>
@@ -915,16 +930,9 @@ export default function LandingPage() {
           </nav>
 
           {/* Zone droite — boutons */}
-          <div style={{ flex: "0 0 auto", display: "flex", alignItems: "center", gap: 12, paddingRight: 8 }}>
+          <div className="lp-nav-right" style={{ flex: "0 0 auto", display: "flex", alignItems: "center", gap: 12, paddingRight: 8 }}>
             <Link href="/login" className="lp-nav-btn-connect">Connexion</Link>
             <a href="#stripe-placeholder" className="lp-nav-btn-start">Démarrer</a>
-            <button
-              className={`lp-hamburger${drawerOpen ? " open" : ""}`}
-              onClick={() => setDrawerOpen(v => !v)}
-              aria-label={drawerOpen ? "Fermer le menu" : "Ouvrir le menu"}
-            >
-              <span /><span /><span />
-            </button>
           </div>
 
         </div>
