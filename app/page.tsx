@@ -284,7 +284,7 @@ const CSS = `
   /* ── Mobile drawer overlay ── */
   .lp-drawer-overlay {
     display:none; position:fixed; inset:0; z-index:1004;
-    background:rgba(0,0,0,0.55); backdrop-filter:blur(3px);
+    background:rgba(0,0,0,0.60);
   }
   .lp-drawer-overlay.open { display:block; }
 
@@ -292,7 +292,8 @@ const CSS = `
   .lp-drawer {
     position:fixed; top:0; left:0; bottom:0; z-index:1006;
     width:280px; max-width:82vw;
-    background:#0d0d1a; border-right:1px solid rgba(255,255,255,0.08);
+    background:rgba(10,10,20,0.85); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+    border-right:1px solid rgba(255,255,255,0.10);
     display:flex; flex-direction:column;
     transform:translateX(-100%); transition:transform 0.32s cubic-bezier(0.4,0,0.2,1);
     box-shadow:4px 0 48px rgba(0,0,0,0.65);
@@ -315,13 +316,12 @@ const CSS = `
     /* Navbar */
     .lp-nav-links      { display:none !important; }
     .lp-nav-live-badge { display:none !important; }
-    .lp-nav-btn-connect { display:inline-flex !important; padding:5px 11px !important; font-size:11px !important; height:auto !important; line-height:1 !important; }
-    .lp-nav-btn-start  { padding:5px 11px !important; font-size:11px !important; height:auto !important; line-height:1 !important; }
+    .lp-nav-btn-connect { display:inline-flex !important; padding:6px 12px !important; font-size:12px !important; height:auto !important; line-height:1 !important; border-radius:6px !important; }
+    .lp-nav-btn-start  { padding:6px 14px !important; font-size:12px !important; height:auto !important; line-height:1 !important; border-radius:6px !important; }
     .lp-hamburger      { display:flex; }
-    .lp-nav-inner      { position:relative !important; padding:0 14px !important; }
-    .lp-nav-logo       { position:absolute !important; left:50% !important; transform:translateX(-50%) !important; margin-left:0 !important; pointer-events:none; }
-    .lp-nav-logo span  { font-size:10px !important; letter-spacing:1.5px !important; }
-    .lp-nav-right      { gap:6px !important; padding-right:0 !important; }
+    .lp-nav-inner      { padding:0 14px !important; justify-content:space-between !important; }
+    .lp-nav-logo       { display:none !important; }
+    .lp-nav-right      { gap:8px !important; padding-right:0 !important; }
 
     /* Announcement bar */
     .lp-announcement-bar { font-size:12px !important; gap:8px !important; padding:0 12px !important; }
