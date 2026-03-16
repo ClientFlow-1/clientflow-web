@@ -196,14 +196,76 @@ const CSS = `
 
   .lp-section { padding: 100px 24px; max-width: 1140px; margin: 0 auto; }
 
+  /* ── Hero layout ── */
+  .lp-hero-section { position: relative; min-height: 100vh; display: flex; align-items: center; overflow: hidden; padding-top: 64px; }
+  .lp-hero-pad { max-width: 1140px; margin: 0 auto; padding: 80px 24px 100px; width: 100%; }
+  .lp-hero-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: center; }
+
+  /* ── Mockup badges ── */
+  .lp-badge-r { position: absolute; top: 20px; right: -20px; z-index: 10; animation: floatB 5s ease-in-out infinite; }
+  .lp-badge-l { position: absolute; bottom: 24px; left: -16px; z-index: 10; animation: floatC 6s ease-in-out infinite; }
+
+  /* ── Sections ── */
+  .lp-section-features { padding: 100px 24px; }
+  .lp-section-pricing  { padding: 100px 24px; }
+  .lp-section-testi    { padding: 100px 24px; }
+  .lp-section-cta      { padding: 0 24px 100px; }
+
+  /* ── Pricing card inner ── */
+  .lp-pricing-inner { width: 100%; max-width: 520px; border-radius: 24px; padding: 44px 40px; position: relative; overflow: hidden; }
+
+  /* ── CTA band inner ── */
+  .lp-cta-inner { border-radius: 24px; padding: 60px 48px; text-align: center; position: relative; overflow: hidden; }
+
+  /* ── Footer grid ── */
+  .lp-footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 40px; margin-bottom: 48px; }
+
+  /* ════ MOBILE ════ */
   @media (max-width: 768px) {
-    .lp-section { padding: 64px 20px; }
-    .lp-features-grid { grid-template-columns: 1fr !important; }
-    .lp-hero-ctas { flex-direction: column; align-items: stretch !important; }
-    .lp-hero-ctas a, .lp-hero-ctas button { width: 100%; justify-content: center; }
-    .lp-testimonials-grid { grid-template-columns: 1fr !important; }
+
+    /* Navbar */
     .lp-nav-links { display: none !important; }
-    .lp-hero-title { font-size: clamp(32px, 9vw, 56px) !important; }
+    .lp-nav-btn-connect { height: 32px !important; padding: 0 11px !important; font-size: 12px !important; }
+    .lp-nav-btn-start   { height: 32px !important; padding: 0 11px !important; font-size: 12px !important; }
+
+    /* Hero */
+    .lp-hero-section { min-height: auto; align-items: flex-start; }
+    .lp-hero-pad     { padding: 40px 20px 60px; }
+    .lp-hero-grid    { grid-template-columns: 1fr; gap: 44px; }
+    .lp-hero-title   { font-size: clamp(30px, 8.5vw, 48px) !important; letter-spacing: -1px !important; }
+
+    /* Mockup badges — rentrent dans les bords */
+    .lp-badge-r { right: 4px !important; top: -8px !important; }
+    .lp-badge-l { left: 4px !important; bottom: -8px !important; }
+
+    /* Features */
+    .lp-features-grid  { grid-template-columns: 1fr !important; }
+    .lp-section-features { padding: 64px 20px; }
+
+    /* Hero CTAs */
+    .lp-hero-ctas { flex-direction: column; align-items: stretch !important; }
+    .lp-hero-ctas a { width: 100% !important; justify-content: center; }
+
+    /* Pricing */
+    .lp-section-pricing  { padding: 64px 20px; }
+    .lp-pricing-inner    { padding: 28px 22px !important; border-radius: 18px !important; }
+
+    /* Testimonials */
+    .lp-testimonials-grid { grid-template-columns: 1fr !important; }
+    .lp-section-testi     { padding: 64px 20px; }
+
+    /* CTA band */
+    .lp-section-cta  { padding: 0 20px 64px; }
+    .lp-cta-inner    { padding: 36px 24px !important; border-radius: 18px !important; }
+
+    /* Footer */
+    .lp-footer-grid { grid-template-columns: 1fr 1fr; gap: 28px; }
+    .lp-footer-brand { grid-column: 1 / -1; }
+  }
+
+  @media (max-width: 480px) {
+    .lp-footer-grid { grid-template-columns: 1fr; }
+    .lp-footer-brand { grid-column: auto; }
   }
 `;
 
@@ -274,7 +336,7 @@ function DashboardMockup() {
       </div>
 
       {/* Floating badge 1 */}
-      <div style={{ position: "absolute", top: 20, right: -20, zIndex: 10, animation: "floatB 5s ease-in-out infinite" }}>
+      <div className="lp-badge-r">
         <div style={{ background: "linear-gradient(135deg, rgba(80,210,140,0.15), rgba(60,200,120,0.08))", border: "1px solid rgba(80,210,140,0.25)", borderRadius: 12, padding: "10px 16px", backdropFilter: "blur(12px)", boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}>
           <div style={{ fontSize: 10, color: "rgba(80,210,140,0.9)", fontWeight: 800, fontFamily: "'DM Mono', monospace" }}>📧 Relance envoyée</div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.7)", marginTop: 2 }}>34 clients inactifs</div>
@@ -282,7 +344,7 @@ function DashboardMockup() {
       </div>
 
       {/* Floating badge 2 */}
-      <div style={{ position: "absolute", bottom: 24, left: -16, zIndex: 10, animation: "floatC 6s ease-in-out infinite" }}>
+      <div className="lp-badge-l">
         <div style={{ background: "linear-gradient(135deg, rgba(99,120,255,0.15), rgba(79,99,232,0.08))", border: "1px solid rgba(99,120,255,0.28)", borderRadius: 12, padding: "10px 16px", backdropFilter: "blur(12px)", boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}>
           <div style={{ fontSize: 10, color: "rgba(160,180,255,0.95)", fontWeight: 800, fontFamily: "'DM Mono', monospace" }}>📊 +18% ce mois</div>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.65)", marginTop: 2 }}>Chiffre d'affaires</div>
@@ -416,14 +478,15 @@ export default function LandingPage() {
       </header>
 
       {/* ══════════ HERO ══════════ */}
-      <section style={{ position: "relative", minHeight: "100vh", display: "flex", alignItems: "center", overflow: "hidden", paddingTop: 64 }}>
+      <section className="lp-hero-section">
         {/* Background orbs */}
         <div className="lp-orb" style={{ width: 700, height: 700, top: -200, left: -200, background: "radial-gradient(circle, rgba(99,120,255,0.18) 0%, transparent 70%)", animation: "floatA 12s ease-in-out infinite" }} />
         <div className="lp-orb" style={{ width: 500, height: 500, top: 100, right: -100, background: "radial-gradient(circle, rgba(192,132,252,0.12) 0%, transparent 70%)", animation: "floatB 10s ease-in-out infinite" }} />
         <div className="lp-orb" style={{ width: 400, height: 400, bottom: 0, left: "30%", background: "radial-gradient(circle, rgba(99,120,255,0.10) 0%, transparent 70%)", animation: "floatC 14s ease-in-out infinite" }} />
         <div className="lp-grid-bg" />
 
-        <div style={{ maxWidth: 1140, margin: "0 auto", padding: "80px 24px 100px", width: "100%", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 60, alignItems: "center" }}>
+        <div className="lp-hero-pad">
+          <div className="lp-hero-grid">
           {/* Left */}
           <div>
             <div className="lp-hero-fadeup lp-delay-1" style={{ marginBottom: 20 }}>
@@ -462,7 +525,8 @@ export default function LandingPage() {
           <div className="lp-hero-fade lp-delay-2" style={{ position: "relative" }}>
             <DashboardMockup />
           </div>
-        </div>
+          </div>{/* /lp-hero-grid */}
+        </div>{/* /lp-hero-pad */}
 
         {/* Scroll indicator */}
         <div style={{ position: "absolute", bottom: 32, left: "50%", transform: "translateX(-50%)", display: "flex", flexDirection: "column", alignItems: "center", gap: 6, opacity: 0.3, animation: "floatA 2.5s ease-in-out infinite" }}>
@@ -472,7 +536,7 @@ export default function LandingPage() {
       </section>
 
       {/* ══════════ FEATURES ══════════ */}
-      <section id="features" style={{ padding: "100px 24px" }}>
+      <section id="features" className="lp-section-features">
         <div style={{ maxWidth: 1140, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 64 }}>
             <span className="lp-tag" style={{ marginBottom: 20, display: "inline-flex" }}>✦ Fonctionnalités</span>
@@ -499,7 +563,7 @@ export default function LandingPage() {
       <div className="lp-divider" />
 
       {/* ══════════ PRICING ══════════ */}
-      <section id="pricing" style={{ padding: "100px 24px" }}>
+      <section id="pricing" className="lp-section-pricing">
         <div style={{ maxWidth: 1140, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 56 }}>
             <span className="lp-tag" style={{ marginBottom: 20, display: "inline-flex" }}>✦ Tarif</span>
@@ -512,12 +576,9 @@ export default function LandingPage() {
           </div>
 
           <div style={{ display: "flex", justifyContent: "center" }}>
-            <div className="lp-pricing-card" style={{
-              width: "100%", maxWidth: 520,
+            <div className="lp-pricing-card lp-pricing-inner" style={{
               background: "linear-gradient(145deg, rgba(18,20,36,0.95), rgba(10,11,20,0.98))",
               border: "1px solid rgba(99,120,255,0.30)",
-              borderRadius: 24, padding: "44px 40px",
-              position: "relative", overflow: "hidden",
             }}>
               {/* Background shimmer */}
               <div style={{ position: "absolute", top: -80, right: -80, width: 300, height: 300, borderRadius: "50%", background: "radial-gradient(circle, rgba(99,120,255,0.14) 0%, transparent 70%)", pointerEvents: "none" }} />
@@ -574,7 +635,7 @@ export default function LandingPage() {
       <div className="lp-divider" />
 
       {/* ══════════ TESTIMONIALS ══════════ */}
-      <section id="testimonials" style={{ padding: "100px 24px" }}>
+      <section id="testimonials" className="lp-section-testi">
         <div style={{ maxWidth: 1140, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 56 }}>
             <span className="lp-tag" style={{ marginBottom: 20, display: "inline-flex" }}>✦ Témoignages</span>
@@ -609,13 +670,11 @@ export default function LandingPage() {
       </section>
 
       {/* ══════════ CTA BAND ══════════ */}
-      <section style={{ padding: "0 24px 100px" }}>
+      <section className="lp-section-cta">
         <div style={{ maxWidth: 900, margin: "0 auto" }}>
-          <div style={{
-            borderRadius: 24, padding: "60px 48px", textAlign: "center",
+          <div className="lp-cta-inner" style={{
             background: "linear-gradient(135deg, rgba(99,120,255,0.12) 0%, rgba(192,132,252,0.08) 100%)",
             border: "1px solid rgba(99,120,255,0.22)",
-            position: "relative", overflow: "hidden",
           }}>
             <div style={{ position: "absolute", top: -60, right: -60, width: 250, height: 250, borderRadius: "50%", background: "radial-gradient(circle, rgba(99,120,255,0.20) 0%, transparent 70%)", pointerEvents: "none" }} />
             <div style={{ position: "absolute", bottom: -50, left: -50, width: 200, height: 200, borderRadius: "50%", background: "radial-gradient(circle, rgba(192,132,252,0.15) 0%, transparent 70%)", pointerEvents: "none" }} />
@@ -637,9 +696,9 @@ export default function LandingPage() {
 
       {/* ══════════ FOOTER ══════════ */}
       <footer style={{ borderTop: "1px solid rgba(255,255,255,0.06)", padding: "48px 24px 36px" }}>
-        <div style={{ maxWidth: 1140, margin: "0 auto", display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 40, marginBottom: 48 }}>
+        <div className="lp-footer-grid" style={{ maxWidth: 1140, margin: "0 auto" }}>
           {/* Brand */}
-          <div>
+          <div className="lp-footer-brand">
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
               <div style={{ width: 30, height: 30, borderRadius: 8, background: `linear-gradient(135deg, ${ACCENT}, ${ACCENT_MID})`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#fff", fontFamily: "'DM Mono', monospace" }}>CF</div>
               <span style={{ fontFamily: "'DM Mono', monospace", fontWeight: 600, fontSize: 12, letterSpacing: 2, color: "rgba(255,255,255,0.85)" }}>CLIENTFLOW</span>
