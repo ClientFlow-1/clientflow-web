@@ -1357,7 +1357,7 @@ export default function LandingPage() {
       {/* ══════════ MOBILE STICKY CTA ══════════ */}
       <div className="lp-sticky-cta" style={{ flexDirection: "column", gap: 0 }}>
         <a href="#stripe-placeholder" className="lp-btn-primary" style={{ width: "100%", height: 48, fontSize: 15, borderRadius: 12, justifyContent: "center" }}>Démarrer maintenant →</a>
-        <div style={{ textAlign: "center", marginTop: 8, fontSize: 11, color: "rgba(255,255,255,0.30)", fontFamily: "'DM Mono',monospace" }}>Sans engagement · 30j satisfait ou remboursé</div>
+        <div style={{ textAlign: "center", marginTop: 8, fontSize: 11, color: "rgba(255,255,255,0.30)", fontFamily: "'DM Mono',monospace" }}>Abonnement sans engagement — annulable à tout moment</div>
       </div>
     </div>
   );
