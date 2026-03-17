@@ -375,6 +375,177 @@ function ProfileMenu({ role }: { role: string | null }) {
 }
 
 
+/* ─────────── NotificationBell ─────────── */
+type DBNotification = {
+  id: string;
+  workspace_id: string;
+  type: "stock" | "relance" | "inactif" | "suggestion";
+  title: string;
+  message: string;
+  read: boolean;
+  created_at: string;
+};
+
+const NOTIF_ICON: Record<string, string> = {
+  stock: "📦",
+  relance: "👥",
+  inactif: "💤",
+  suggestion: "✨",
+};
+
+function relativeTime(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60_000);
+  if (mins < 1) return "À l'instant";
+  if (mins < 60) return `il y a ${mins}min`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `il y a ${hrs}h`;
+  return `il y a ${Math.floor(hrs / 24)}j`;
+}
+
+function NotificationBell() {
+  const { activeWorkspace } = useWorkspace();
+  const [open, setOpen] = useState(false);
+  const [notifs, setNotifs] = useState<DBNotification[]>([]);
+  const [mounted, setMounted] = useState(false);
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const dropRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, right: 0 });
+
+  useEffect(() => { setMounted(true); }, []);
+
+  const unread = notifs.filter(n => !n.read).length;
+
+  const fetchNotifs = useRef(async (wsId: string) => {
+    const { data } = await supabase
+      .from("notifications")
+      .select("*")
+      .eq("workspace_id", wsId)
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (data) setNotifs(data as DBNotification[]);
+  });
+
+  useEffect(() => {
+    if (!activeWorkspace) return;
+    fetchNotifs.current(activeWorkspace.id);
+    const iv = setInterval(() => fetchNotifs.current(activeWorkspace.id), 60_000);
+    return () => clearInterval(iv);
+  }, [activeWorkspace?.id]);
+
+  useEffect(() => {
+    if (!open || !btnRef.current) return;
+    const r = btnRef.current.getBoundingClientRect();
+    setPos({ top: r.bottom + 8, right: window.innerWidth - r.right });
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (btnRef.current?.contains(t) || dropRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+
+  async function markAllRead() {
+    if (!activeWorkspace) return;
+    await supabase
+      .from("notifications")
+      .update({ read: true })
+      .eq("workspace_id", activeWorkspace.id)
+      .eq("read", false);
+    setNotifs(prev => prev.map(n => ({ ...n, read: true })));
+  }
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        className="ds-notif-btn"
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        aria-label="Notifications"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+        </svg>
+        {unread > 0 && (
+          <span className="ds-notif-badge">{unread > 99 ? "99+" : unread}</span>
+        )}
+      </button>
+
+      {open && mounted && createPortal(
+        <div ref={dropRef} style={{
+          position: "fixed", top: pos.top, right: pos.right, zIndex: 99999,
+          width: 360, maxWidth: "calc(100vw - 24px)", borderRadius: 16,
+          background: "linear-gradient(180deg, rgba(18,20,28,0.99), rgba(10,11,16,0.99))",
+          border: "1px solid rgba(255,255,255,0.10)",
+          boxShadow: "0 20px 60px rgba(0,0,0,0.75)", backdropFilter: "blur(20px)",
+          overflow: "hidden",
+        }}>
+          {/* Header */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "13px 16px", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 15, lineHeight: 1 }}>🔔</span>
+              <span style={{ fontSize: 14, fontWeight: 800, color: "rgba(255,255,255,0.92)" }}>Notifications</span>
+              {unread > 0 && (
+                <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 7px", borderRadius: 999, background: "rgba(255,60,60,0.14)", border: "1px solid rgba(255,60,60,0.28)", color: "rgba(255,130,110,0.95)" }}>
+                  {unread} non lue{unread > 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+            {unread > 0 && (
+              <button type="button" onClick={markAllRead} style={{ fontSize: 11, fontWeight: 700, color: "rgba(99,120,255,0.85)", background: "none", border: "none", cursor: "pointer", padding: "4px 8px", borderRadius: 6, fontFamily: "inherit", transition: "color 150ms" }}
+                onMouseEnter={e => { e.currentTarget.style.color = "rgba(99,120,255,1)"; }}
+                onMouseLeave={e => { e.currentTarget.style.color = "rgba(99,120,255,0.85)"; }}>
+                Tout marquer lu
+              </button>
+            )}
+          </div>
+
+          {/* Liste */}
+          <div style={{ maxHeight: 420, overflowY: "auto", scrollbarWidth: "thin", scrollbarColor: "rgba(255,255,255,0.08) transparent" }}>
+            {notifs.length === 0 ? (
+              <div style={{ padding: "36px 16px", textAlign: "center", color: "rgba(255,255,255,0.28)", fontSize: 13 }}>
+                <div style={{ fontSize: 28, marginBottom: 10 }}>🔕</div>
+                Aucune notification
+              </div>
+            ) : notifs.map(n => (
+              <div key={n.id} style={{
+                display: "flex", gap: 12, padding: "12px 16px",
+                borderBottom: "1px solid rgba(255,255,255,0.04)",
+                background: n.read ? "transparent" : "rgba(99,120,255,0.04)",
+              }}>
+                <div style={{ fontSize: 19, lineHeight: 1, flexShrink: 0, marginTop: 1 }}>
+                  {NOTIF_ICON[n.type] ?? "🔔"}
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: n.read ? 600 : 800, color: n.read ? "rgba(255,255,255,0.65)" : "rgba(255,255,255,0.95)", marginBottom: 3, lineHeight: 1.35 }}>
+                    {n.title}
+                  </div>
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.42)", lineHeight: 1.55 }}>
+                    {n.message}
+                  </div>
+                  <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.22)", marginTop: 5, fontFamily: "DM Mono, monospace" }}>
+                    {relativeTime(n.created_at)}
+                  </div>
+                </div>
+                {!n.read && (
+                  <div style={{ width: 7, height: 7, borderRadius: "50%", background: "rgba(99,120,255,0.9)", flexShrink: 0, marginTop: 4, boxShadow: "0 0 6px rgba(99,120,255,0.6)" }} />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>,
+        document.body
+      )}
+    </>
+  );
+}
+
 // ── Nav items ── //
 // 📦 Inventaire ajouté entre Produits et Relances
 const ALL_NAV_ITEMS = [
@@ -482,6 +653,9 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         .ds-btn-ghost { background: rgba(255,255,255,0.02); }
         .ds-btn-primary { background: rgba(99,120,255,0.15); border-color: rgba(99,120,255,0.35); color: #a5b4ff; }
         .ds-btn-primary:hover:not(:disabled) { background: rgba(99,120,255,0.22); border-color: rgba(99,120,255,0.50); }
+        .ds-notif-btn { position: relative; width: 32px; height: 32px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.70); font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 150ms, border-color 150ms, color 150ms; }
+        .ds-notif-btn:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.15); color: rgba(255,255,255,0.90); }
+        .ds-notif-badge { position: absolute; top: -4px; right: -4px; min-width: 16px; height: 16px; border-radius: 999px; background: rgba(235,60,60,0.92); border: 1.5px solid var(--bg); color: #fff; font-size: 9px; font-weight: 800; display: flex; align-items: center; justify-content: center; padding: 0 3px; line-height: 1; font-family: var(--font-mono); pointer-events: none; }
         .ds-bottom-nav { display: none; }
         @media (max-width: 768px) {
           .ds-sidebar { display: none; }
@@ -529,6 +703,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           <div className="ds-topbar">
             <div className="ds-topbar-title">CLIENTFLOW</div>
             <WorkspacePicker />
+            <NotificationBell />
             <ProfileMenu role={role} />
           </div>
           <main className="ds-content">
