@@ -292,7 +292,7 @@ const CSS = `
   .lp-drawer {
     position:fixed; top:0; left:0; bottom:0; z-index:1006;
     width:280px; max-width:82vw;
-    background:rgba(10,10,20,0.85); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
+    background:rgba(10,10,20,0.55); backdrop-filter:blur(20px); -webkit-backdrop-filter:blur(20px);
     border-right:1px solid rgba(255,255,255,0.10);
     display:flex; flex-direction:column;
     transform:translateX(-100%); transition:transform 0.32s cubic-bezier(0.4,0,0.2,1);
@@ -340,7 +340,8 @@ const CSS = `
 
     /* Features */
     .lp-section-features { padding:56px 20px; }
-    .lp-features-grid  { grid-template-columns:1fr !important; }
+    .lp-features-grid  { grid-template-columns:1fr !important; gap:10px !important; }
+    .lp-feature-card   { padding:16px 18px !important; }
 
     /* How it works */
     .lp-section-howitworks { padding:56px 20px; }
@@ -854,6 +855,66 @@ function TestimonialsSection() {
   );
 }
 
+/* ─────────── FeaturesSection (accordion on mobile) ─────────── */
+function FeaturesSection() {
+  const [openIdx, setOpenIdx] = useState<number | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width:768px)");
+    setIsMobile(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  const toggle = (i: number) => setOpenIdx(prev => prev === i ? null : i);
+
+  return (
+    <section id="features" className="lp-section-features">
+      <div style={{ maxWidth: 1140, margin: "0 auto" }}>
+        <div className="lp-reveal" style={{ textAlign: "center", marginBottom: 64 }}>
+          <span className="lp-tag" style={{ marginBottom: 20, display: "inline-flex" }}>{Icons.spark} Fonctionnalités</span>
+          <h2 style={{ fontSize: "clamp(28px,4vw,46px)", fontWeight: 900, letterSpacing: "-1px", color: "rgba(255,255,255,0.95)", marginTop: 16, marginBottom: 16 }}>Tout ce dont votre boutique a besoin</h2>
+          <p style={{ fontSize: 16, color: "rgba(255,255,255,0.45)", maxWidth: 520, margin: "0 auto", lineHeight: 1.7 }}>Un seul outil pour remplacer vos fichiers Excel, vos SMS manuels et vos tableurs de stock.</p>
+        </div>
+        <div className="lp-features-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 18 }}>
+          {FEATURES.map((f, i) => {
+            const isOpen = openIdx === i;
+            return (
+              <div
+                key={f.title}
+                className={`lp-feature-card lp-reveal lp-reveal-d${i + 1}`}
+                onClick={() => { if (isMobile) toggle(i); }}
+                style={{ cursor: isMobile ? "pointer" : "default" }}
+              >
+                {isMobile ? (
+                  <>
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      <div style={{ width: 40, height: 40, borderRadius: 11, background: f.bg, color: f.color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{f.icon}</div>
+                      <h3 style={{ fontSize: 15, fontWeight: 800, color: "rgba(255,255,255,0.95)", flex: 1, margin: 0 }}>{f.title}</h3>
+                      <span style={{ color: "rgba(160,180,255,0.55)", fontSize: 20, fontWeight: 300, transform: isOpen ? "rotate(90deg)" : "none", transition: "transform 0.3s ease", flexShrink: 0, lineHeight: 1, display: "block" }}>›</span>
+                    </div>
+                    <div style={{ overflow: "hidden", maxHeight: isOpen ? 300 : 0, opacity: isOpen ? 1 : 0, transition: "max-height 0.3s ease, opacity 0.25s ease", marginTop: isOpen ? 12 : 0 }}>
+                      <p style={{ fontSize: 13.5, color: "rgba(255,255,255,0.45)", lineHeight: 1.68, fontWeight: 400, paddingTop: 2 }}>{f.desc}</p>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ width: 46, height: 46, borderRadius: 13, background: f.bg, color: f.color, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 18, flexShrink: 0 }}>{f.icon}</div>
+                    <h3 style={{ fontSize: 17, fontWeight: 800, color: "rgba(255,255,255,0.95)", marginBottom: 10 }}>{f.title}</h3>
+                    <p style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", lineHeight: 1.68, fontWeight: 400 }}>{f.desc}</p>
+                  </>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
 /* ─────────── MAIN ─────────── */
 export default function LandingPage() {
   const [scrolled,           setScrolled]           = useState(false);
@@ -1079,24 +1140,7 @@ export default function LandingPage() {
       <div className="lp-divider" />
 
       {/* ══════════ FEATURES ══════════ */}
-      <section id="features" className="lp-section-features">
-        <div style={{ maxWidth: 1140, margin: "0 auto" }}>
-          <div className="lp-reveal" style={{ textAlign: "center", marginBottom: 64 }}>
-            <span className="lp-tag" style={{ marginBottom: 20, display: "inline-flex" }}>{Icons.spark} Fonctionnalités</span>
-            <h2 style={{ fontSize: "clamp(28px,4vw,46px)", fontWeight: 900, letterSpacing: "-1px", color: "rgba(255,255,255,0.95)", marginTop: 16, marginBottom: 16 }}>Tout ce dont votre boutique a besoin</h2>
-            <p style={{ fontSize: 16, color: "rgba(255,255,255,0.45)", maxWidth: 520, margin: "0 auto", lineHeight: 1.7 }}>Un seul outil pour remplacer vos fichiers Excel, vos SMS manuels et vos tableurs de stock.</p>
-          </div>
-          <div className="lp-features-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 18 }}>
-            {FEATURES.map((f, i) => (
-              <div key={f.title} className={`lp-feature-card lp-reveal lp-reveal-d${i + 1}`}>
-                <div style={{ width: 46, height: 46, borderRadius: 13, background: f.bg, color: f.color, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 18, flexShrink: 0 }}>{f.icon}</div>
-                <h3 style={{ fontSize: 17, fontWeight: 800, color: "rgba(255,255,255,0.95)", marginBottom: 10 }}>{f.title}</h3>
-                <p style={{ fontSize: 14, color: "rgba(255,255,255,0.45)", lineHeight: 1.68, fontWeight: 400 }}>{f.desc}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <FeaturesSection />
 
       <div className="lp-divider" />
 
