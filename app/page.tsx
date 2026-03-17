@@ -1232,7 +1232,7 @@ export default function LandingPage() {
                 </div>
 
                 <a href="#stripe-placeholder" className="lp-btn-primary lp-btn-pulse" style={{ width: "100%", justifyContent: "center", height: 56, fontSize: 16 }}>Commencer maintenant →</a>
-                <p style={{ textAlign: "center", fontSize: 13, color: "rgba(80,210,140,0.80)", marginTop: 16, fontWeight: 700 }}>✓ Satisfait ou remboursé 30 jours — Sans engagement</p>
+                <p style={{ textAlign: "center", fontSize: 13, color: "rgba(80,210,140,0.80)", marginTop: 16, fontWeight: 700 }}>✓ Satisfait ou remboursé 30 jours sur l'abonnement — Frais d'installation non remboursables</p>
                 <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 9 }}>
                   {[["🔒","Paiement sécurisé Stripe"],["⚡","Accès immédiat après paiement"],["💬","Support réactif sous 24h"]].map(([icon, text]) => (
                     <div key={text} style={{ display: "flex", alignItems: "center", gap: 10 }}>
