@@ -893,10 +893,12 @@ function FeaturesSection() {
                     <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                       <div style={{ width: 40, height: 40, borderRadius: 11, background: f.bg, color: f.color, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>{f.icon}</div>
                       <h3 style={{ fontSize: 15, fontWeight: 800, color: "rgba(255,255,255,0.95)", flex: 1, margin: 0 }}>{f.title}</h3>
-                      <span style={{ color: "rgba(160,180,255,0.55)", fontSize: 20, fontWeight: 300, transform: isOpen ? "rotate(90deg)" : "none", transition: "transform 0.3s ease", flexShrink: 0, lineHeight: 1, display: "block" }}>›</span>
+                      <span style={{ color: "rgba(160,180,255,0.55)", fontSize: 20, fontWeight: 300, transform: isOpen ? "rotate(90deg)" : "none", transition: "transform 0.4s cubic-bezier(0.4,0,0.2,1)", flexShrink: 0, lineHeight: 1, display: "block" }}>›</span>
                     </div>
-                    <div style={{ overflow: "hidden", maxHeight: isOpen ? 300 : 0, opacity: isOpen ? 1 : 0, transition: "max-height 0.3s ease, opacity 0.25s ease", marginTop: isOpen ? 12 : 0 }}>
-                      <p style={{ fontSize: 13.5, color: "rgba(255,255,255,0.45)", lineHeight: 1.68, fontWeight: 400, paddingTop: 2 }}>{f.desc}</p>
+                    <div style={{ display: "grid", gridTemplateRows: isOpen ? "1fr" : "0fr", transition: "grid-template-rows 0.4s cubic-bezier(0.4,0,0.2,1)", overflow: "hidden" }}>
+                      <div style={{ minHeight: 0, opacity: isOpen ? 1 : 0, transition: `opacity ${isOpen ? "0.35s" : "0.2s"} ease`, transitionDelay: isOpen ? "50ms" : "0ms" }}>
+                        <p style={{ fontSize: 13.5, color: "rgba(255,255,255,0.45)", lineHeight: 1.68, fontWeight: 400, paddingTop: 12 }}>{f.desc}</p>
+                      </div>
                     </div>
                   </>
                 ) : (
