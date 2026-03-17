@@ -375,6 +375,60 @@ function ProfileMenu({ role }: { role: string | null }) {
 }
 
 
+/* ─────────── Toast system ─────────── */
+type ToastData = {
+  id: string;
+  type: "stock" | "relance" | "inactif" | "suggestion";
+  title: string;
+  message: string;
+};
+
+function ToastCard({ t, onDismiss }: { t: ToastData; onDismiss: (id: string) => void }) {
+  const [exiting, setExiting] = useState(false);
+
+  function close() {
+    setExiting(true);
+    setTimeout(() => onDismiss(t.id), 340);
+  }
+
+  useEffect(() => {
+    const timer = setTimeout(close, 5000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  return (
+    <div className={`ds-toast${exiting ? " ds-toast-exit" : ""}`}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "13px 12px 11px 14px" }}>
+        <span style={{ fontSize: 20, lineHeight: 1, flexShrink: 0, marginTop: 1 }}>
+          {NOTIF_ICON[t.type] ?? "🔔"}
+        </span>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 800, color: "rgba(255,255,255,0.95)", marginBottom: 3, lineHeight: 1.3 }}>
+            {t.title}
+          </div>
+          <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.48)", lineHeight: 1.5, display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+            {t.message}
+          </div>
+        </div>
+        <button type="button" onClick={close} style={{ width: 22, height: 22, borderRadius: 6, border: "none", background: "rgba(255,255,255,0.06)", color: "rgba(255,255,255,0.38)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, flexShrink: 0, fontFamily: "inherit", marginTop: 1 }}>✕</button>
+      </div>
+      <div className="ds-toast-bar" />
+    </div>
+  );
+}
+
+function ToastContainer({ toasts, onDismiss }: { toasts: ToastData[]; onDismiss: (id: string) => void }) {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  if (!mounted || toasts.length === 0) return null;
+  return createPortal(
+    <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 99997, display: "flex", flexDirection: "column", gap: 10, pointerEvents: "none", maxWidth: 360 }}>
+      {toasts.map(t => <ToastCard key={t.id} t={t} onDismiss={onDismiss} />)}
+    </div>,
+    document.body
+  );
+}
+
 /* ─────────── NotificationBell ─────────── */
 type DBNotification = {
   id: string;
@@ -407,10 +461,13 @@ function NotificationBell() {
   const { activeWorkspace } = useWorkspace();
   const [open, setOpen] = useState(false);
   const [notifs, setNotifs] = useState<DBNotification[]>([]);
+  const [toasts, setToasts] = useState<ToastData[]>([]);
   const [mounted, setMounted] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
   const dropRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ top: 0, right: 0 });
+  const lastTimestamp = useRef<string | null>(null);
+  const isFirstFetch = useRef(true);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -423,8 +480,27 @@ function NotificationBell() {
       .eq("workspace_id", wsId)
       .order("created_at", { ascending: false })
       .limit(50);
-    if (data) setNotifs(data as DBNotification[]);
+    if (!data) return;
+    setNotifs(data as DBNotification[]);
+    // Détecter les nouvelles notifs (skip au premier fetch pour ne pas inonder)
+    if (!isFirstFetch.current && lastTimestamp.current) {
+      const newOnes = (data as DBNotification[]).filter(n => n.created_at > lastTimestamp.current!);
+      if (newOnes.length > 0) {
+        setToasts(prev => {
+          const slots = 3 - prev.length;
+          if (slots <= 0) return prev;
+          const toAdd = newOnes.slice(0, slots).map(n => ({ id: n.id, type: n.type, title: n.title, message: n.message }));
+          return [...prev, ...toAdd];
+        });
+      }
+    }
+    if (data.length > 0) lastTimestamp.current = data[0].created_at;
+    isFirstFetch.current = false;
   });
+
+  function dismissToast(id: string) {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }
 
   useEffect(() => {
     if (!activeWorkspace) return;
@@ -542,6 +618,7 @@ function NotificationBell() {
         </div>,
         document.body
       )}
+      <ToastContainer toasts={toasts} onDismiss={dismissToast} />
     </>
   );
 }
@@ -656,6 +733,12 @@ export default function DashboardShell({ children }: { children: React.ReactNode
         .ds-notif-btn { position: relative; width: 32px; height: 32px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.08); background: rgba(255,255,255,0.04); color: rgba(255,255,255,0.70); font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; flex-shrink: 0; transition: background 150ms, border-color 150ms, color 150ms; }
         .ds-notif-btn:hover { background: rgba(255,255,255,0.07); border-color: rgba(255,255,255,0.15); color: rgba(255,255,255,0.90); }
         .ds-notif-badge { position: absolute; top: -4px; right: -4px; min-width: 16px; height: 16px; border-radius: 999px; background: rgba(235,60,60,0.92); border: 1.5px solid var(--bg); color: #fff; font-size: 9px; font-weight: 800; display: flex; align-items: center; justify-content: center; padding: 0 3px; line-height: 1; font-family: var(--font-mono); pointer-events: none; }
+        @keyframes dsToastIn  { from { transform:translateX(calc(100% + 24px)); opacity:0; } to { transform:translateX(0); opacity:1; } }
+        @keyframes dsToastOut { from { transform:translateX(0); opacity:1; } to { transform:translateX(calc(100% + 24px)); opacity:0; } }
+        @keyframes dsToastProg { from { transform:scaleX(1); } to { transform:scaleX(0); } }
+        .ds-toast { min-width:300px; max-width:360px; border-radius:14px; overflow:hidden; background:linear-gradient(180deg,rgba(20,22,32,0.99),rgba(12,12,20,0.99)); border:1px solid rgba(255,255,255,0.10); box-shadow:0 16px 48px rgba(0,0,0,0.70),0 0 0 1px rgba(99,120,255,0.08); animation:dsToastIn 0.35s cubic-bezier(0.4,0,0.2,1) forwards; pointer-events:auto; }
+        .ds-toast-exit { animation:dsToastOut 0.35s cubic-bezier(0.4,0,0.2,1) forwards; }
+        .ds-toast-bar { height:2px; background:linear-gradient(90deg,rgba(99,120,255,0.90),rgba(160,120,255,0.70)); transform-origin:left; animation:dsToastProg 5s linear forwards; }
         .ds-bottom-nav { display: none; }
         @media (max-width: 768px) {
           .ds-sidebar { display: none; }
