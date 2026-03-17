@@ -1,7 +1,7 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "ClientFlow",
+  title: "ClientFlow — CRM",
   description: "Dashboard",
 };
 
