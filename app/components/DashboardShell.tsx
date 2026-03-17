@@ -786,8 +786,10 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           <div className="ds-topbar">
             <div className="ds-topbar-title">CLIENTFLOW</div>
             <WorkspacePicker />
-            <NotificationBell />
-            <ProfileMenu role={role} />
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: "auto" }}>
+              <NotificationBell />
+              <ProfileMenu role={role} />
+            </div>
           </div>
           <main className="ds-content">
             <div className={`ds-page-wrapper ${isTransitioning ? "entering" : "visible"}`}>
