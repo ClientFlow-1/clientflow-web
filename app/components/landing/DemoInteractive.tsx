@@ -541,30 +541,58 @@ function TabProduits({ isMobile }: { isMobile: boolean }) {
 }
 
 /* ── Analytiques tab ── */
-const CHART_DATA = [
-  { month: "Oct", value: 2400 },
-  { month: "Nov", value: 3100 },
-  { month: "Déc", value: 5800 },
-  { month: "Jan", value: 3200 },
-  { month: "Fév", value: 4100 },
-  { month: "Mar", value: 4820 },
+interface MonthData {
+  month: string;
+  value: number;
+  ca: string;
+  clients: string;
+  retour: string;
+  panier: string;
+  deltaCA: string; caUp: boolean;
+  deltaClients: string; clientsUp: boolean;
+  deltaRetour: string; retourUp: boolean;
+  deltaPanier: string; panierUp: boolean;
+  top3: { name: string; total: string; badge: string }[];
+}
+const CHART_DATA: MonthData[] = [
+  { month: "Oct", value: 3200, ca: "3 200 €", clients: "2", retour: "65%", panier: "118 €",
+    deltaCA: "+14%", caUp: true, deltaClients: "+1", clientsUp: true, deltaRetour: "+3%", retourUp: true, deltaPanier: "+5%", panierUp: true,
+    top3: [{ name: "Chloé Petit", total: "284 €", badge: "🥇" }, { name: "Sophie Martin", total: "196 €", badge: "🥈" }, { name: "Marie Dubois", total: "68 €", badge: "🥉" }] },
+  { month: "Nov", value: 3800, ca: "3 800 €", clients: "3", retour: "67%", panier: "122 €",
+    deltaCA: "+19%", caUp: true, deltaClients: "+1", clientsUp: true, deltaRetour: "+2%", retourUp: true, deltaPanier: "+3%", panierUp: true,
+    top3: [{ name: "Chloé Petit", total: "312 €", badge: "🥇" }, { name: "Sophie Martin", total: "205 €", badge: "🥈" }, { name: "Thomas Leroy", total: "88 €", badge: "🥉" }] },
+  { month: "Déc", value: 5200, ca: "5 200 €", clients: "5", retour: "72%", panier: "134 €",
+    deltaCA: "+37%", caUp: true, deltaClients: "+2", clientsUp: true, deltaRetour: "+5%", retourUp: true, deltaPanier: "+10%", panierUp: true,
+    top3: [{ name: "Chloé Petit", total: "428 €", badge: "🥇" }, { name: "Sophie Martin", total: "310 €", badge: "🥈" }, { name: "Amina Traoré", total: "124 €", badge: "🥉" }] },
+  { month: "Jan", value: 3600, ca: "3 600 €", clients: "2", retour: "64%", panier: "115 €",
+    deltaCA: "-31%", caUp: false, deltaClients: "-3", clientsUp: false, deltaRetour: "-8%", retourUp: false, deltaPanier: "-14%", panierUp: false,
+    top3: [{ name: "Sophie Martin", total: "298 €", badge: "🥇" }, { name: "Chloé Petit", total: "201 €", badge: "🥈" }, { name: "Thomas Leroy", total: "75 €", badge: "🥉" }] },
+  { month: "Fév", value: 4100, ca: "4 100 €", clients: "3", retour: "66%", panier: "120 €",
+    deltaCA: "+14%", caUp: true, deltaClients: "+1", clientsUp: true, deltaRetour: "+2%", retourUp: true, deltaPanier: "+4%", panierUp: true,
+    top3: [{ name: "Chloé Petit", total: "336 €", badge: "🥇" }, { name: "Sophie Martin", total: "218 €", badge: "🥈" }, { name: "Amina Traoré", total: "92 €", badge: "🥉" }] },
+  { month: "Mar", value: 4820, ca: "4 820 €", clients: "3", retour: "68%", panier: "127 €",
+    deltaCA: "+18%", caUp: true, deltaClients: "0", clientsUp: true, deltaRetour: "+2%", retourUp: true, deltaPanier: "+6%", panierUp: true,
+    top3: [{ name: "Chloé Petit", total: "354 €", badge: "🥇" }, { name: "Sophie Martin", total: "218 €", badge: "🥈" }, { name: "Thomas Leroy", total: "73 €", badge: "🥉" }] },
 ];
 const CHART_MAX = 6000;
 
-function TabAnalytiques() {
+function TabAnalytiques({ isMobile }: { isMobile: boolean }) {
+  const [selectedIdx, setSelectedIdx] = useState(CHART_DATA.length - 1);
+  const d = CHART_DATA[selectedIdx];
+  const kpis = [
+    { label: "CA du mois",       value: d.ca,      delta: d.deltaCA,      up: d.caUp },
+    { label: "Nvx clients",      value: d.clients,  delta: d.deltaClients, up: d.clientsUp },
+    { label: "Taux retour",      value: d.retour,   delta: d.deltaRetour,  up: d.retourUp },
+    { label: "Panier moyen",     value: d.panier,   delta: d.deltaPanier,  up: d.panierUp },
+  ];
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {/* KPI cards */}
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 }}>
-        {[
-          { label: "CA du mois",      value: "4 820 €", delta: "+18%", up: true },
-          { label: "Nouveaux clients", value: "3",       delta: "+1",   up: true },
-          { label: "Taux de retour",   value: "68%",     delta: "+5%",  up: true },
-          { label: "Panier moyen",     value: "127 €",   delta: "-3%",  up: false },
-        ].map(k => (
-          <div key={k.label} style={{ padding: "12px 14px", borderRadius: 10, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
-            <div style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginBottom: 6, fontWeight: 500 }}>{k.label}</div>
-            <div style={{ fontSize: 20, fontWeight: 900, color: "rgba(255,255,255,0.92)", fontFamily: "DM Mono, monospace", letterSpacing: -0.5 }}>{k.value}</div>
+      {/* KPI cards — 2×2 grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+        {kpis.map(k => (
+          <div key={k.label} style={{ padding: isMobile ? "8px 10px" : "12px 14px", borderRadius: 10, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)", minWidth: 0 }}>
+            <div style={{ fontSize: 9, color: "rgba(255,255,255,0.35)", marginBottom: 4, fontWeight: 600, textTransform: "uppercase", letterSpacing: 0.4, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{k.label}</div>
+            <div style={{ fontSize: isMobile ? 18 : 20, fontWeight: 900, color: "rgba(255,255,255,0.92)", fontFamily: "DM Mono, monospace", letterSpacing: -0.5, whiteSpace: "nowrap", lineHeight: 1.1 }}>{k.value}</div>
             <div style={{ fontSize: 11, fontWeight: 700, marginTop: 4, color: k.up ? "#10b981" : "#ef4444" }}>{k.delta}</div>
           </div>
         ))}
@@ -574,15 +602,19 @@ function TabAnalytiques() {
       <div style={{ padding: "16px", borderRadius: 12, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.50)", marginBottom: 14, textTransform: "uppercase", letterSpacing: 0.8, fontFamily: "DM Mono, monospace" }}>CA mensuel — 6 derniers mois</div>
         <div style={{ display: "flex", alignItems: "flex-end", gap: 10, height: 110 }}>
-          {CHART_DATA.map((d, i) => {
-            const h = Math.round((d.value / CHART_MAX) * 100);
-            const isLast = i === CHART_DATA.length - 1;
+          {CHART_DATA.map((bar, i) => {
+            const h = Math.round((bar.value / CHART_MAX) * 100);
+            const isActive = i === selectedIdx;
             return (
-              <div key={d.month} style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, height: "100%" }}>
+              <div
+                key={bar.month}
+                onClick={() => setSelectedIdx(i)}
+                style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", gap: 6, height: "100%", cursor: "pointer" }}
+              >
                 <div style={{ flex: 1, width: "100%", display: "flex", alignItems: "flex-end" }}>
-                  <div style={{ width: "100%", height: `${h}%`, borderRadius: "5px 5px 0 0", background: isLast ? "linear-gradient(180deg,#6378ff,#4f63e8)" : "rgba(99,120,255,0.28)", boxShadow: isLast ? "0 0 14px rgba(99,120,255,0.40)" : "none", transition: "height 0.6s ease" }} />
+                  <div style={{ width: "100%", height: `${h}%`, borderRadius: "5px 5px 0 0", background: isActive ? "linear-gradient(180deg,#6378ff,#4f63e8)" : "rgba(99,120,255,0.25)", boxShadow: isActive ? "0 0 14px rgba(99,120,255,0.45)" : "none", transition: "background 0.2s, box-shadow 0.2s" }} />
                 </div>
-                <div style={{ fontSize: 10, color: isLast ? "rgba(165,180,255,0.85)" : "rgba(255,255,255,0.28)", fontFamily: "DM Mono, monospace", fontWeight: isLast ? 700 : 400 }}>{d.month}</div>
+                <div style={{ fontSize: 10, color: isActive ? "rgba(165,180,255,0.90)" : "rgba(255,255,255,0.28)", fontFamily: "DM Mono, monospace", fontWeight: isActive ? 700 : 400, transition: "color 0.2s" }}>{bar.month}</div>
               </div>
             );
           })}
@@ -591,13 +623,9 @@ function TabAnalytiques() {
 
       {/* Top 3 clients */}
       <div>
-        <div style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10, fontFamily: "DM Mono, monospace" }}>Top 3 clients du mois</div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10, fontFamily: "DM Mono, monospace" }}>Top 3 clients — {d.month}</div>
         <div style={{ borderRadius: 10, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden" }}>
-          {[
-            { rank: 1, name: "Chloé Petit",   total: "354 €", badge: "🥇" },
-            { rank: 2, name: "Sophie Martin", total: "218 €", badge: "🥈" },
-            { rank: 3, name: "Thomas Leroy",  total: "73 €",  badge: "🥉" },
-          ].map((c, i) => (
+          {d.top3.map((c, i) => (
             <div key={c.name} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderBottom: i < 2 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
               <span style={{ fontSize: 16 }}>{c.badge}</span>
               <div style={{ flex: 1, fontSize: 13, fontWeight: 600, color: "rgba(255,255,255,0.82)" }}>{c.name}</div>
@@ -737,7 +765,7 @@ export function DemoInteractive() {
         </div>
 
         {/* Browser mockup */}
-        <div style={{ borderRadius: isMobile ? 12 : 16, border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 24px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(99,120,255,0.08)", background: "#0c0c14", overflow: "hidden", height: isMobile ? 480 : 560, display: "flex", flexDirection: "column" }}>
+        <div style={{ borderRadius: isMobile ? 12 : 16, border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 24px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(99,120,255,0.08)", background: "#0c0c14", overflow: "hidden", height: 520, display: "flex", flexDirection: "column" }}>
 
           {/* Browser bar */}
           <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 12, padding: isMobile ? "8px 12px" : "11px 16px", background: "rgba(8,8,18,0.95)", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
@@ -812,7 +840,7 @@ export function DemoInteractive() {
                 {view === "produits"   && <TabProduits isMobile={isMobile} />}
                 {view === "relances"   && <TabRelances />}
                 {view === "inventaire" && <TabInventaire />}
-                {view === "analytiques"&& <TabAnalytiques />}
+                {view === "analytiques"&& <TabAnalytiques isMobile={isMobile} />}
                 {view === "parametres" && <TabParametres />}
               </div>
 
