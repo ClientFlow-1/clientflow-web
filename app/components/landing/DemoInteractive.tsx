@@ -737,7 +737,7 @@ export function DemoInteractive() {
         </div>
 
         {/* Browser mockup */}
-        <div style={{ borderRadius: isMobile ? 12 : 16, border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 24px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(99,120,255,0.08)", background: "#0c0c14", overflow: "hidden" }}>
+        <div style={{ borderRadius: isMobile ? 12 : 16, border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 24px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(99,120,255,0.08)", background: "#0c0c14", overflow: "hidden", height: isMobile ? 480 : 560, display: "flex", flexDirection: "column" }}>
 
           {/* Browser bar */}
           <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 12, padding: isMobile ? "8px 12px" : "11px 16px", background: "rgba(8,8,18,0.95)", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
@@ -755,7 +755,7 @@ export function DemoInteractive() {
           </div>
 
           {/* App shell — row on desktop, column on mobile */}
-          <div style={{ display: "flex", flexDirection: "row", minHeight: isMobile ? 440 : 520 }}>
+          <div style={{ display: "flex", flexDirection: "row", flex: 1, overflow: "hidden" }}>
 
             {/* Sidebar — desktop only */}
             {!isMobile && (
@@ -789,7 +789,7 @@ export function DemoInteractive() {
             )}
 
             {/* Main area */}
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "visible" }}>
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
 
               {/* Topbar */}
               <div style={{ display: "flex", alignItems: "center", padding: isMobile ? "8px 12px" : "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(10,10,20,0.60)", gap: 8 }}>
