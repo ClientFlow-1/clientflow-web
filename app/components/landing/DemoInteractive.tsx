@@ -361,7 +361,7 @@ function TabClients({ onSelect, isMobile }: { onSelect: (c: Client) => void; isM
   );
 }
 
-function TabFiche({ client, onBack }: { client: Client | null; onBack: () => void }) {
+function TabFiche({ client, onBack, isMobile }: { client: Client | null; onBack: () => void; isMobile: boolean }) {
   if (!client) {
     return (
       <div style={{ textAlign: "center", padding: "48px 16px", color: "rgba(255,255,255,0.28)" }}>
@@ -377,18 +377,22 @@ function TabFiche({ client, onBack }: { client: Client | null; onBack: () => voi
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="m15 18-6-6 6-6"/></svg>
         Retour aux clients
       </button>
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 14, padding: "16px", borderRadius: 12, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
-        <div style={{ width: 44, height: 44, borderRadius: 12, background: `linear-gradient(135deg, ${c.color}33, ${c.color}22)`, border: `1px solid ${c.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800, color: c.color, flexShrink: 0, fontFamily: "DM Mono, monospace" }}>
-          {client.prenom[0]}{client.nom[0]}
-        </div>
-        <div style={{ flex: 1 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
-            <span style={{ fontSize: 16, fontWeight: 800, color: "rgba(255,255,255,0.92)" }}>{client.prenom} {client.nom}</span>
-            <SegBadge seg={client.segment} />
+      <div style={{ padding: "14px", borderRadius: 12, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+        {/* Avatar + info row */}
+        <div style={{ display: "flex", alignItems: "flex-start", gap: 12, marginBottom: 10 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 11, background: `linear-gradient(135deg, ${c.color}33, ${c.color}22)`, border: `1px solid ${c.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, fontWeight: 800, color: c.color, flexShrink: 0, fontFamily: "DM Mono, monospace" }}>
+            {client.prenom[0]}{client.nom[0]}
           </div>
-          <div style={{ fontSize: 12.5, color: "rgba(255,255,255,0.38)" }}>{client.email} · {client.tel}</div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
+              <span style={{ fontSize: isMobile ? 14 : 16, fontWeight: 800, color: "rgba(255,255,255,0.92)" }}>{client.prenom} {client.nom}</span>
+              <SegBadge seg={client.segment} />
+            </div>
+            <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.38)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{client.email} · {client.tel}</div>
+          </div>
         </div>
-        <button type="button" style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(99,120,255,0.35)", background: "rgba(99,120,255,0.12)", color: "rgba(165,180,255,0.90)", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>
+        {/* Button — full width on mobile, inline on desktop */}
+        <button type="button" style={{ width: isMobile ? "100%" : "auto", padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(99,120,255,0.35)", background: "rgba(99,120,255,0.12)", color: "rgba(165,180,255,0.90)", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
           ✉ Envoyer une relance
         </button>
       </div>
@@ -797,7 +801,7 @@ export function DemoInteractive() {
               {/* Content */}
               <div style={{ flex: 1, padding: isMobile ? "12px" : "16px", overflowY: "auto", opacity: visible ? 1 : 0, transition: "opacity 180ms ease", paddingBottom: isMobile ? "8px" : "16px" }}>
                 {view === "clients"    && <TabClients onSelect={handleSelectClient} isMobile={isMobile} />}
-                {view === "fiche"      && <TabFiche client={selectedClient} onBack={handleBackToClients} />}
+                {view === "fiche"      && <TabFiche client={selectedClient} onBack={handleBackToClients} isMobile={isMobile} />}
                 {view === "produits"   && <TabProduits />}
                 {view === "relances"   && <TabRelances />}
                 {view === "inventaire" && <TabInventaire />}
