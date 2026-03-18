@@ -1,8 +1,10 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useWorkspace } from "@/lib/workspaceContext";
+import { detecterColonnes } from "@/lib/detecterColonnes";
+import type { DetectionResult } from "@/lib/detecterColonnes";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -34,7 +36,7 @@ interface ImportReport {
 
 const LOADING_MESSAGES = [
   "Lecture du fichier…",
-  "Analyse IA du mapping…",
+  "Détection des colonnes…",
   "Nettoyage des données…",
   "Import en base…",
 ];
@@ -288,22 +290,47 @@ function applyMapping(
   mapping: Record<string, string>,
   headers: string[],
   row: string[],
-  today: string
+  today: string,
+  colonnes_a_concatener?: Record<string, string[]>
 ): TransformedRow {
   const rowObj: Record<string, string> = {};
   headers.forEach((h, j) => { rowObj[h] = row[j] ?? ""; });
 
   const out: TransformedRow = {};
 
+  // Colonnes à concaténer pour l'adresse (ex: Adresse + CP + Ville)
+  const adresseCols = colonnes_a_concatener?.adresse;
+
   for (const [col, field] of Object.entries(mapping)) {
+    if (!field || field === "ignorer") continue;
+
+    // Cas spécial : adresse concaténée — traiter une seule fois
+    if (field === "adresse" && adresseCols && adresseCols.length > 1) {
+      if (col !== adresseCols[0]) continue; // traiter uniquement à la première colonne du groupe
+      const parts = adresseCols
+        .map(c => (rowObj[c] ?? "").trim())
+        .filter(Boolean);
+      if (parts.length) out.adresse = parts.join(", ");
+      continue;
+    }
+
     const raw = (rowObj[col] ?? "").trim();
-    if (!raw || field === "ignorer") continue;
+    if (!raw) continue;
 
     switch (field) {
       case "nom_complet": {
         const { prenom, nom } = nettoyerNomComplet(raw);
         if (!out.prenom && prenom) out.prenom = prenom;
         if (!out.nom && nom) out.nom = nom;
+        break;
+      }
+      case "prénom":
+      case "prenom": {
+        if (!out.prenom) out.prenom = capitalize(raw);
+        break;
+      }
+      case "nom": {
+        if (!out.nom) out.nom = capitalize(raw);
         break;
       }
       case "email": {
@@ -338,7 +365,8 @@ function applyMapping(
         break;
       }
       case "notes": {
-        out.notes = raw;
+        // Concaténer si plusieurs colonnes mappées sur notes
+        out.notes = out.notes ? `${out.notes} · ${raw}` : raw;
         break;
       }
     }
@@ -549,111 +577,69 @@ export default function ImportPage() {
   const [fileInputKey, setFileInputKey] = useState(0);
   const [dragOver, setDragOver] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
-  const loadingIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => {
-    if (step === "loading") {
-      let idx = 0;
-      loadingIntervalRef.current = setInterval(() => {
-        idx = (idx + 1) % LOADING_MESSAGES.length;
-        setLoadingIdx(idx);
-      }, 2400);
-    } else {
-      if (loadingIntervalRef.current) clearInterval(loadingIntervalRef.current);
-    }
-    return () => { if (loadingIntervalRef.current) clearInterval(loadingIntervalRef.current); };
-  }, [step]);
 
   async function processFile(file: File) {
     if (!activeWorkspace) { setErrorMsg("Sélectionne un workspace d'abord."); return; }
     setErrorMsg("");
     setStep("loading");
-    setLoadingIdx(0);
+    setLoadingIdx(0); // "Lecture du fichier…"
 
     try {
-      // Step 1 — Parse file
-      console.log("[import] Parsing fichier:", file.name, file.size, "octets");
+      // ── Étape 1 : Parsing ─────────────────────────────────────────────────
       const { headers, rows } = await parseFile(file);
-      console.log("[import] Parsing OK — headers:", headers, "| lignes:", rows.length);
 
       if (!headers.length || !rows.length) {
-        setErrorMsg("Fichier vide ou format non reconnu. Vérifiez que le fichier contient bien des données.");
+        setErrorMsg("Fichier vide ou format non reconnu.");
         setStep("upload");
         return;
       }
 
-      // Step 2 — Ask Claude for column mapping only (headers + 3 sample rows)
-      const today = new Date().toISOString().split("T")[0];
-      const sampleRows = rows.slice(0, 3);
-      console.log("[import] Envoi à Claude — headers:", headers, "| sample:", sampleRows);
+      // ── Étape 2 : Détection locale des colonnes ───────────────────────────
+      setLoadingIdx(1); // "Détection des colonnes…"
+      const detection: DetectionResult = detecterColonnes(headers, rows.slice(0, 10));
+      const { mapping, colonnes_a_concatener } = detection;
 
-      let apiRes: Response;
-      try {
-        apiRes = await fetch("/api/detect-columns", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ headers, sampleRows }),
-        });
-      } catch (fetchErr: any) {
-        console.error("[import] Erreur réseau vers /api/detect-columns:", fetchErr);
-        throw new Error(`Impossible de joindre l'API de détection (erreur réseau) : ${fetchErr?.message}`);
-      }
-
-      const apiBody = await apiRes.json();
-      console.log("[import] Réponse /api/detect-columns status:", apiRes.status, "| body:", apiBody);
-
-      if (!apiRes.ok) {
-        throw new Error(`Erreur API (${apiRes.status}) : ${apiBody?.error ?? "inconnue"}`);
-      }
-
-      const { mapping, error: apiError, debug } = apiBody;
-      if (debug) console.log("[import] Debug depuis l'API:", debug);
-
-      if (!mapping || Object.keys(mapping).length === 0) {
-        const reason = apiError ?? "Réponse vide de Claude";
-        console.error("[import] Mapping vide. Raison:", reason);
-        setErrorMsg(`Impossible de détecter les colonnes : ${reason}`);
-        setStep("upload");
-        return;
-      }
-
-      console.log("[import] Mapping reçu:", mapping);
-
-      // Step 3 — Transform ALL rows client-side
-      console.log("[import] Transformation de", rows.length, "lignes...");
-      const transformed: TransformedRow[] = [];
-      let parseErrors = 0;
-      for (const row of rows) {
-        try {
-          transformed.push(applyMapping(mapping, headers, row, today));
-        } catch (rowErr) {
-          parseErrors++;
-          console.warn("[import] Erreur sur une ligne:", rowErr);
-        }
-      }
-      console.log("[import] Transformation terminée —", transformed.length, "lignes OK,", parseErrors, "erreurs");
-
-      const validRows = transformed.filter(r => r.prenom || r.nom || r.email);
-      console.log("[import]", validRows.length, "lignes avec identifiant sur", transformed.length);
-
-      if (validRows.length === 0) {
+      const champsMappés = Object.values(mapping).filter(v => v !== "ignorer");
+      if (champsMappés.length === 0) {
         setErrorMsg(
-          "Aucun client trouvé dans ce fichier. " +
-          "Vérifiez que les colonnes contiennent des noms ou emails reconnaissables. " +
-          `Mapping détecté : ${JSON.stringify(mapping)}`
+          "Aucune colonne reconnue dans ce fichier. " +
+          `Headers détectés : ${headers.join(", ")}`
         );
         setStep("upload");
         return;
       }
 
-      // Step 4 — Import to Supabase
-      console.log("[import] Import Supabase...");
+      // ── Étape 3 : Transformation de toutes les lignes ─────────────────────
+      setLoadingIdx(2); // "Nettoyage des données…"
+      const today = new Date().toISOString().split("T")[0];
+      const transformed: TransformedRow[] = [];
+      for (const row of rows) {
+        try {
+          transformed.push(applyMapping(mapping, headers, row, today, colonnes_a_concatener));
+        } catch {
+          // ligne ignorée, comptée plus bas
+        }
+      }
+
+      const validRows = transformed.filter(r => r.prenom || r.nom || r.email);
+      if (validRows.length === 0) {
+        setErrorMsg(
+          "Aucun client trouvé. Mapping détecté : " +
+          Object.entries(mapping)
+            .filter(([, v]) => v !== "ignorer")
+            .map(([k, v]) => `${k}→${v}`)
+            .join(", ")
+        );
+        setStep("upload");
+        return;
+      }
+
+      // ── Étape 4 : Import Supabase ─────────────────────────────────────────
+      setLoadingIdx(3); // "Import en base…"
       const rpt = await importRows(transformed, activeWorkspace.id);
-      console.log("[import] Rapport final:", rpt);
       setReport(rpt);
       setStep("done");
     } catch (e: any) {
-      console.error("[import] Erreur globale:", e);
       setErrorMsg(e?.message ?? "Erreur inattendue lors de l'import.");
       setStep("upload");
     }
