@@ -494,7 +494,7 @@ const DEMO_PRODUCTS = [
   { name: "Pochette velours bordeaux", category: "Maroquinerie", price: 49, stock: 0, active: false },
 ];
 
-function TabProduits() {
+function TabProduits({ isMobile }: { isMobile: boolean }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -503,22 +503,22 @@ function TabProduits() {
           + Ajouter un produit
         </button>
       </div>
-      <div style={{ borderRadius: 10, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+      <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", borderRadius: 10, border: "1px solid rgba(255,255,255,0.07)" }}>
+        <table style={{ width: "100%", minWidth: 480, borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
             <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
               {["Produit", "Catégorie", "Prix", "Stock", "Statut"].map(h => (
-                <th key={h} style={{ padding: "9px 14px", textAlign: "left", fontSize: 10.5, fontWeight: 700, color: "rgba(255,255,255,0.30)", letterSpacing: 0.8, textTransform: "uppercase", fontFamily: "DM Mono, monospace" }}>{h}</th>
+                <th key={h} style={{ padding: "9px 14px", textAlign: "left", fontSize: 10.5, fontWeight: 700, color: "rgba(255,255,255,0.30)", letterSpacing: 0.8, textTransform: "uppercase", fontFamily: "DM Mono, monospace", whiteSpace: "nowrap" }}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {DEMO_PRODUCTS.map((p, i) => (
               <tr key={p.name} style={{ borderBottom: i < DEMO_PRODUCTS.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none" }}>
-                <td style={{ padding: "10px 14px", fontWeight: 600, color: "rgba(255,255,255,0.85)" }}>{p.name}</td>
-                <td style={{ padding: "10px 14px", fontSize: 12, color: "rgba(255,255,255,0.40)" }}>{p.category}</td>
-                <td style={{ padding: "10px 14px", fontWeight: 700, color: "rgba(255,255,255,0.75)", fontFamily: "DM Mono, monospace" }}>{p.price} €</td>
-                <td style={{ padding: "10px 14px", fontFamily: "DM Mono, monospace", fontSize: 12, color: p.stock === 0 ? "#ef4444" : p.stock <= 5 ? "#f97316" : "rgba(255,255,255,0.55)" }}>{p.stock}</td>
+                <td style={{ padding: "10px 14px", fontWeight: 600, color: "rgba(255,255,255,0.85)", whiteSpace: "nowrap" }}>{p.name}</td>
+                <td style={{ padding: "10px 14px", fontSize: 12, color: "rgba(255,255,255,0.40)", whiteSpace: "nowrap" }}>{p.category}</td>
+                <td style={{ padding: "10px 14px", fontWeight: 700, color: "rgba(255,255,255,0.75)", fontFamily: "DM Mono, monospace", whiteSpace: "nowrap" }}>{p.price} €</td>
+                <td style={{ padding: "10px 14px", fontFamily: "DM Mono, monospace", fontSize: 12, color: p.stock === 0 ? "#ef4444" : p.stock <= 5 ? "#f97316" : "rgba(255,255,255,0.55)", whiteSpace: "nowrap" }}>{p.stock}</td>
                 <td style={{ padding: "10px 14px" }}>
                   <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: p.active ? "rgba(16,185,129,0.12)" : "rgba(255,255,255,0.05)", border: `1px solid ${p.active ? "rgba(16,185,129,0.30)" : "rgba(255,255,255,0.10)"}`, color: p.active ? "#10b981" : "rgba(255,255,255,0.30)" }}>
                     {p.active ? "Actif" : "Inactif"}
@@ -529,6 +529,13 @@ function TabProduits() {
           </tbody>
         </table>
       </div>
+      {isMobile && (
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 6, fontSize: 11, color: "rgba(255,255,255,0.22)", fontFamily: "DM Mono, monospace" }}>
+          <span>←</span>
+          <span>Glissez pour voir plus</span>
+          <span>→</span>
+        </div>
+      )}
     </div>
   );
 }
@@ -802,7 +809,7 @@ export function DemoInteractive() {
               <div style={{ flex: 1, padding: isMobile ? "12px" : "16px", overflowY: "auto", opacity: visible ? 1 : 0, transition: "opacity 180ms ease", paddingBottom: isMobile ? "8px" : "16px" }}>
                 {view === "clients"    && <TabClients onSelect={handleSelectClient} isMobile={isMobile} />}
                 {view === "fiche"      && <TabFiche client={selectedClient} onBack={handleBackToClients} isMobile={isMobile} />}
-                {view === "produits"   && <TabProduits />}
+                {view === "produits"   && <TabProduits isMobile={isMobile} />}
                 {view === "relances"   && <TabRelances />}
                 {view === "inventaire" && <TabInventaire />}
                 {view === "analytiques"&& <TabAnalytiques />}
