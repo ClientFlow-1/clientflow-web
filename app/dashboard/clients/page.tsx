@@ -181,7 +181,12 @@ function MultiProductPicker({ products, selected, onChange }: {
                     {checked && (
                       <div style={{ display: "flex", alignItems: "center", gap: 4, flexShrink: 0 }}>
                         <button type="button" onClick={() => setQty(p.id, qty - 1)} disabled={qty <= 1} style={{ width: 26, height: 26, borderRadius: 7, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.7)", fontSize: 14, cursor: qty <= 1 ? "not-allowed" : "pointer", opacity: qty <= 1 ? 0.3 : 1, display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
-                        <span style={{ width: 24, textAlign: "center", fontSize: 13, fontWeight: 800, color: "rgba(255,255,255,0.92)" }}>{qty}</span>
+                        <input
+                          type="number" min={1} value={qty}
+                          onChange={e => setQty(p.id, Math.max(1, parseInt(e.target.value) || 1))}
+                          onFocus={e => e.target.select()}
+                          style={{ width: 50, textAlign: "center", fontSize: 13, fontWeight: 800, color: "rgba(255,255,255,0.92)", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 6, padding: "2px 4px", outline: "none", MozAppearance: "textfield" } as React.CSSProperties}
+                        />
                         <button type="button" onClick={() => setQty(p.id, qty + 1)} style={{ width: 26, height: 26, borderRadius: 7, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.7)", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>＋</button>
                         <span style={{ marginLeft: 4, fontSize: 12, fontWeight: 700, color: "rgba(120,160,255,0.7)", minWidth: 50, textAlign: "right" }}>{formatEUR(p.price * qty)}</span>
                       </div>
