@@ -253,8 +253,20 @@ function NotifBell() {
   );
 }
 
+/* ── useIsMobile hook ── */
+function useIsMobile() {
+  const [mobile, setMobile] = useState(false);
+  useEffect(() => {
+    const check = () => setMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+  return mobile;
+}
+
 /* ── Tab content components ── */
-function TabClients({ onSelect }: { onSelect: (c: Client) => void }) {
+function TabClients({ onSelect, isMobile }: { onSelect: (c: Client) => void; isMobile: boolean }) {
   const [search, setSearch] = useState("");
   const filtered = useMemo(() =>
     CLIENTS.filter(c => `${c.prenom} ${c.nom}`.toLowerCase().includes(search.toLowerCase())),
@@ -286,39 +298,65 @@ function TabClients({ onSelect }: { onSelect: (c: Client) => void }) {
           style={{ width: "100%", padding: "8px 12px 8px 32px", borderRadius: 9, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.85)", fontSize: 13, fontFamily: "inherit", outline: "none" }}
         />
       </div>
-      <div style={{ borderRadius: 10, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-          <thead>
-            <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-              {["Client", "Segment", "CA total", "Dernière visite"].map(h => (
-                <th key={h} style={{ padding: "9px 14px", textAlign: "left", fontSize: 10.5, fontWeight: 700, color: "rgba(255,255,255,0.30)", letterSpacing: 0.8, textTransform: "uppercase", fontFamily: "DM Mono, monospace" }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map((c, i) => (
-              <tr key={c.id} onClick={() => onSelect(c)}
-                style={{ borderBottom: i < filtered.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", cursor: "pointer", transition: "background 120ms" }}
-                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(99,120,255,0.05)"; }}
-                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-              >
-                <td style={{ padding: "10px 14px" }}>
-                  <div style={{ fontWeight: 600, color: "rgba(255,255,255,0.88)" }}>{c.prenom} {c.nom}</div>
-                  <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.32)", marginTop: 1 }}>{c.email}</div>
-                </td>
-                <td style={{ padding: "10px 14px" }}><SegBadge seg={c.segment} /></td>
-                <td style={{ padding: "10px 14px", fontWeight: 700, color: "rgba(255,255,255,0.80)", fontFamily: "DM Mono, monospace" }}>
-                  {c.total > 0 ? `${c.total.toLocaleString("fr-FR")} €` : "—"}
-                </td>
-                <td style={{ padding: "10px 14px", fontSize: 12, color: "rgba(255,255,255,0.40)", fontFamily: "DM Mono, monospace" }}>{c.lastVisit}</td>
+      {isMobile ? (
+        /* Cards on mobile */
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {filtered.map(c => (
+            <div key={c.id} onClick={() => onSelect(c)}
+              style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 14px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.07)", background: "rgba(255,255,255,0.03)", cursor: "pointer" }}
+              onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(99,120,255,0.06)"; }}
+              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,0.03)"; }}
+            >
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: `${SEG_COLORS[c.segment].color}22`, border: `1px solid ${SEG_COLORS[c.segment].border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 800, color: SEG_COLORS[c.segment].color, flexShrink: 0, fontFamily: "DM Mono, monospace" }}>
+                {c.prenom[0]}{c.nom[0]}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 600, color: "rgba(255,255,255,0.88)", fontSize: 13 }}>{c.prenom} {c.nom}</div>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.32)", marginTop: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{c.email}</div>
+              </div>
+              <SegBadge seg={c.segment} />
+            </div>
+          ))}
+          {filtered.length === 0 && (
+            <div style={{ padding: "24px", textAlign: "center", color: "rgba(255,255,255,0.25)", fontSize: 13 }}>Aucun client trouvé</div>
+          )}
+        </div>
+      ) : (
+        /* Table on desktop */
+        <div style={{ borderRadius: 10, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden" }}>
+          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+            <thead>
+              <tr style={{ borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+                {["Client", "Segment", "CA total", "Dernière visite"].map(h => (
+                  <th key={h} style={{ padding: "9px 14px", textAlign: "left", fontSize: 10.5, fontWeight: 700, color: "rgba(255,255,255,0.30)", letterSpacing: 0.8, textTransform: "uppercase", fontFamily: "DM Mono, monospace" }}>{h}</th>
+                ))}
               </tr>
-            ))}
-            {filtered.length === 0 && (
-              <tr><td colSpan={4} style={{ padding: "24px", textAlign: "center", color: "rgba(255,255,255,0.25)", fontSize: 13 }}>Aucun client trouvé</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {filtered.map((c, i) => (
+                <tr key={c.id} onClick={() => onSelect(c)}
+                  style={{ borderBottom: i < filtered.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", cursor: "pointer", transition: "background 120ms" }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(99,120,255,0.05)"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                >
+                  <td style={{ padding: "10px 14px" }}>
+                    <div style={{ fontWeight: 600, color: "rgba(255,255,255,0.88)" }}>{c.prenom} {c.nom}</div>
+                    <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.32)", marginTop: 1 }}>{c.email}</div>
+                  </td>
+                  <td style={{ padding: "10px 14px" }}><SegBadge seg={c.segment} /></td>
+                  <td style={{ padding: "10px 14px", fontWeight: 700, color: "rgba(255,255,255,0.80)", fontFamily: "DM Mono, monospace" }}>
+                    {c.total > 0 ? `${c.total.toLocaleString("fr-FR")} €` : "—"}
+                  </td>
+                  <td style={{ padding: "10px 14px", fontSize: 12, color: "rgba(255,255,255,0.40)", fontFamily: "DM Mono, monospace" }}>{c.lastVisit}</td>
+                </tr>
+              ))}
+              {filtered.length === 0 && (
+                <tr><td colSpan={4} style={{ padding: "24px", textAlign: "center", color: "rgba(255,255,255,0.25)", fontSize: 13 }}>Aucun client trouvé</td></tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
@@ -639,6 +677,7 @@ function TabParametres() {
 
 /* ── Main component ── */
 export function DemoInteractive() {
+  const isMobile = useIsMobile();
   const [view, setView] = useState<View>("clients");
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [visible, setVisible] = useState(true);
@@ -663,102 +702,101 @@ export function DemoInteractive() {
   // active sidebar item: "fiche" highlights "clients"
   const activeSidebarView: View = view === "fiche" ? "clients" : view;
 
+  /* Short labels for mobile tab bar */
+  const MOBILE_LABELS: Record<string, string> = {
+    clients: "Clients", produits: "Produits", inventaire: "Stocks",
+    relances: "Relances", analytiques: "Stats", parametres: "Config",
+  };
+
   return (
-    <section style={{ padding: "80px 24px", background: "transparent" }}>
+    <section style={{ padding: isMobile ? "48px 12px" : "80px 24px", background: "transparent" }}>
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
         {/* Section header */}
-        <div style={{ textAlign: "center", marginBottom: 48 }}>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 14px", borderRadius: 999, background: "rgba(99,120,255,0.10)", border: "1px solid rgba(99,120,255,0.22)", fontSize: 12, fontWeight: 700, color: "rgba(165,180,255,0.85)", fontFamily: "DM Mono, monospace", letterSpacing: 0.5, marginBottom: 20 }}>
+        <div style={{ textAlign: "center", marginBottom: isMobile ? 28 : 48 }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 14px", borderRadius: 999, background: "rgba(99,120,255,0.10)", border: "1px solid rgba(99,120,255,0.22)", fontSize: 12, fontWeight: 700, color: "rgba(165,180,255,0.85)", fontFamily: "DM Mono, monospace", letterSpacing: 0.5, marginBottom: 16 }}>
             ✦ Démo interactive
           </span>
-          <h2 style={{ fontSize: "clamp(26px,4vw,44px)", fontWeight: 900, letterSpacing: "-1px", color: "rgba(255,255,255,0.95)", lineHeight: 1.1, marginBottom: 14 }}>
+          <h2 style={{ fontSize: "clamp(22px,4vw,44px)", fontWeight: 900, letterSpacing: "-1px", color: "rgba(255,255,255,0.95)", lineHeight: 1.1, marginBottom: 12 }}>
             Voyez ClientFlow{" "}
             <span style={{ background: "linear-gradient(135deg,#6378ff,#a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>en action</span>
           </h2>
-          <p style={{ fontSize: 16, color: "rgba(255,255,255,0.42)", maxWidth: 440, margin: "0 auto", lineHeight: 1.7 }}>
+          <p style={{ fontSize: isMobile ? 14 : 16, color: "rgba(255,255,255,0.42)", maxWidth: 440, margin: "0 auto", lineHeight: 1.7 }}>
             Explorez les fonctionnalités sans créer de compte
           </p>
         </div>
 
         {/* Browser mockup */}
-        <div style={{ borderRadius: 16, border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 40px 100px rgba(0,0,0,0.60), 0 0 0 1px rgba(99,120,255,0.08)", background: "#0c0c14", overflow: "hidden" }}>
+        <div style={{ borderRadius: isMobile ? 12 : 16, border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 24px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(99,120,255,0.08)", background: "#0c0c14", overflow: "hidden" }}>
 
           {/* Browser bar */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 16px", background: "rgba(8,8,18,0.95)", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
-            <div style={{ display: "flex", gap: 6 }}>
-              <div style={{ width: 11, height: 11, borderRadius: "50%", background: "#ff5f57" }} />
-              <div style={{ width: 11, height: 11, borderRadius: "50%", background: "#febc2e" }} />
-              <div style={{ width: 11, height: 11, borderRadius: "50%", background: "#28c840" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: isMobile ? 8 : 12, padding: isMobile ? "8px 12px" : "11px 16px", background: "rgba(8,8,18,0.95)", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+            <div style={{ display: "flex", gap: isMobile ? 4 : 6 }}>
+              <div style={{ width: isMobile ? 8 : 11, height: isMobile ? 8 : 11, borderRadius: "50%", background: "#ff5f57" }} />
+              <div style={{ width: isMobile ? 8 : 11, height: isMobile ? 8 : 11, borderRadius: "50%", background: "#febc2e" }} />
+              <div style={{ width: isMobile ? 8 : 11, height: isMobile ? 8 : 11, borderRadius: "50%", background: "#28c840" }} />
             </div>
             <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 18px", borderRadius: 7, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.07)" }}>
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.30)" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.30)", fontFamily: "DM Mono, monospace" }}>app.clientflow.fr</span>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, padding: isMobile ? "3px 10px" : "4px 18px", borderRadius: 7, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.07)" }}>
+                <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.30)" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                <span style={{ fontSize: isMobile ? 9.5 : 11.5, color: "rgba(255,255,255,0.30)", fontFamily: "DM Mono, monospace" }}>app.clientflow.fr</span>
               </div>
             </div>
           </div>
 
-          {/* App shell */}
-          <div style={{ display: "flex", minHeight: 520 }}>
+          {/* App shell — row on desktop, column on mobile */}
+          <div style={{ display: "flex", flexDirection: "row", minHeight: isMobile ? 440 : 520 }}>
 
-            {/* Sidebar */}
-            <div style={{ width: 180, background: "rgba(8,8,16,0.85)", borderRight: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", flexShrink: 0 }}>
-              {/* Brand */}
-              <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "16px 14px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
-                <div style={{ width: 26, height: 26, borderRadius: 7, background: "linear-gradient(135deg,#6378ff,#4f63e8)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 800, color: "#fff", fontFamily: "DM Mono, monospace", flexShrink: 0 }}>CF</div>
-                <div>
-                  <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1.5, color: "rgba(255,255,255,0.85)", fontFamily: "DM Mono, monospace" }}>CLIENTFLOW</div>
-                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.28)", marginTop: 1 }}>Multi-boutiques</div>
+            {/* Sidebar — desktop only */}
+            {!isMobile && (
+              <div style={{ width: 180, background: "rgba(8,8,16,0.85)", borderRight: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", flexShrink: 0 }}>
+                {/* Brand */}
+                <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "16px 14px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                  <div style={{ width: 26, height: 26, borderRadius: 7, background: "linear-gradient(135deg,#6378ff,#4f63e8)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 800, color: "#fff", fontFamily: "DM Mono, monospace", flexShrink: 0 }}>CF</div>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1.5, color: "rgba(255,255,255,0.85)", fontFamily: "DM Mono, monospace" }}>CLIENTFLOW</div>
+                    <div style={{ fontSize: 9, color: "rgba(255,255,255,0.28)", marginTop: 1 }}>Multi-boutiques</div>
+                  </div>
                 </div>
+                {/* Nav */}
+                <nav style={{ padding: "10px 10px", display: "flex", flexDirection: "column", gap: 3, flex: 1 }}>
+                  {NAV_ITEMS.map(item => {
+                    const isActive = item.view === activeSidebarView;
+                    return (
+                      <button key={item.label} type="button" onClick={() => item.view && handleNav(item.view)}
+                        style={{ display: "flex", alignItems: "center", gap: 9, padding: "9px 11px", borderRadius: 8, border: "none", background: isActive ? "rgba(99,120,255,0.14)" : "transparent", color: isActive ? "rgba(165,180,255,0.95)" : "rgba(255,255,255,0.50)", fontSize: 13, fontWeight: isActive ? 600 : 400, cursor: "pointer", textAlign: "left", width: "100%", fontFamily: "inherit", outline: isActive ? "1px solid rgba(99,120,255,0.28)" : "none", transition: "all 150ms" }}
+                        onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = "rgba(99,120,255,0.06)"; }}
+                        onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                      >
+                        <span style={{ opacity: isActive ? 1 : 0.7, display: "flex" }}>{item.icon}</span>
+                        {item.label}
+                        {isActive && <span style={{ marginLeft: "auto", width: 3, height: 16, borderRadius: 2, background: "#6378ff", boxShadow: "0 0 8px rgba(99,120,255,0.7)" }} />}
+                      </button>
+                    );
+                  })}
+                </nav>
               </div>
-
-              {/* Nav */}
-              <nav style={{ padding: "10px 10px", display: "flex", flexDirection: "column", gap: 3, flex: 1 }}>
-                {NAV_ITEMS.map(item => {
-                  const isActive = item.view === activeSidebarView;
-                  return (
-                    <button
-                      key={item.label}
-                      type="button"
-                      onClick={() => item.view && handleNav(item.view)}
-                      style={{
-                        display: "flex", alignItems: "center", gap: 9, padding: "9px 11px",
-                        borderRadius: 8, border: "none", background: isActive ? "rgba(99,120,255,0.14)" : "transparent",
-                        color: isActive ? "rgba(165,180,255,0.95)" : "rgba(255,255,255,0.50)",
-                        fontSize: 13, fontWeight: isActive ? 600 : 400, cursor: "pointer",
-                        textAlign: "left", width: "100%", fontFamily: "inherit",
-                        outline: isActive ? "1px solid rgba(99,120,255,0.28)" : "none",
-                        transition: "all 150ms",
-                      }}
-                      onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = "rgba(99,120,255,0.06)"; }}
-                      onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
-                    >
-                      <span style={{ opacity: isActive ? 1 : 0.7, display: "flex" }}>{item.icon}</span>
-                      {item.label}
-                      {isActive && <span style={{ marginLeft: "auto", width: 3, height: 16, borderRadius: 2, background: "#6378ff", boxShadow: "0 0 8px rgba(99,120,255,0.7)" }} />}
-                    </button>
-                  );
-                })}
-              </nav>
-            </div>
+            )}
 
             {/* Main area */}
             <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "visible" }}>
 
               {/* Topbar */}
-              <div style={{ display: "flex", alignItems: "center", padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(10,10,20,0.60)", gap: 10 }}>
-                <div style={{ flex: 1, fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.50)", fontFamily: "DM Mono, monospace", letterSpacing: 0.5 }}>
+              <div style={{ display: "flex", alignItems: "center", padding: isMobile ? "8px 12px" : "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(10,10,20,0.60)", gap: 8 }}>
+                {isMobile && (
+                  <div style={{ width: 22, height: 22, borderRadius: 6, background: "linear-gradient(135deg,#6378ff,#4f63e8)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 7, fontWeight: 800, color: "#fff", fontFamily: "DM Mono, monospace", flexShrink: 0 }}>CF</div>
+                )}
+                <div style={{ flex: 1, fontSize: isMobile ? 11 : 13, fontWeight: 700, color: "rgba(255,255,255,0.50)", fontFamily: "DM Mono, monospace", letterSpacing: 0.5 }}>
                   {PAGE_TITLES[view]}
                 </div>
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <NotifBell />
-                  <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,#6378ff,#4f63e8)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#fff", fontFamily: "DM Mono, monospace", flexShrink: 0 }}>JD</div>
+                  <div style={{ width: isMobile ? 24 : 28, height: isMobile ? 24 : 28, borderRadius: "50%", background: "linear-gradient(135deg,#6378ff,#4f63e8)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: isMobile ? 8 : 10, fontWeight: 700, color: "#fff", fontFamily: "DM Mono, monospace", flexShrink: 0 }}>JD</div>
                 </div>
               </div>
 
               {/* Content */}
-              <div style={{ flex: 1, padding: "16px", overflowY: "auto", opacity: visible ? 1 : 0, transition: "opacity 180ms ease" }}>
-                {view === "clients"    && <TabClients onSelect={handleSelectClient} />}
+              <div style={{ flex: 1, padding: isMobile ? "12px" : "16px", overflowY: "auto", opacity: visible ? 1 : 0, transition: "opacity 180ms ease", paddingBottom: isMobile ? "8px" : "16px" }}>
+                {view === "clients"    && <TabClients onSelect={handleSelectClient} isMobile={isMobile} />}
                 {view === "fiche"      && <TabFiche client={selectedClient} onBack={handleBackToClients} />}
                 {view === "produits"   && <TabProduits />}
                 {view === "relances"   && <TabRelances />}
@@ -766,6 +804,24 @@ export function DemoInteractive() {
                 {view === "analytiques"&& <TabAnalytiques />}
                 {view === "parametres" && <TabParametres />}
               </div>
+
+              {/* Mobile bottom tab bar */}
+              {isMobile && (
+                <div style={{ display: "flex", borderTop: "1px solid rgba(255,255,255,0.07)", background: "rgba(8,8,16,0.95)" }}>
+                  {NAV_ITEMS.map(item => {
+                    const isActive = item.view === activeSidebarView;
+                    return (
+                      <button key={item.label} type="button" onClick={() => item.view && handleNav(item.view)}
+                        style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 3, padding: "8px 2px", border: "none", background: "transparent", color: isActive ? "rgba(165,180,255,0.95)" : "rgba(255,255,255,0.30)", cursor: "pointer", fontFamily: "inherit", transition: "color 150ms", position: "relative" }}
+                      >
+                        {isActive && <span style={{ position: "absolute", top: 0, left: "50%", transform: "translateX(-50%)", width: 20, height: 2, borderRadius: 1, background: "#6378ff" }} />}
+                        <span style={{ display: "flex", fontSize: 14, opacity: isActive ? 1 : 0.6 }}>{item.icon}</span>
+                        <span style={{ fontSize: 8.5, fontWeight: isActive ? 700 : 400, letterSpacing: 0.2, lineHeight: 1 }}>{MOBILE_LABELS[item.view ?? ""] ?? item.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </div>
