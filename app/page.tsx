@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import { DemoInteractive } from "./components/landing/DemoInteractive";
 
 const ACCENT = "#6378ff";
 const ACCENT_MID = "#4f63e8";
@@ -1094,6 +1095,11 @@ export default function LandingPage() {
           <div style={{ width: 1, height: 32, background: "linear-gradient(to bottom,rgba(255,255,255,0.4),transparent)" }} />
         </div>
       </section>
+
+      {/* ══════════ DEMO INTERACTIVE ══════════ */}
+      <DemoInteractive />
+
+      <div className="lp-divider" />
 
       {/* ══════════ BEFORE / AFTER ══════════ */}
       <section id="transformations" className="lp-section-ba">
