@@ -74,19 +74,6 @@ const CSS = `
   .lp-btn-pulse { animation:ctaPulse 2.8s ease-in-out infinite; }
   .lp-btn-pulse:hover { animation:none; }
 
-  /* ── Announcement bar ── */
-  @keyframes announcePan { 0%,100% { opacity:1; } 50% { opacity:0.82; } }
-  .lp-announcement-bar {
-    position:fixed; top:0; left:0; right:0; z-index:1001; height:40px;
-    display:flex; align-items:center; justify-content:center; gap:14px; padding:0 16px;
-    background:linear-gradient(90deg,rgba(58,28,135,0.98),rgba(90,50,200,0.98),rgba(99,120,255,0.98),rgba(80,40,175,0.98));
-    border-bottom:1px solid rgba(99,120,255,0.28); font-size:12.5px; color:rgba(255,255,255,0.92); font-weight:600;
-  }
-  .lp-announcement-bar a { color:rgba(255,255,255,0.95); font-weight:800; text-decoration:none; display:inline-flex; align-items:center; gap:4px; padding:3px 11px; border-radius:8px; background:rgba(255,255,255,0.14); transition:background 0.15s; border:1px solid rgba(255,255,255,0.18); font-size:11.5px; white-space:nowrap; }
-  .lp-announcement-bar a:hover { background:rgba(255,255,255,0.22); }
-  .lp-announce-dismiss { display:flex; align-items:center; justify-content:center; width:22px; height:22px; border-radius:6px; background:rgba(255,255,255,0.10); border:none; cursor:pointer; color:rgba(255,255,255,0.70); font-size:14px; line-height:1; margin-left:8px; transition:background 0.15s; flex-shrink:0; }
-  .lp-announce-dismiss:hover { background:rgba(255,255,255,0.20); color:#fff; }
-
   /* ── Scroll reveal ── */
   .lp-reveal { opacity:0; transform:translateY(28px); transition:opacity 0.65s ease, transform 0.65s ease; }
   .lp-reveal.is-visible { opacity:1; transform:translateY(0); }
@@ -323,12 +310,6 @@ const CSS = `
     .lp-nav-inner      { padding:0 14px !important; justify-content:space-between !important; }
     .lp-nav-logo       { display:none !important; }
     .lp-nav-right      { gap:8px !important; padding-right:0 !important; }
-
-    /* Announcement bar */
-    .lp-announcement-bar { font-size:12px !important; gap:8px !important; padding:0 12px !important; }
-    .lp-announce-long  { display:none !important; }
-    .lp-announce-short { display:inline !important; }
-    .lp-announce-dismiss { margin-left:0 !important; }
 
     /* Hero */
     .lp-hero-section { min-height:auto; align-items:flex-start; }
@@ -924,7 +905,6 @@ export default function LandingPage() {
   const [showScrollTop,      setShowScrollTop]      = useState(false);
   const [showSticky,         setShowSticky]         = useState(false);
   const [urgencyCount,       setUrgencyCount]       = useState(12);
-  const [announcementDismissed, setAnnouncementDismissed] = useState(false);
   const [navActiveCount,     setNavActiveCount]     = useState(14);
   const [demoEmail,          setDemoEmail]          = useState("");
   const [demoSubmitted,      setDemoSubmitted]      = useState(false);
@@ -964,18 +944,8 @@ export default function LandingPage() {
     <div style={{ background: BG, minHeight: "100vh", overflowX: "hidden" }}>
       <style>{CSS}</style>
 
-      {/* ══════════ ANNOUNCEMENT BAR ══════════ */}
-      {!announcementDismissed && (
-        <div className="lp-announcement-bar">
-          <span className="lp-announce-long" style={{ whiteSpace: "nowrap" }}>🎉 Offre de lancement — <strong>450€ au lieu de 800€</strong> · Places limitées</span>
-          <span className="lp-announce-short">🎉 <strong>-44%</strong> · Offre lancement</span>
-          <a href="#pricing" style={{ flexShrink: 0 }}>En profiter →</a>
-          <button className="lp-announce-dismiss" onClick={() => setAnnouncementDismissed(true)} aria-label="Fermer">✕</button>
-        </div>
-      )}
-
       {/* ══════════ NAVBAR ══════════ */}
-      <header style={{ position: "fixed", top: announcementDismissed ? 0 : 40, left: 0, right: 0, zIndex: 1000, height: 64, background: scrolled?"rgba(10,10,15,0.90)":"transparent", backdropFilter: scrolled?"blur(20px)":"none", borderBottom: scrolled?"1px solid rgba(99,120,255,0.10)":"1px solid transparent", transition: "background 0.3s, backdrop-filter 0.3s, border-color 0.3s, top 0.3s" }}>
+      <header style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 1000, height: 64, background: scrolled?"rgba(10,10,15,0.90)":"transparent", backdropFilter: scrolled?"blur(20px)":"none", borderBottom: scrolled?"1px solid rgba(99,120,255,0.10)":"1px solid transparent", transition: "background 0.3s, backdrop-filter 0.3s, border-color 0.3s" }}>
         <div className="lp-nav-inner" style={{ maxWidth: 1200, margin: "0 auto", height: "100%", padding: "0 32px", display: "flex", alignItems: "center" }}>
 
           {/* Hamburger — affiché à gauche sur mobile uniquement */}
@@ -1053,7 +1023,7 @@ export default function LandingPage() {
       </div>
 
       {/* ══════════ HERO ══════════ */}
-      <section className="lp-hero-section" style={{ paddingTop: announcementDismissed ? 64 : 104 }}>
+      <section className="lp-hero-section" style={{ paddingTop: 64 }}>
         {/* Aurora overlay */}
         <div style={{ position: "absolute", inset: 0, pointerEvents: "none", background: "linear-gradient(-45deg,rgba(99,120,255,0.06),rgba(192,132,252,0.04),rgba(80,210,200,0.03),rgba(99,120,255,0.07))", backgroundSize: "400% 400%", animation: "aurora 25s ease infinite" }} />
         {/* Particles */}
