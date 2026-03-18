@@ -34,6 +34,11 @@ function ratio(vals: string[], pred: (v: string) => boolean): number {
 // Détection par contenu
 // ---------------------------------------------------------------------------
 
+// Code alphanumérique de type identifiant : C001, ID042, CLI123, REF-01…
+function isCodeLike(v: string): boolean {
+  return /^[A-Z]{1,4}[-_]?\d{1,8}$/i.test(v.trim()) || /^\d{1,6}$/.test(v.trim());
+}
+
 function isEmail(v: string): boolean {
   return v.includes("@") && /\.\w{2,}$/.test(v);
 }
@@ -68,19 +73,32 @@ function isDate(v: string): boolean {
 // ---------------------------------------------------------------------------
 
 // Chaque entrée : [liste de patterns normalisés, champ cible]
+// IMPORTANT : ignorer en premier — pris en compte dans le matching exact prioritaire
 const HEADER_RULES: Array<[string[], string]> = [
+  [
+    [
+      "id", "n", "numero", "ref", "reference", "code", "nb visites",
+      "nombre visites", "visits", "identifiant", "index", "rang", "ligne",
+      // Identifiants client explicites — AVANT les règles nom/client
+      "id client", "id_client", "identifiant client", "code client",
+      "client id", "numero client", "num client", "ref client",
+      "fidelite", "points fidelite", "points", "nb points",
+    ],
+    "ignorer",
+  ],
   [
     ["prenom", "firstname", "first name", "given name", "givenname", "first name client"],
     "prénom",
   ],
   [
-    ["nom de famille", "lastname", "last name", "surname", "family name", "familyname", "nom famille"],
+    // "nom" en exact match — doit précéder nom_complet pour éviter l'ambiguïté
+    ["nom", "nom de famille", "lastname", "last name", "surname", "family name", "familyname", "nom famille"],
     "nom",
   ],
   [
     [
       "nom complet", "nom complet client", "fullname", "full name",
-      "qui", "client", "nom et prenom", "nom et prenom client",
+      "qui", "nom et prenom", "nom et prenom client",
       "identite", "nom prenom", "contact client",
     ],
     "nom_complet",
@@ -168,18 +186,24 @@ const NORMALIZED_RULES = HEADER_RULES.map(([patterns, champ]) => ({
 
 function matchParNom(header: string): string | null {
   const hn = norm(header);
-  // 1. Correspondance exacte
+
+  // 1. Correspondance exacte (tous les groupes, ignorer en premier dans la liste)
   for (const rule of NORMALIZED_RULES) {
     if (rule.patterns.includes(hn)) return rule.champ;
   }
-  // 2. Correspondance partielle (pattern >3 chars contenus dans header ou inversement)
+
+  // 2. Correspondance partielle : le header contient le pattern (jamais l'inverse)
+  //    Ex: "Adresse email" contient "email" → email
+  //    Ex: "Tel portable" contient "tel" → téléphone
+  //    On n'utilise PAS p.includes(hn) pour éviter "prenom".includes("nom") = true
   for (const rule of NORMALIZED_RULES) {
     for (const p of rule.patterns) {
-      if (p.length > 3 && (hn.includes(p) || p.includes(hn))) {
+      if (p.length > 3 && hn.includes(p)) {
         return rule.champ;
       }
     }
   }
+
   return null;
 }
 
@@ -201,6 +225,12 @@ export function detecterColonnes(
     const hn = norm(h);
 
     // ── 1. Détection par contenu (priorité absolue) ─────────────────────────
+
+    // Codes alphanumériques type C001, ID042 → ignorer (avant tout autre check)
+    if (vals.length > 0 && ratio(vals, isCodeLike) > 0.6) {
+      rawMapping[h] = "ignorer";
+      continue;
+    }
 
     if (ratio(vals, isEmail) > 0.4) {
       rawMapping[h] = "email";
