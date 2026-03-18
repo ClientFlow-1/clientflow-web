@@ -129,6 +129,7 @@ type Step = "upload" | "detecting" | "mapping" | "importing" | "done";
 type CFField =
   | "prenom"
   | "nom"
+  | "nom_complet"
   | "email"
   | "telephone"
   | "date_naissance"
@@ -139,18 +140,19 @@ type CFField =
   | "notes"
   | "ignorer";
 
-const CF_FIELDS: { value: CFField; label: string }[] = [
+const CF_FIELDS: { value: CFField; label: string; color?: string }[] = [
   { value: "ignorer",        label: "— Ignorer" },
-  { value: "prenom",         label: "Prénom" },
-  { value: "nom",            label: "Nom" },
-  { value: "email",          label: "Email" },
-  { value: "telephone",      label: "Téléphone" },
-  { value: "date_naissance", label: "Date de naissance" },
-  { value: "adresse",        label: "Adresse" },
-  { value: "montant_achat",  label: "Montant achat (€)" },
-  { value: "date_achat",     label: "Date d'achat" },
-  { value: "produit_achat",  label: "Produit acheté" },
-  { value: "notes",          label: "Notes" },
+  { value: "prenom",         label: "Prénom",              color: "rgba(120,220,200,0.9)" },
+  { value: "nom",            label: "Nom",                 color: "rgba(120,220,200,0.9)" },
+  { value: "nom_complet",    label: "Prénom + Nom",        color: "rgba(80,210,160,0.9)" },
+  { value: "email",          label: "Email",               color: "rgba(99,120,255,0.9)" },
+  { value: "telephone",      label: "Téléphone",           color: "rgba(160,130,255,0.9)" },
+  { value: "date_naissance", label: "Date de naissance",   color: "rgba(255,180,60,0.9)" },
+  { value: "adresse",        label: "Adresse",             color: "rgba(255,160,80,0.9)" },
+  { value: "montant_achat",  label: "Montant achat (€)",   color: "rgba(80,210,140,0.9)" },
+  { value: "date_achat",     label: "Date d'achat",        color: "rgba(255,180,60,0.9)" },
+  { value: "produit_achat",  label: "Produit acheté",      color: "rgba(200,160,255,0.9)" },
+  { value: "notes",          label: "Notes",               color: "rgba(255,255,255,0.5)" },
 ];
 
 interface ImportReport {
@@ -201,6 +203,9 @@ function buildHeuristicMapping(hdrs: string[], sample: ParsedRow): Record<string
       /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)
     ) {
       result[h] = "email"; continue;
+    }
+    if (norm.includes("nomcomplet") || norm.includes("fullname") || norm.includes("nom_complet") || norm.includes("clientname") || norm === "client" || norm === "name") {
+      result[h] = "nom_complet"; continue;
     }
     if (
       norm === "prenom" || norm === "firstname" || norm.startsWith("prenom") ||
@@ -259,6 +264,7 @@ export default function ImportPage() {
   const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
   const [report, setReport] = useState<ImportReport | null>(null);
   const [fileInputKey, setFileInputKey] = useState(0);
+  const [manualMode, setManualMode] = useState(false);
 
   async function onPickFile(file: File | null) {
     if (!file) return;
@@ -311,6 +317,7 @@ export default function ImportPage() {
       }
 
       setMapping(detectedMapping);
+      setManualMode(false);
       setStep("mapping");
     } catch (e: any) {
       setDetectError(e?.message ?? "Erreur de lecture du fichier.");
@@ -333,9 +340,10 @@ export default function ImportPage() {
     const colFor = (field: CFField): string | undefined =>
       Object.entries(mapping).find(([, v]) => v === field)?.[0];
 
-    const prenomCol    = colFor("prenom");
-    const nomCol       = colFor("nom");
-    const emailCol     = colFor("email");
+    const prenomCol      = colFor("prenom");
+    const nomCol         = colFor("nom");
+    const nomCompletCol  = colFor("nom_complet");
+    const emailCol       = colFor("email");
     const phoneCol     = colFor("telephone");
     const dobCol       = colFor("date_naissance");
     const adresseCol   = colFor("adresse");
@@ -363,8 +371,14 @@ export default function ImportPage() {
         rpt.merged++;
         continue;
       }
-      const prenom = prenomCol ? (row[prenomCol] ?? "").trim() || null : null;
-      const nom = nomCol ? (row[nomCol] ?? "").trim() || null : null;
+      let prenom = prenomCol ? (row[prenomCol] ?? "").trim() || null : null;
+      let nom = nomCol ? (row[nomCol] ?? "").trim() || null : null;
+      // Split nom_complet: first word = prenom, rest = nom
+      if (nomCompletCol && (row[nomCompletCol] ?? "").trim()) {
+        const parts = (row[nomCompletCol] ?? "").trim().split(/\s+/);
+        if (!prenom) prenom = parts[0] || null;
+        if (!nom) nom = parts.length > 1 ? parts.slice(1).join(" ") : null;
+      }
       if (!prenom && !nom && !email) { rpt.skipped++; continue; }
 
       const noteParts: string[] = [];
@@ -650,20 +664,9 @@ export default function ImportPage() {
           <div className="ds-card-head">
             <div>
               <div className="ds-card-title" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                Colonnes détectées
-                {aiUsed && (
-                  <span style={{
-                    fontSize: 11,
-                    fontWeight: 800,
-                    padding: "2px 10px",
-                    borderRadius: 20,
-                    background: "rgba(99,120,255,0.15)",
-                    border: "1px solid rgba(99,120,255,0.35)",
-                    color: "rgba(160,180,255,0.95)",
-                    letterSpacing: 0.3,
-                  }}>
-                    IA
-                  </span>
+                {manualMode ? "Modifier le mapping" : "Mapping détecté"}
+                {aiUsed && !manualMode && (
+                  <span style={{ fontSize: 11, fontWeight: 800, padding: "2px 10px", borderRadius: 20, background: "rgba(99,120,255,0.15)", border: "1px solid rgba(99,120,255,0.35)", color: "rgba(160,180,255,0.95)", letterSpacing: 0.3 }}>✨ IA</span>
                 )}
               </div>
               <div className="ds-card-sub">
@@ -677,69 +680,57 @@ export default function ImportPage() {
               <thead>
                 <tr>
                   <th>Colonne CSV</th>
-                  <th>Aperçu (2 exemples)</th>
-                  <th style={{ minWidth: 180 }}>Champ ClientFlow</th>
+                  <th>Aperçu</th>
+                  <th style={{ minWidth: manualMode ? 200 : 160 }}>→ Champ ClientFlow</th>
                 </tr>
               </thead>
               <tbody>
                 {headers.map(h => {
                   const mapped = mapping[h] ?? "ignorer";
                   const isIgnored = mapped === "ignorer";
-                  const isImportant = mapped === "email" || mapped === "prenom" || mapped === "nom";
+                  const fieldInfo = CF_FIELDS.find(f => f.value === mapped);
                   const sample1 = rows[0]?.[h] ?? "";
                   const sample2 = rows[1]?.[h] ?? "";
-
                   return (
-                    <tr
-                      key={h}
-                      style={{
-                        opacity: isIgnored ? 0.45 : 1,
-                        background: isImportant ? "rgba(99,120,255,0.05)" : undefined,
-                        transition: "opacity 150ms, background 150ms",
-                      }}
-                    >
+                    <tr key={h} style={{ opacity: isIgnored ? 0.38 : 1, transition: "opacity 150ms" }}>
                       <td>
                         <span style={{ fontWeight: 700, color: "rgba(255,255,255,0.88)", fontSize: 13 }}>{h}</span>
                       </td>
                       <td>
                         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                          {sample1 && (
+                          {sample1 ? (
                             <span className="ds-mono" style={{ fontSize: 11, color: "rgba(255,255,255,0.50)", padding: "1px 6px", borderRadius: 4, background: "rgba(255,255,255,0.04)" }}>
-                              {sample1.length > 30 ? sample1.slice(0, 30) + "…" : sample1}
+                              {sample1.length > 32 ? sample1.slice(0, 32) + "…" : sample1}
                             </span>
-                          )}
-                          {sample2 && (
-                            <span className="ds-mono" style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", padding: "1px 6px", borderRadius: 4, background: "rgba(255,255,255,0.03)" }}>
-                              {sample2.length > 30 ? sample2.slice(0, 30) + "…" : sample2}
+                          ) : null}
+                          {sample2 ? (
+                            <span className="ds-mono" style={{ fontSize: 11, color: "rgba(255,255,255,0.30)", padding: "1px 6px", borderRadius: 4, background: "rgba(255,255,255,0.03)" }}>
+                              {sample2.length > 32 ? sample2.slice(0, 32) + "…" : sample2}
                             </span>
-                          )}
-                          {!sample1 && !sample2 && (
-                            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.20)" }}>—</span>
-                          )}
+                          ) : null}
+                          {!sample1 && !sample2 && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.18)" }}>—</span>}
                         </div>
                       </td>
                       <td>
-                        <select
-                          value={mapped}
-                          onChange={e => setMapping(prev => ({ ...prev, [h]: e.target.value as CFField }))}
-                          style={{
-                            height: 34,
-                            padding: "0 10px",
-                            borderRadius: 8,
-                            background: "rgba(10,11,14,0.80)",
-                            color: "rgba(255,255,255,0.92)",
-                            border: "1px solid rgba(255,255,255,0.12)",
-                            outline: "none",
-                            fontSize: 13,
-                            fontWeight: 700,
-                            cursor: "pointer",
-                            width: "100%",
-                          }}
-                        >
-                          {CF_FIELDS.map(f => (
-                            <option key={f.value} value={f.value}>{f.label}</option>
-                          ))}
-                        </select>
+                        {manualMode ? (
+                          <select
+                            value={mapped}
+                            onChange={e => setMapping(prev => ({ ...prev, [h]: e.target.value as CFField }))}
+                            style={{ height: 34, padding: "0 10px", borderRadius: 8, background: "rgba(10,11,14,0.80)", color: "rgba(255,255,255,0.92)", border: "1px solid rgba(255,255,255,0.12)", outline: "none", fontSize: 13, fontWeight: 700, cursor: "pointer", width: "100%" }}
+                          >
+                            {CF_FIELDS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                          </select>
+                        ) : (
+                          <span style={{
+                            display: "inline-flex", alignItems: "center", gap: 4,
+                            padding: "3px 10px", borderRadius: 6, fontSize: 12, fontWeight: 700,
+                            background: isIgnored ? "rgba(255,255,255,0.04)" : "rgba(0,0,0,0.25)",
+                            border: `1px solid ${isIgnored ? "rgba(255,255,255,0.06)" : "rgba(255,255,255,0.10)"}`,
+                            color: fieldInfo?.color ?? "rgba(255,255,255,0.30)",
+                          }}>
+                            {fieldInfo?.label ?? "Ignorer"}
+                          </span>
+                        )}
                       </td>
                     </tr>
                   );
@@ -749,44 +740,32 @@ export default function ImportPage() {
           </div>
 
           <div style={{ marginTop: 24, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
-            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)" }}>
-              {rows.length} ligne{rows.length !== 1 ? "s" : ""} seront importées
-              {rows.length === 1000 && (
-                <span style={{ marginLeft: 8, color: "rgba(255,180,60,0.8)", fontWeight: 600 }}>
-                  (limité à 1000)
-                </span>
-              )}
-            </div>
-            {activeWorkspace ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)" }}>
+                {rows.length} ligne{rows.length !== 1 ? "s" : ""} prêtes à l'import
+                {rows.length === 1000 && <span style={{ marginLeft: 8, color: "rgba(255,180,60,0.8)", fontWeight: 600 }}>(limité à 1000)</span>}
+              </div>
               <button
                 type="button"
-                onClick={runImport}
-                style={{
-                  height: 48,
-                  padding: "0 32px",
-                  borderRadius: 14,
-                  background: "linear-gradient(135deg, rgba(99,120,255,0.30), rgba(99,120,255,0.18))",
-                  border: "1px solid rgba(99,120,255,0.50)",
-                  color: "rgba(255,255,255,0.95)",
-                  fontWeight: 800,
-                  fontSize: 15,
-                  cursor: "pointer",
-                  transition: "background 150ms, border-color 150ms",
-                  letterSpacing: 0.2,
-                }}
+                onClick={() => setManualMode(m => !m)}
+                style={{ background: "none", border: "none", padding: 0, color: "rgba(99,120,255,0.60)", fontSize: 12, cursor: "pointer", textDecoration: "underline", textAlign: "left", fontWeight: 600 }}
               >
-                Importer {rows.length} lignes
+                {manualMode ? "← Retour au résumé" : "Modifier le mapping manuellement"}
               </button>
+            </div>
+            {activeWorkspace ? (
+              <div style={{ display: "flex", gap: 10 }}>
+                <button type="button" onClick={reset} style={{ height: 48, padding: "0 20px", borderRadius: 14, background: "transparent", border: "1px solid rgba(255,255,255,0.12)", color: "rgba(255,255,255,0.55)", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>Annuler</button>
+                <button
+                  type="button"
+                  onClick={runImport}
+                  style={{ height: 48, padding: "0 32px", borderRadius: 14, background: "linear-gradient(135deg, rgba(99,120,255,0.32), rgba(99,120,255,0.20))", border: "1px solid rgba(99,120,255,0.55)", color: "rgba(255,255,255,0.97)", fontWeight: 800, fontSize: 15, cursor: "pointer", letterSpacing: 0.2 }}
+                >
+                  Confirmer l'import ({rows.length})
+                </button>
+              </div>
             ) : (
-              <div style={{
-                padding: "12px 20px",
-                borderRadius: 12,
-                background: "rgba(255,120,80,0.07)",
-                border: "1px solid rgba(255,120,80,0.20)",
-                color: "rgba(255,160,120,0.95)",
-                fontWeight: 700,
-                fontSize: 13,
-              }}>
+              <div style={{ padding: "12px 20px", borderRadius: 12, background: "rgba(255,120,80,0.07)", border: "1px solid rgba(255,120,80,0.20)", color: "rgba(255,160,120,0.95)", fontWeight: 700, fontSize: 13 }}>
                 Sélectionne un workspace pour importer
               </div>
             )}
