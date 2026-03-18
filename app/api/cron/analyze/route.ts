@@ -72,20 +72,20 @@ export async function GET(request: NextRequest) {
       /* 2. Stock faible ou rupture ──────────────────────────── */
       const { data: lowStock } = await sb
         .from("inventory")
-        .select("quantity, product_id, products(name)")
+        .select("stock, product_id, products(name)")
         .eq("workspace_id", ws.id)
-        .lte("quantity", 5)
-        .gte("quantity", 0);
+        .lte("stock", 5)
+        .gte("stock", 0);
 
       for (const item of lowStock ?? []) {
         const productName = (item.products as unknown as { name: string } | null)?.name ?? "Produit inconnu";
-        const isRupture = item.quantity === 0;
+        const isRupture = item.stock === 0;
         const title = isRupture
           ? `Rupture de stock : ${productName}`
           : `Stock faible : ${productName}`;
         const message = isRupture
           ? `${productName} est en rupture totale. Réapprovisionnez dès que possible.`
-          : `${productName} n'a plus que ${item.quantity} unité(s) en stock.`;
+          : `${productName} n'a plus que ${item.stock} unité(s) en stock.`;
 
         if (!(await alreadyNotified(sb, ws.id, "stock", title))) {
           toInsert.push({ workspace_id: ws.id, type: "stock", title, message });
