@@ -965,7 +965,7 @@ export default function LandingPage() {
 
           {/* Zone centre — liens nav */}
           <nav className="lp-nav-links" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 22 }}>
-            {[["Transformations","#transformations"],["Démo interactive","#demo-interactive"],["Fonctionnalités","#features"],["Comment ça marche","#how-it-works"],["Tarif","#pricing"],["Témoignages","#testimonials"]].map(([label, href]) => (
+            {[["Démo interactive","#demo-interactive"],["Transformations","#transformations"],["Fonctionnalités","#features"],["Mise en route","#how-it-works"],["Tarif","#pricing"],["Témoignages","#testimonials"]].map(([label, href]) => (
               <a key={href} href={href} style={{ fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.58)", transition: "color 0.15s", whiteSpace: "nowrap" }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.95)"; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.58)"; }}>
@@ -1001,10 +1001,10 @@ export default function LandingPage() {
         {/* Nav links */}
         <nav style={{ flex: 1, overflowY: "auto" }}>
           {[
-            { label: "Transformations",    href: "#transformations", icon: <svg className="lp-drawer-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M7 16V4m0 0L3 8m4-4 4 4"/><path d="M17 8v12m0 0 4-4m-4 4-4-4"/></svg> },
             { label: "Démo interactive",   href: "#demo-interactive", icon: <svg className="lp-drawer-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M10 9l2 2 4-4"/></svg> },
+            { label: "Transformations",    href: "#transformations", icon: <svg className="lp-drawer-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M7 16V4m0 0L3 8m4-4 4 4"/><path d="M17 8v12m0 0 4-4m-4 4-4-4"/></svg> },
             { label: "Fonctionnalités",    href: "#features",      icon: <svg className="lp-drawer-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> },
-            { label: "Comment ça marche",  href: "#how-it-works",  icon: <svg className="lp-drawer-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg> },
+            { label: "Mise en route",      href: "#how-it-works",  icon: <svg className="lp-drawer-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg> },
             { label: "Tarif",              href: "#pricing",       icon: <svg className="lp-drawer-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg> },
             { label: "Témoignages",        href: "#testimonials",  icon: <svg className="lp-drawer-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg> },
           ].map(({ label, href, icon }) => (
