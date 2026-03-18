@@ -160,6 +160,7 @@ interface ImportReport {
   merged: number;
   skipped: number;
   errors: number;
+  salesInserted: number;
   errorDetails: string[];
 }
 
@@ -178,15 +179,32 @@ async function readFileText(file: File): Promise<string> {
 
 function parseDate(s: string): string | null {
   if (!s?.trim()) return null;
-  const parts = s.trim().split(/[\/\-\.]/);
-  if (parts.length !== 3) return null;
+  const raw = s.trim();
+  // Strip time component (e.g. "2024-03-15 14:30" or "2024-03-15T14:30:00Z")
+  const dateOnly = raw.split(/[\sT]/)[0];
+  const parts = dateOnly.split(/[\/\-\.]/);
+  if (parts.length < 3) {
+    // Fallback: let JS parse it (handles ISO 8601 etc.)
+    const d = new Date(raw);
+    if (!isNaN(d.getTime())) return d.toISOString().split("T")[0];
+    return null;
+  }
+  const p = parts.map(Number);
   let day: number, month: number, year: number;
   if (parts[0].length === 4) {
-    [year, month, day] = parts.map(Number);
+    // YYYY-MM-DD
+    [year, month, day] = p;
   } else {
-    [day, month, year] = parts.map(Number);
+    year = p[2];
+    if (year < 100) year += year < 50 ? 2000 : 1900;
+    // Disambiguate DD/MM vs MM/DD: if first part > 12 → must be day
+    if (p[0] > 12) { day = p[0]; month = p[1]; }
+    else if (p[1] > 12) { month = p[0]; day = p[1]; } // MM/DD/YYYY
+    else { day = p[0]; month = p[1]; } // French default: DD/MM
   }
-  if (year < 100) year += 2000;
+  if (!day || !month || !year) return null;
+  if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+  if (year < 1900 || year > 2100) return null;
   const d = new Date(year, month - 1, day);
   if (isNaN(d.getTime())) return null;
   return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
@@ -334,7 +352,7 @@ export default function ImportPage() {
     setStep("importing");
     setImportProgress({ done: 0, total: rows.length });
 
-    const rpt: ImportReport = { imported: 0, merged: 0, skipped: 0, errors: 0, errorDetails: [] };
+    const rpt: ImportReport = { imported: 0, merged: 0, skipped: 0, errors: 0, salesInserted: 0, errorDetails: [] };
 
     // Helper: find first column mapped to a given CF field
     const colFor = (field: CFField): string | undefined =>
@@ -428,49 +446,81 @@ export default function ImportPage() {
       setImportProgress({ done: i + batch.length, total: rows.length });
     }
 
-    // Insert sales if montant_achat is mapped
+    // Insert sales + sale_products if montant_achat is mapped
     if (montantCol) {
-      const salesPayload: Record<string, any>[] = [];
-
-      for (let i = 0; i < newRows.length; i++) {
-        const amount = moneyToNumber(newRows[i].row[montantCol] ?? "");
-        if (!(amount > 0)) continue;
-        const clientId = insertedIdMap.get(i) ?? null;
-        const rawDate = dateAchatCol ? (newRows[i].row[dateAchatCol] ?? "").trim() : "";
-        const createdAt = rawDate
-          ? (parseDate(rawDate) ? new Date(parseDate(rawDate)!).toISOString() : new Date().toISOString())
-          : new Date().toISOString();
-        salesPayload.push({
-          user_id: userId,
-          workspace_id: activeWorkspace.id,
-          client_id: clientId,
-          amount,
-          created_at: createdAt,
-          product_name: produitCol ? (newRows[i].row[produitCol] ?? "").trim() || null : null,
-        });
+      // Fetch products from workspace for product name → id/price lookup
+      const { data: workspaceProducts } = await supabase
+        .from("products").select("id, name, price").eq("workspace_id", activeWorkspace.id);
+      const productMap = new Map<string, { id: string; price: number }>();
+      for (const p of workspaceProducts ?? []) {
+        if (p.name) productMap.set(p.name.toLowerCase().trim(), { id: p.id, price: p.price ?? 0 });
       }
 
-      for (const { row, clientId } of mergedRows) {
-        const amount = moneyToNumber(row[montantCol] ?? "");
-        if (!(amount > 0)) continue;
+      // Helper: build a sale row
+      function buildSaleRow(row: ParsedRow, clientId: string | null) {
+        const amount = moneyToNumber(row[montantCol!] ?? "");
+        if (!(amount > 0)) return null;
         const rawDate = dateAchatCol ? (row[dateAchatCol] ?? "").trim() : "";
-        const createdAt = rawDate
-          ? (parseDate(rawDate) ? new Date(parseDate(rawDate)!).toISOString() : new Date().toISOString())
+        const parsedISO = rawDate ? parseDate(rawDate) : null;
+        const createdAt = parsedISO
+          ? new Date(`${parsedISO}T12:00:00`).toISOString() // midi pour éviter décalage UTC
           : new Date().toISOString();
-        salesPayload.push({
-          user_id: userId,
-          workspace_id: activeWorkspace.id,
-          client_id: clientId,
-          amount,
-          created_at: createdAt,
-          product_name: produitCol ? (row[produitCol] ?? "").trim() || null : null,
-        });
+        const prodName = produitCol ? (row[produitCol] ?? "").trim() || null : null;
+        const product = prodName ? productMap.get(prodName.toLowerCase().trim()) : undefined;
+        return {
+          salePayload: {
+            user_id: userId,
+            workspace_id: activeWorkspace!.id,
+            client_id: clientId,
+            amount,
+            created_at: createdAt,
+            product_id: product?.id ?? null,
+            product_name: prodName,
+          },
+          productLink: product ? { product_id: product.id, product_name: prodName!, price: product.price, quantity: 1 } : null,
+        };
       }
 
-      for (let i = 0; i < salesPayload.length; i += BATCH) {
-        const { error } = await supabase.from("sales").insert(salesPayload.slice(i, i + BATCH));
-        if (error && !rpt.errorDetails.includes(`Ventes: ${error.message}`)) {
-          rpt.errorDetails.push(`Ventes: ${error.message}`);
+      // Collect all sale rows (new clients + merged)
+      const allSaleRows: { salePayload: Record<string, any>; productLink: { product_id: string; product_name: string; price: number; quantity: number } | null }[] = [];
+      for (let i = 0; i < newRows.length; i++) {
+        const built = buildSaleRow(newRows[i].row, insertedIdMap.get(i) ?? null);
+        if (built) allSaleRows.push(built);
+      }
+      for (const { row, clientId } of mergedRows) {
+        const built = buildSaleRow(row, clientId);
+        if (built) allSaleRows.push(built);
+      }
+
+      // Batch insert sales and collect returned IDs
+      const insertedSaleIds: string[] = [];
+      for (let i = 0; i < allSaleRows.length; i += BATCH) {
+        const batch = allSaleRows.slice(i, i + BATCH);
+        const { data: inserted, error } = await supabase
+          .from("sales")
+          .insert(batch.map(r => r.salePayload))
+          .select("id");
+        if (error) {
+          if (!rpt.errorDetails.includes(`Ventes: ${error.message}`)) rpt.errorDetails.push(`Ventes: ${error.message}`);
+        } else {
+          rpt.salesInserted += (inserted ?? []).length;
+          for (const s of inserted ?? []) insertedSaleIds.push(s.id);
+        }
+      }
+
+      // Insert sale_products for sales that matched a product
+      const spPayload: Record<string, any>[] = [];
+      for (let i = 0; i < allSaleRows.length; i++) {
+        const saleId = insertedSaleIds[i];
+        const link = allSaleRows[i].productLink;
+        if (saleId && link) {
+          spPayload.push({ sale_id: saleId, ...link });
+        }
+      }
+      for (let i = 0; i < spPayload.length; i += BATCH) {
+        const { error } = await supabase.from("sale_products").insert(spPayload.slice(i, i + BATCH));
+        if (error && !rpt.errorDetails.includes(`Produits vente: ${error.message}`)) {
+          rpt.errorDetails.push(`Produits vente: ${error.message}`);
         }
       }
     }
@@ -539,6 +589,12 @@ export default function ImportPage() {
             <div className="ds-stat-label">Erreurs</div>
             <div className="ds-stat-value" style={{ color: report.errors > 0 ? "rgba(255,90,90,0.95)" : "rgba(255,255,255,0.4)" }}>{report.errors}</div>
           </div>
+          {report.salesInserted > 0 && (
+            <div className="ds-stat-card">
+              <div className="ds-stat-label">Achats importés</div>
+              <div className="ds-stat-value" style={{ color: "rgba(80,210,140,0.95)" }}>{report.salesInserted}</div>
+            </div>
+          )}
         </div>
       )}
 
