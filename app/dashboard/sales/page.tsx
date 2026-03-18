@@ -65,6 +65,13 @@ export default function SalesPage() {
   }
 
   async function deleteSale(id: string) {
+    // Restaurer le stock des produits liés avant suppression
+    const { data: saleProds } = await supabase.from("sale_products").select("product_id,quantity").eq("sale_id", id);
+    for (const sp of saleProds ?? []) {
+      if (!sp.product_id) continue;
+      const { data: prod } = await supabase.from("products").select("stock").eq("id", sp.product_id).single();
+      if (prod) await supabase.from("products").update({ stock: Math.max(0, ((prod as any).stock ?? 0) + sp.quantity) }).eq("id", sp.product_id);
+    }
     await supabase.from("sales").delete().eq("id", id);
     fetchData();
   }

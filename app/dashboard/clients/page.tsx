@@ -711,10 +711,24 @@ export default function ClientsPage() {
   function resetNewClientFields() { setNewPrenom(""); setNewNom(""); setNewEmail(""); setNewBirthIso(""); }
   function openSaleModal() { setSaleOpen(true); setSaleMode("client"); setSaleAmount(""); setSaleDateIso(toISODateInput(new Date())); setSaleSelectedProducts([]); setCalendarOpen(false); resetNewClientFields(); if (!saleClientId && clients.length > 0) setSaleClientId(clients[0].id); }
   function openEditSaleModal(s: SaleRow) { const dateIso = clampToToday(saleDateToIso(s)); setEditSaleId(s.id); setEditMode(s.client_id ? "client" : "anonymous"); setEditClientId(s.client_id ?? (clients[0]?.id ?? "")); setEditAmount(String(moneyToNumberAny(s.amount))); setEditDateIso(dateIso); setEditSelectedProducts(saleProductsMap.get(s.id) ?? []); setEditCalendarOpen(false); setEditOpen(true); }
+  async function adjustStock(productId: string, delta: number) {
+    if (!delta || !productId) return;
+    const { data } = await supabase.from("products").select("stock").eq("id", productId).eq("workspace_id", activeWorkspace?.id ?? "").single();
+    if (!data) return;
+    const newStock = Math.max(0, ((data as any).stock ?? 0) + delta);
+    await supabase.from("products").update({ stock: newStock }).eq("id", productId);
+  }
   async function deleteSale(id: string) {
     if (!confirm("Supprimer cette vente ?")) return;
-    try { setDataLoading(true); const { error } = await supabase.from("sales").delete().eq("id", id); if (error) throw error; setSales(prev => prev.filter(x => x.id !== id)); setSaleProductsMap(prev => { const next = new Map(prev); next.delete(id); return next; }); }
-    catch (e: any) { setErrorMsg(e?.message ?? "Erreur suppression vente"); } finally { setDataLoading(false); }
+    try {
+      setDataLoading(true);
+      const oldProducts = saleProductsMap.get(id) ?? [];
+      for (const p of oldProducts) { if (p.product_id) await adjustStock(p.product_id, p.quantity); }
+      const { error } = await supabase.from("sales").delete().eq("id", id);
+      if (error) throw error;
+      setSales(prev => prev.filter(x => x.id !== id));
+      setSaleProductsMap(prev => { const next = new Map(prev); next.delete(id); return next; });
+    } catch (e: any) { setErrorMsg(e?.message ?? "Erreur suppression vente"); } finally { setDataLoading(false); }
   }
   async function saveSaleProducts(saleId: string, items: SaleProduct[]) {
     await supabase.from("sale_products").delete().eq("sale_id", saleId);
@@ -728,6 +742,13 @@ export default function ClientsPage() {
       const dateIso = clampToToday(editDateIso);
       const client_id = editMode === "anonymous" ? null : editClientId || null;
       if (editMode === "client" && !client_id) { setErrorMsg("Choisis un client."); return; }
+      // Ajustement stock : diff ancienne ↔ nouvelle sélection
+      const oldProducts = saleProductsMap.get(editSaleId) ?? [];
+      const oldMap = new Map(oldProducts.map(p => [p.product_id, p.quantity]));
+      const newMap = new Map(editSelectedProducts.map(p => [p.product_id, p.quantity]));
+      for (const [pid, qty] of oldMap) { if (pid && !newMap.has(pid)) await adjustStock(pid, qty); } // produit retiré → remettre stock
+      for (const [pid, qty] of newMap) { if (pid && !oldMap.has(pid)) await adjustStock(pid, -qty); } // nouveau produit → décrémenter
+      for (const [pid, newQty] of newMap) { if (pid && oldMap.has(pid)) { const diff = (oldMap.get(pid)!) - newQty; await adjustStock(pid, diff); } } // quantité modifiée → diff
       const firstProduct = editSelectedProducts[0];
       const { data, error } = await supabase.from("sales").update({ amount, client_id, created_at: new Date(`${dateIso}T12:00:00`).toISOString(), product_id: firstProduct?.product_id ?? null, product_name: editSelectedProducts.length > 0 ? editSelectedProducts.map(p => p.quantity > 1 ? `${p.product_name} x${p.quantity}` : p.product_name).join(", ") : null }).eq("id", editSaleId).select("id,user_id,client_id,amount,created_at,product_id,product_name").single();
       if (error) throw error;
