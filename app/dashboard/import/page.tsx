@@ -879,11 +879,19 @@ export default function ImportPage() {
               </div>
             )}
 
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              <a href="/dashboard/clients" className="ds-btn" style={{ textDecoration: "none" }}>
+            <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", paddingTop: 8 }}>
+              <a
+                href="/dashboard/clients"
+                className="ds-btn ds-btn-primary"
+                style={{ textDecoration: "none", height: 40, padding: "0 24px", fontSize: 14, borderRadius: 12, display: "inline-flex", alignItems: "center" }}
+              >
                 Voir les clients importés
               </a>
-              <button className="ds-btn ds-btn-ghost" onClick={reset}>
+              <button
+                className="ds-btn ds-btn-ghost"
+                onClick={reset}
+                style={{ height: 40, padding: "0 24px", fontSize: 14, borderRadius: 12 }}
+              >
                 Importer un autre fichier
               </button>
             </div>
