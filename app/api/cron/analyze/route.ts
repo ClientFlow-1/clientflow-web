@@ -71,14 +71,14 @@ export async function GET(request: NextRequest) {
 
       /* 2. Stock faible ou rupture ──────────────────────────── */
       const { data: lowStock } = await sb
-        .from("inventory")
-        .select("stock, product_id, products(name)")
+        .from("products")
+        .select("stock, name")
         .eq("workspace_id", ws.id)
         .lte("stock", 5)
         .gte("stock", 0);
 
       for (const item of lowStock ?? []) {
-        const productName = (item.products as unknown as { name: string } | null)?.name ?? "Produit inconnu";
+        const productName = (item.name as string | null) ?? "Produit inconnu";
         const isRupture = item.stock === 0;
         const title = isRupture
           ? `Rupture de stock : ${productName}`
