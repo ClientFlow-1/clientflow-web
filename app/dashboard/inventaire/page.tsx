@@ -86,6 +86,13 @@ export default function InventairePage() {
   const [histFilter, setHistFilter] = useState<"all" | MovementType>("all");
   const [histSearch, setHistSearch] = useState("");
 
+  // Modal seuil d'alerte
+  const [alertModalOpen, setAlertModalOpen] = useState(false);
+  const [alertProduct, setAlertProduct] = useState<Product | null>(null);
+  const [alertValue, setAlertValue] = useState("");
+  const [alertSaving, setAlertSaving] = useState(false);
+  const [alertError, setAlertError] = useState("");
+
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => { fetchAll(); }, [activeWorkspace?.id]);
 
@@ -157,6 +164,27 @@ export default function InventairePage() {
     setMovError("");
     setInitMode(false);
     setModalOpen(true);
+  }
+
+  function openAlertModal(product: Product) {
+    setAlertProduct(product);
+    setAlertValue(product.stock_alert !== null ? String(product.stock_alert) : "");
+    setAlertError("");
+    setAlertModalOpen(true);
+  }
+
+  async function saveAlertThreshold() {
+    if (!alertProduct || !activeWorkspace) return;
+    const val = alertValue.trim() === "" ? null : parseInt(alertValue, 10);
+    if (val !== null && (isNaN(val) || val < 0)) { setAlertError("Valeur invalide (nombre ≥ 0)."); return; }
+    setAlertSaving(true); setAlertError("");
+    try {
+      const { error } = await supabase.from("products").update({ stock_alert: val }).eq("id", alertProduct.id);
+      if (error) throw error;
+      setProducts(prev => prev.map(p => p.id === alertProduct!.id ? { ...p, stock_alert: val } : p));
+      setAlertModalOpen(false);
+    } catch (e: any) { setAlertError(e?.message ?? "Erreur sauvegarde"); }
+    finally { setAlertSaving(false); }
   }
 
   function openInitModal(product: Product) {
@@ -364,6 +392,8 @@ export default function InventairePage() {
                                 style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(255,110,110,0.20)", background: "rgba(255,110,110,0.06)", color: "rgba(255,110,110,0.85)", fontSize: 12, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}>− Sortie</button>
                               <button type="button" onClick={() => openMovementModal(p, "adjustment")}
                                 style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(140,160,255,0.20)", background: "rgba(140,160,255,0.06)", color: "rgba(140,160,255,0.85)", fontSize: 12, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}>≈ Ajuster</button>
+                              <button type="button" onClick={() => openAlertModal(p)}
+                                style={{ height: 30, padding: "0 12px", borderRadius: 8, border: "1px solid rgba(255,160,50,0.22)", background: "rgba(255,160,50,0.07)", color: "rgba(255,180,60,0.90)", fontSize: 12, fontWeight: 800, cursor: "pointer", whiteSpace: "nowrap" }}>⚠ Seuil</button>
                             </div>
                           ) : (
                             <button type="button" onClick={() => openInitModal(p)}
@@ -454,6 +484,53 @@ export default function InventairePage() {
             )}
           </div>
         </>
+      )}
+
+      {/* ── Modal seuil d'alerte ── */}
+      {alertModalOpen && mounted && alertProduct && createPortal(
+        <div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", padding: 18, background: "rgba(0,0,0,0.60)", backdropFilter: "blur(10px)" }}
+          onMouseDown={e => { if (e.target === e.currentTarget) setAlertModalOpen(false); }}>
+          <div style={{ width: 380, maxWidth: "100%", borderRadius: 18, padding: 24, background: "linear-gradient(180deg, rgba(20,22,28,0.99), rgba(12,13,16,0.99))", border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 30px 80px rgba(0,0,0,0.6)" }}
+            onMouseDown={e => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 20 }}>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 900, color: "rgba(255,255,255,0.95)" }}>⚠ Seuil d'alerte</div>
+                <div style={{ fontSize: 13, opacity: 0.55, marginTop: 3 }}>{alertProduct.name}</div>
+              </div>
+              <button type="button" onClick={() => setAlertModalOpen(false)}
+                style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 999, color: "rgba(255,255,255,0.7)", padding: "8px 14px", cursor: "pointer", fontWeight: 750 }}>Fermer</button>
+            </div>
+
+            <div style={{ marginBottom: 16, padding: "10px 14px", borderRadius: 10, background: "rgba(255,160,50,0.05)", border: "1px solid rgba(255,160,50,0.15)", fontSize: 12, color: "rgba(255,180,60,0.75)" }}>
+              Une alerte s'affiche quand le stock est ≤ au seuil. Laisser vide pour désactiver.
+            </div>
+
+            {alertError && <div style={{ marginBottom: 14, padding: "10px 14px", borderRadius: 10, background: "rgba(255,80,80,0.08)", border: "1px solid rgba(255,80,80,0.20)", color: "rgba(255,120,120,0.95)", fontWeight: 700, fontSize: 13 }}>{alertError}</div>}
+
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 800, opacity: 0.75, marginBottom: 8, color: "rgba(255,255,255,0.92)" }}>Seuil d'alerte <span style={{ opacity: 0.5 }}>(optionnel)</span></div>
+              <input
+                autoFocus
+                type="number" min={0}
+                value={alertValue}
+                onChange={e => setAlertValue(e.target.value)}
+                onFocus={e => e.target.select()}
+                placeholder="ex: 5"
+                style={{ width: "100%", height: 48, borderRadius: 12, padding: "0 14px", background: "rgba(10,11,14,0.65)", color: "rgba(255,255,255,0.92)", border: "1px solid rgba(255,160,50,0.30)", outline: "none", fontSize: 18, fontWeight: 800 }}
+              />
+            </div>
+
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 20 }}>
+              <button type="button" onClick={() => setAlertModalOpen(false)}
+                style={{ height: 40, padding: "0 18px", borderRadius: 999, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.03)", color: "rgba(255,255,255,0.7)", fontWeight: 750, cursor: "pointer" }}>Annuler</button>
+              <button type="button" onClick={saveAlertThreshold} disabled={alertSaving}
+                style={{ height: 40, padding: "0 20px", borderRadius: 999, border: "1px solid rgba(255,160,50,0.35)", background: "rgba(255,160,50,0.12)", color: "rgba(255,180,60,0.95)", fontWeight: 800, cursor: alertSaving ? "not-allowed" : "pointer", opacity: alertSaving ? 0.6 : 1 }}>
+                {alertSaving ? "Enregistrement…" : "Enregistrer"}
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
       )}
 
       {/* ── Modal mouvement ── */}
