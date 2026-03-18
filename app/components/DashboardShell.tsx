@@ -422,7 +422,7 @@ function ToastContainer({ toasts, onDismiss }: { toasts: ToastData[]; onDismiss:
   useEffect(() => { setMounted(true); }, []);
   if (!mounted || toasts.length === 0) return null;
   return createPortal(
-    <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 99997, display: "flex", flexDirection: "column", gap: 10, pointerEvents: "none", maxWidth: 360 }}>
+    <div style={{ position: "fixed", top: 80, right: 20, bottom: "auto", zIndex: 99997, display: "flex", flexDirection: "column", gap: 10, pointerEvents: "none", maxWidth: 360 }}>
       {toasts.map(t => <ToastCard key={t.id} t={t} onDismiss={onDismiss} />)}
     </div>,
     document.body
