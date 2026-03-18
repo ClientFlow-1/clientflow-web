@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { useWorkspace } from "@/lib/workspaceContext";
 import { detecterColonnes } from "@/lib/detecterColonnes";
@@ -571,6 +572,7 @@ async function importRows(rows: TransformedRow[], workspaceId: string): Promise<
 
 export default function ImportPage() {
   const { activeWorkspace } = useWorkspace();
+  const router = useRouter();
   const [step, setStep] = useState<Step>("upload");
   const [loadingIdx, setLoadingIdx] = useState(0);
   const [report, setReport] = useState<ImportReport | null>(null);
@@ -879,19 +881,11 @@ export default function ImportPage() {
               </div>
             )}
 
-            <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", paddingTop: 8 }}>
-              <a
-                href="/dashboard/clients"
-                className="ds-btn ds-btn-primary"
-                style={{ textDecoration: "none", height: 40, padding: "0 24px", fontSize: 14, borderRadius: 12, display: "inline-flex", alignItems: "center" }}
-              >
+            <div style={{ display: "flex", gap: 12, justifyContent: "center", marginTop: 24 }}>
+              <button onClick={() => router.push("/dashboard/clients")} style={{ padding: "10px 24px", borderRadius: 8, background: "#6378ff", color: "white", border: "none", cursor: "pointer", fontWeight: 600, fontSize: 14 }}>
                 Voir les clients importés
-              </a>
-              <button
-                className="ds-btn ds-btn-ghost"
-                onClick={reset}
-                style={{ height: 40, padding: "0 24px", fontSize: 14, borderRadius: 12 }}
-              >
+              </button>
+              <button onClick={() => setStep("upload")} style={{ padding: "10px 24px", borderRadius: 8, background: "transparent", color: "rgba(255,255,255,0.7)", border: "1px solid rgba(255,255,255,0.15)", cursor: "pointer", fontWeight: 500, fontSize: 14 }}>
                 Importer un autre fichier
               </button>
             </div>
