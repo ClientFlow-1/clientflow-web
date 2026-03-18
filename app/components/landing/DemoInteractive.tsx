@@ -1,110 +1,75 @@
 "use client";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 
 /* ── Types ── */
 type Segment = "VIP" | "Régulier" | "À relancer" | "Inactif" | "Nouveau";
+type View = "clients" | "fiche" | "relances" | "inventaire";
 
-interface Purchase {
-  date: string;
-  product: string;
-  amount: number;
-}
-
+interface Purchase { date: string; product: string; amount: number; }
 interface Client {
-  id: number;
-  prenom: string;
-  nom: string;
-  email: string;
-  tel: string;
-  segment: Segment;
-  total: number;
-  visits: number;
-  lastVisit: string;
+  id: number; prenom: string; nom: string; email: string; tel: string;
+  segment: Segment; total: number; visits: number; lastVisit: string;
   purchases: Purchase[];
 }
-
-interface Product {
-  name: string;
-  stock: number;
-  maxStock: number;
-  price: number;
-  category: string;
-}
+interface Product { name: string; stock: number; maxStock: number; price: number; category: string; }
 
 /* ── Data ── */
 const CLIENTS: Client[] = [
-  {
-    id: 1, prenom: "Sophie", nom: "Martin", email: "sophie.martin@email.fr", tel: "06 12 34 56 78",
+  { id: 1, prenom: "Sophie", nom: "Martin", email: "sophie.martin@email.fr", tel: "06 12 34 56 78",
     segment: "VIP", total: 1240, visits: 14, lastVisit: "15/03/2026",
     purchases: [
       { date: "15/03/2026", product: "Sac en cuir Milano", amount: 129 },
       { date: "02/03/2026", product: "Écharpe cachemire", amount: 89 },
       { date: "18/02/2026", product: "Perfume Rose Noire", amount: 74 },
       { date: "05/01/2026", product: "Ceinture tressée", amount: 55 },
-    ],
-  },
-  {
-    id: 2, prenom: "Chloé", nom: "Petit", email: "chloe.petit@email.fr", tel: "06 98 76 54 32",
+    ] },
+  { id: 2, prenom: "Chloé", nom: "Petit", email: "chloe.petit@email.fr", tel: "06 98 76 54 32",
     segment: "VIP", total: 2100, visits: 22, lastVisit: "17/03/2026",
     purchases: [
       { date: "17/03/2026", product: "Chapeau de paille", amount: 42 },
       { date: "10/03/2026", product: "Sac en cuir Milano", amount: 129 },
       { date: "20/02/2026", product: "Perfume Rose Noire", amount: 74 },
       { date: "01/02/2026", product: "Écharpe cachemire", amount: 89 },
-    ],
-  },
-  {
-    id: 3, prenom: "Thomas", nom: "Leroy", email: "thomas.leroy@email.fr", tel: "07 11 22 33 44",
+    ] },
+  { id: 3, prenom: "Thomas", nom: "Leroy", email: "thomas.leroy@email.fr", tel: "07 11 22 33 44",
     segment: "Régulier", total: 480, visits: 6, lastVisit: "28/02/2026",
     purchases: [
       { date: "28/02/2026", product: "Carnet moleskine", amount: 18 },
       { date: "10/02/2026", product: "Ceinture tressée", amount: 55 },
       { date: "15/01/2026", product: "Écharpe cachemire", amount: 89 },
       { date: "20/12/2025", product: "Chapeau de paille", amount: 42 },
-    ],
-  },
-  {
-    id: 4, prenom: "Julien", nom: "Laurent", email: "julien.laurent@email.fr", tel: "06 55 44 33 22",
+    ] },
+  { id: 4, prenom: "Julien", nom: "Laurent", email: "julien.laurent@email.fr", tel: "06 55 44 33 22",
     segment: "Régulier", total: 390, visits: 5, lastVisit: "20/02/2026",
     purchases: [
       { date: "20/02/2026", product: "Ceinture tressée", amount: 55 },
       { date: "05/02/2026", product: "Carnet moleskine", amount: 18 },
       { date: "10/01/2026", product: "Écharpe cachemire", amount: 89 },
       { date: "01/12/2025", product: "Chapeau de paille", amount: 42 },
-    ],
-  },
-  {
-    id: 5, prenom: "Emma", nom: "Dubois", email: "emma.dubois@email.fr", tel: "07 66 77 88 99",
+    ] },
+  { id: 5, prenom: "Emma", nom: "Dubois", email: "emma.dubois@email.fr", tel: "07 66 77 88 99",
     segment: "À relancer", total: 220, visits: 3, lastVisit: "05/01/2026",
     purchases: [
       { date: "05/01/2026", product: "Parfum Rose Noire", amount: 74 },
       { date: "10/11/2025", product: "Carnet moleskine", amount: 18 },
       { date: "20/09/2025", product: "Écharpe cachemire", amount: 89 },
-    ],
-  },
-  {
-    id: 6, prenom: "Léa", nom: "Simon", email: "lea.simon@email.fr", tel: "06 44 55 66 77",
+    ] },
+  { id: 6, prenom: "Léa", nom: "Simon", email: "lea.simon@email.fr", tel: "06 44 55 66 77",
     segment: "À relancer", total: 310, visits: 4, lastVisit: "12/12/2025",
     purchases: [
       { date: "12/12/2025", product: "Sac en cuir Milano", amount: 129 },
       { date: "01/10/2025", product: "Ceinture tressée", amount: 55 },
       { date: "15/07/2025", product: "Chapeau de paille", amount: 42 },
       { date: "20/04/2025", product: "Carnet moleskine", amount: 18 },
-    ],
-  },
-  {
-    id: 7, prenom: "Lucas", nom: "Bernard", email: "lucas.bernard@email.fr", tel: "07 33 22 11 00",
+    ] },
+  { id: 7, prenom: "Lucas", nom: "Bernard", email: "lucas.bernard@email.fr", tel: "07 33 22 11 00",
     segment: "Inactif", total: 95, visits: 2, lastVisit: "10/08/2025",
     purchases: [
       { date: "10/08/2025", product: "Carnet moleskine", amount: 18 },
       { date: "20/03/2025", product: "Ceinture tressée", amount: 55 },
-    ],
-  },
-  {
-    id: 8, prenom: "Nicolas", nom: "Moreau", email: "nicolas.moreau@email.fr", tel: "06 77 88 99 00",
-    segment: "Nouveau", total: 0, visits: 0, lastVisit: "—",
-    purchases: [],
-  },
+    ] },
+  { id: 8, prenom: "Nicolas", nom: "Moreau", email: "nicolas.moreau@email.fr", tel: "06 77 88 99 00",
+    segment: "Nouveau", total: 0, visits: 0, lastVisit: "—", purchases: [] },
 ];
 
 const PRODUCTS: Product[] = [
@@ -124,15 +89,82 @@ const RELANCE_SEGMENTS = [
   { label: "Sans achat", count: 1, desc: "Clients inscrits mais jamais achetés", color: "rgba(255,255,255,0.38)", bg: "rgba(255,255,255,0.04)", border: "rgba(255,255,255,0.10)" },
 ];
 
-/* ── Segment badge ── */
 const SEG_COLORS: Record<Segment, { color: string; bg: string; border: string }> = {
-  VIP:         { color: "#f59e0b", bg: "rgba(245,158,11,0.12)", border: "rgba(245,158,11,0.30)" },
-  Régulier:    { color: "#6378ff", bg: "rgba(99,120,255,0.12)", border: "rgba(99,120,255,0.30)" },
-  "À relancer":{ color: "#f97316", bg: "rgba(249,115,22,0.12)", border: "rgba(249,115,22,0.30)" },
-  Inactif:     { color: "#ef4444", bg: "rgba(239,68,68,0.12)", border: "rgba(239,68,68,0.30)" },
-  Nouveau:     { color: "#10b981", bg: "rgba(16,185,129,0.12)", border: "rgba(16,185,129,0.30)" },
+  VIP:          { color: "#f59e0b", bg: "rgba(245,158,11,0.12)", border: "rgba(245,158,11,0.30)" },
+  Régulier:     { color: "#6378ff", bg: "rgba(99,120,255,0.12)", border: "rgba(99,120,255,0.30)" },
+  "À relancer": { color: "#f97316", bg: "rgba(249,115,22,0.12)", border: "rgba(249,115,22,0.30)" },
+  Inactif:      { color: "#ef4444", bg: "rgba(239,68,68,0.12)", border: "rgba(239,68,68,0.30)" },
+  Nouveau:      { color: "#10b981", bg: "rgba(16,185,129,0.12)", border: "rgba(16,185,129,0.30)" },
 };
 
+/* ── SVG Icons ── */
+const IcoClients = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+  </svg>
+);
+const IcoProduits = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" x2="21" y1="6" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>
+  </svg>
+);
+const IcoInventaire = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/>
+    <path d="m3.3 7 8.7 5 8.7-5"/><path d="M12 22V12"/>
+  </svg>
+);
+const IcoRelances = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 11l19-9-9 19-2-8-8-2z"/>
+  </svg>
+);
+const IcoAnalytiques = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="12" x2="12" y1="20" y2="10"/><line x1="18" x2="18" y1="20" y2="4"/>
+    <line x1="6" x2="6" y1="20" y2="16"/><line x1="2" x2="22" y1="20" y2="20"/>
+  </svg>
+);
+const IcoParametres = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="3"/>
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+  </svg>
+);
+const IcoBell = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+  </svg>
+);
+
+/* ── Sidebar nav config ── */
+interface NavItem { label: string; view: View | null; icon: React.ReactNode; }
+const NAV_ITEMS: NavItem[] = [
+  { label: "Clients",     view: "clients",     icon: <IcoClients /> },
+  { label: "Produits",    view: null,           icon: <IcoProduits /> },
+  { label: "Inventaire",  view: "inventaire",   icon: <IcoInventaire /> },
+  { label: "Relances",    view: "relances",     icon: <IcoRelances /> },
+  { label: "Analytiques", view: null,           icon: <IcoAnalytiques /> },
+  { label: "Paramètres",  view: null,           icon: <IcoParametres /> },
+];
+
+const PAGE_TITLES: Record<View, string> = {
+  clients:    "Clients",
+  fiche:      "Fiche client",
+  relances:   "Relances",
+  inventaire: "Inventaire",
+};
+
+/* ── Demo notifications ── */
+const DEMO_NOTIFS = [
+  { id: 1, icon: "📦", title: "Stock faible : Robe florale", message: "Plus que 3 unités en stock.", time: "il y a 2h" },
+  { id: 2, icon: "👥", title: "8 clients inactifs à relancer", message: "Sans achat depuis +90 jours.", time: "il y a 5h" },
+  { id: 3, icon: "✨", title: "Suggestion IA", message: "Lancer une campagne VIP ce weekend.", time: "il y a 8h" },
+  { id: 4, icon: "💤", title: "Emma Dubois inactive", message: "N'a pas acheté depuis 4 mois.", time: "il y a 1j" },
+];
+
+/* ── Helper components ── */
 function SegBadge({ seg }: { seg: Segment }) {
   const c = SEG_COLORS[seg];
   return (
@@ -142,34 +174,89 @@ function SegBadge({ seg }: { seg: Segment }) {
   );
 }
 
-/* ── Tab button ── */
-function Tab({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
+/* ── Notification Bell ── */
+function NotifBell() {
+  const [open, setOpen] = useState(false);
+  const [read, setRead] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+
+  const unread = read ? 0 : DEMO_NOTIFS.length;
+
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      style={{
-        padding: "7px 16px", borderRadius: 8, border: "none", cursor: "pointer",
-        fontSize: 12.5, fontWeight: active ? 700 : 500,
-        color: active ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.40)",
-        background: active ? "rgba(99,120,255,0.18)" : "transparent",
-        transition: "all 150ms", fontFamily: "inherit",
-        boxShadow: active ? "inset 0 0 0 1px rgba(99,120,255,0.35)" : "none",
-      }}
-    >
-      {label}
-    </button>
+    <div ref={ref} style={{ position: "relative" }}>
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        style={{ position: "relative", width: 30, height: 30, borderRadius: 9, border: "1px solid rgba(255,255,255,0.08)", background: open ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.65)", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all 150ms" }}
+      >
+        <IcoBell />
+        {unread > 0 && (
+          <span style={{ position: "absolute", top: -4, right: -4, minWidth: 15, height: 15, borderRadius: 999, background: "rgba(235,60,60,0.92)", border: "1.5px solid #0c0c14", color: "#fff", fontSize: 8, fontWeight: 800, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", fontFamily: "DM Mono, monospace" }}>
+            {unread}
+          </span>
+        )}
+      </button>
+
+      {open && (
+        <div style={{ position: "absolute", top: "calc(100% + 8px)", right: 0, width: 300, borderRadius: 14, background: "linear-gradient(180deg,rgba(18,20,28,0.99),rgba(10,11,16,0.99))", border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 20px 60px rgba(0,0,0,0.75)", backdropFilter: "blur(20px)", zIndex: 999, overflow: "hidden" }}>
+          {/* Header */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 14px", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
+              <span style={{ fontSize: 13 }}>🔔</span>
+              <span style={{ fontSize: 13, fontWeight: 800, color: "rgba(255,255,255,0.92)" }}>Notifications</span>
+              {unread > 0 && (
+                <span style={{ fontSize: 9, fontWeight: 800, padding: "1px 6px", borderRadius: 999, background: "rgba(255,60,60,0.14)", border: "1px solid rgba(255,60,60,0.28)", color: "rgba(255,130,110,0.95)" }}>
+                  {unread} non lue{unread > 1 ? "s" : ""}
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* List */}
+          <div>
+            {DEMO_NOTIFS.map(n => (
+              <div key={n.id} style={{ display: "flex", gap: 10, padding: "10px 14px", borderBottom: "1px solid rgba(255,255,255,0.04)", background: read ? "transparent" : "rgba(99,120,255,0.03)" }}>
+                <span style={{ fontSize: 17, lineHeight: 1, flexShrink: 0, marginTop: 1 }}>{n.icon}</span>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: read ? 600 : 800, color: read ? "rgba(255,255,255,0.60)" : "rgba(255,255,255,0.92)", marginBottom: 2, lineHeight: 1.3 }}>{n.title}</div>
+                  <div style={{ fontSize: 11, color: "rgba(255,255,255,0.38)", lineHeight: 1.5 }}>{n.message}</div>
+                  <div style={{ fontSize: 10, color: "rgba(255,255,255,0.22)", marginTop: 4, fontFamily: "DM Mono, monospace" }}>{n.time}</div>
+                </div>
+                {!read && <div style={{ width: 6, height: 6, borderRadius: "50%", background: "rgba(99,120,255,0.9)", flexShrink: 0, marginTop: 4 }} />}
+              </div>
+            ))}
+          </div>
+
+          {/* Footer */}
+          <div style={{ padding: "10px 14px", borderTop: "1px solid rgba(255,255,255,0.07)" }}>
+            <button
+              type="button"
+              onClick={() => setRead(true)}
+              style={{ width: "100%", padding: "7px", borderRadius: 8, border: "1px solid rgba(99,120,255,0.25)", background: "rgba(99,120,255,0.08)", color: "rgba(165,180,255,0.85)", fontSize: 11.5, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}
+            >
+              Tout marquer comme lu
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
-/* ── Clients tab ── */
+/* ── Tab content components ── */
 function TabClients({ onSelect }: { onSelect: (c: Client) => void }) {
   const [search, setSearch] = useState("");
   const filtered = useMemo(() =>
     CLIENTS.filter(c => `${c.prenom} ${c.nom}`.toLowerCase().includes(search.toLowerCase())),
     [search]
   );
-
   const counts = useMemo(() => ({
     VIP: CLIENTS.filter(c => c.segment === "VIP").length,
     "À relancer": CLIENTS.filter(c => c.segment === "À relancer").length,
@@ -179,7 +266,6 @@ function TabClients({ onSelect }: { onSelect: (c: Client) => void }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      {/* Segment counters */}
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
         {Object.entries(counts).map(([seg, n]) => {
           const c = SEG_COLORS[seg as Segment];
@@ -191,24 +277,12 @@ function TabClients({ onSelect }: { onSelect: (c: Client) => void }) {
           );
         })}
       </div>
-
-      {/* Search */}
       <div style={{ position: "relative" }}>
         <svg style={{ position: "absolute", left: 10, top: "50%", transform: "translateY(-50%)", opacity: 0.35 }} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-        <input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder="Rechercher un client..."
-          style={{
-            width: "100%", padding: "8px 12px 8px 32px", borderRadius: 9,
-            border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)",
-            color: "rgba(255,255,255,0.85)", fontSize: 13, fontFamily: "inherit",
-            outline: "none",
-          }}
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Rechercher un client..."
+          style={{ width: "100%", padding: "8px 12px 8px 32px", borderRadius: 9, border: "1px solid rgba(255,255,255,0.08)", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.85)", fontSize: 13, fontFamily: "inherit", outline: "none" }}
         />
       </div>
-
-      {/* Table */}
       <div style={{ borderRadius: 10, border: "1px solid rgba(255,255,255,0.07)", overflow: "hidden" }}>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
@@ -220,9 +294,7 @@ function TabClients({ onSelect }: { onSelect: (c: Client) => void }) {
           </thead>
           <tbody>
             {filtered.map((c, i) => (
-              <tr
-                key={c.id}
-                onClick={() => onSelect(c)}
+              <tr key={c.id} onClick={() => onSelect(c)}
                 style={{ borderBottom: i < filtered.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none", cursor: "pointer", transition: "background 120ms" }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(99,120,255,0.05)"; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "transparent"; }}
@@ -248,7 +320,6 @@ function TabClients({ onSelect }: { onSelect: (c: Client) => void }) {
   );
 }
 
-/* ── Fiche Client tab ── */
 function TabFiche({ client, onBack }: { client: Client | null; onBack: () => void }) {
   if (!client) {
     return (
@@ -258,18 +329,13 @@ function TabFiche({ client, onBack }: { client: Client | null; onBack: () => voi
       </div>
     );
   }
-
   const c = SEG_COLORS[client.segment];
-
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-      {/* Back */}
       <button type="button" onClick={onBack} style={{ display: "inline-flex", alignItems: "center", gap: 6, background: "none", border: "none", color: "rgba(99,120,255,0.80)", fontSize: 12.5, fontWeight: 600, cursor: "pointer", padding: 0, fontFamily: "inherit" }}>
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="m15 18-6-6 6-6"/></svg>
         Retour aux clients
       </button>
-
-      {/* Header */}
       <div style={{ display: "flex", alignItems: "flex-start", gap: 14, padding: "16px", borderRadius: 12, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
         <div style={{ width: 44, height: 44, borderRadius: 12, background: `linear-gradient(135deg, ${c.color}33, ${c.color}22)`, border: `1px solid ${c.border}`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 16, fontWeight: 800, color: c.color, flexShrink: 0, fontFamily: "DM Mono, monospace" }}>
           {client.prenom[0]}{client.nom[0]}
@@ -285,8 +351,6 @@ function TabFiche({ client, onBack }: { client: Client | null; onBack: () => voi
           ✉ Envoyer une relance
         </button>
       </div>
-
-      {/* Stats */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10 }}>
         {[
           { label: "CA total", value: client.total > 0 ? `${client.total.toLocaleString("fr-FR")} €` : "—" },
@@ -299,8 +363,6 @@ function TabFiche({ client, onBack }: { client: Client | null; onBack: () => voi
           </div>
         ))}
       </div>
-
-      {/* Purchases */}
       <div>
         <div style={{ fontSize: 12, fontWeight: 700, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", letterSpacing: 0.8, marginBottom: 10, fontFamily: "DM Mono, monospace" }}>Historique des achats</div>
         {client.purchases.length === 0 ? (
@@ -323,7 +385,6 @@ function TabFiche({ client, onBack }: { client: Client | null; onBack: () => voi
   );
 }
 
-/* ── Relances tab ── */
 function TabRelances() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -346,7 +407,6 @@ function TabRelances() {
   );
 }
 
-/* ── Inventaire tab ── */
 function TabInventaire() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -360,11 +420,7 @@ function TabInventaire() {
               <div>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <span style={{ fontSize: 13.5, fontWeight: 700, color: "rgba(255,255,255,0.88)" }}>{p.name}</span>
-                  {isLow && (
-                    <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 7px", borderRadius: 999, background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.30)", color: "#ef4444" }}>
-                      Stock faible
-                    </span>
-                  )}
+                  {isLow && <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 7px", borderRadius: 999, background: "rgba(239,68,68,0.15)", border: "1px solid rgba(239,68,68,0.30)", color: "#ef4444" }}>Stock faible</span>}
                 </div>
                 <div style={{ fontSize: 11.5, color: "rgba(255,255,255,0.30)", marginTop: 2 }}>{p.category}</div>
               </div>
@@ -384,36 +440,35 @@ function TabInventaire() {
 }
 
 /* ── Main component ── */
-const TABS = ["Clients", "Fiche Client", "Relances", "Inventaire"] as const;
-type TabName = typeof TABS[number];
-
 export function DemoInteractive() {
-  const [activeTab, setActiveTab] = useState<TabName>("Clients");
+  const [view, setView] = useState<View>("clients");
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [visible, setVisible] = useState(false);
+  const [visible, setVisible] = useState(true);
+
+  function handleNav(v: View) {
+    if (v === view) return;
+    setVisible(false);
+    setTimeout(() => { setView(v); setVisible(true); }, 130);
+  }
 
   function handleSelectClient(c: Client) {
     setSelectedClient(c);
-    setActiveTab("Fiche Client");
-  }
-
-  function handleTabChange(tab: TabName) {
     setVisible(false);
-    setTimeout(() => {
-      setActiveTab(tab);
-      setVisible(true);
-    }, 120);
+    setTimeout(() => { setView("fiche"); setVisible(true); }, 130);
   }
 
-  // init visible
-  if (!visible && activeTab === "Clients") {
-    setTimeout(() => setVisible(true), 50);
+  function handleBackToClients() {
+    setVisible(false);
+    setTimeout(() => { setView("clients"); setVisible(true); }, 130);
   }
+
+  // active sidebar item: "fiche" highlights "clients"
+  const activeSidebarView: View = view === "fiche" ? "clients" : view;
 
   return (
     <section style={{ padding: "80px 24px", background: "transparent" }}>
       <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-        {/* Header */}
+        {/* Section header */}
         <div style={{ textAlign: "center", marginBottom: 48 }}>
           <span style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 14px", borderRadius: 999, background: "rgba(99,120,255,0.10)", border: "1px solid rgba(99,120,255,0.22)", fontSize: 12, fontWeight: 700, color: "rgba(165,180,255,0.85)", fontFamily: "DM Mono, monospace", letterSpacing: 0.5, marginBottom: 20 }}>
             ✦ Démo interactive
@@ -428,16 +483,17 @@ export function DemoInteractive() {
         </div>
 
         {/* Browser mockup */}
-        <div style={{ borderRadius: 16, overflow: "hidden", border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 40px 100px rgba(0,0,0,0.60), 0 0 0 1px rgba(99,120,255,0.08)", background: "#0c0c14" }}>
+        <div style={{ borderRadius: 16, border: "1px solid rgba(255,255,255,0.10)", boxShadow: "0 40px 100px rgba(0,0,0,0.60), 0 0 0 1px rgba(99,120,255,0.08)", background: "#0c0c14", overflow: "hidden" }}>
+
           {/* Browser bar */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", background: "rgba(10,10,20,0.90)", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "11px 16px", background: "rgba(8,8,18,0.95)", borderBottom: "1px solid rgba(255,255,255,0.07)" }}>
             <div style={{ display: "flex", gap: 6 }}>
               <div style={{ width: 11, height: 11, borderRadius: "50%", background: "#ff5f57" }} />
               <div style={{ width: 11, height: 11, borderRadius: "50%", background: "#febc2e" }} />
               <div style={{ width: 11, height: 11, borderRadius: "50%", background: "#28c840" }} />
             </div>
             <div style={{ flex: 1, display: "flex", justifyContent: "center" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 16px", borderRadius: 7, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.07)" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "4px 18px", borderRadius: 7, background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.07)" }}>
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.30)" strokeWidth="2.5" strokeLinecap="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
                 <span style={{ fontSize: 11.5, color: "rgba(255,255,255,0.30)", fontFamily: "DM Mono, monospace" }}>app.clientflow.fr</span>
               </div>
@@ -445,44 +501,76 @@ export function DemoInteractive() {
           </div>
 
           {/* App shell */}
-          <div style={{ display: "flex", minHeight: 480 }}>
+          <div style={{ display: "flex", minHeight: 520 }}>
+
             {/* Sidebar */}
-            <div style={{ width: 52, background: "rgba(8,8,16,0.80)", borderRight: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", alignItems: "center", paddingTop: 16, gap: 8 }}>
-              <div style={{ width: 28, height: 28, borderRadius: 7, background: "linear-gradient(135deg,#6378ff,#4f63e8)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 800, color: "#fff", fontFamily: "DM Mono, monospace", marginBottom: 8 }}>CF</div>
-              {["👤","🛍️","📦","🔔","📊","⚙️"].map((icon, i) => (
-                <div key={i} style={{ width: 34, height: 34, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 14, background: i === 0 ? "rgba(99,120,255,0.15)" : "transparent", border: i === 0 ? "1px solid rgba(99,120,255,0.30)" : "1px solid transparent" }}>
-                  {icon}
+            <div style={{ width: 180, background: "rgba(8,8,16,0.85)", borderRight: "1px solid rgba(255,255,255,0.06)", display: "flex", flexDirection: "column", flexShrink: 0 }}>
+              {/* Brand */}
+              <div style={{ display: "flex", alignItems: "center", gap: 9, padding: "16px 14px 14px", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                <div style={{ width: 26, height: 26, borderRadius: 7, background: "linear-gradient(135deg,#6378ff,#4f63e8)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 8, fontWeight: 800, color: "#fff", fontFamily: "DM Mono, monospace", flexShrink: 0 }}>CF</div>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 600, letterSpacing: 1.5, color: "rgba(255,255,255,0.85)", fontFamily: "DM Mono, monospace" }}>CLIENTFLOW</div>
+                  <div style={{ fontSize: 9, color: "rgba(255,255,255,0.28)", marginTop: 1 }}>Multi-boutiques</div>
                 </div>
-              ))}
+              </div>
+
+              {/* Nav */}
+              <nav style={{ padding: "10px 10px", display: "flex", flexDirection: "column", gap: 3, flex: 1 }}>
+                {NAV_ITEMS.map(item => {
+                  const isActive = item.view === activeSidebarView;
+                  const isDisabled = item.view === null;
+                  return (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={() => item.view && handleNav(item.view)}
+                      disabled={isDisabled}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 9, padding: "9px 11px",
+                        borderRadius: 8, border: "none", background: isActive ? "rgba(99,120,255,0.14)" : "transparent",
+                        color: isActive ? "rgba(165,180,255,0.95)" : isDisabled ? "rgba(255,255,255,0.20)" : "rgba(255,255,255,0.50)",
+                        fontSize: 13, fontWeight: isActive ? 600 : 400, cursor: isDisabled ? "default" : "pointer",
+                        textAlign: "left", width: "100%", fontFamily: "inherit",
+                        outline: isActive ? "1px solid rgba(99,120,255,0.28)" : "none",
+                        transition: "all 150ms",
+                      }}
+                      onMouseEnter={e => { if (!isDisabled && !isActive) (e.currentTarget as HTMLElement).style.background = "rgba(99,120,255,0.06)"; }}
+                      onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
+                    >
+                      <span style={{ opacity: isActive ? 1 : isDisabled ? 0.4 : 0.7, display: "flex" }}>{item.icon}</span>
+                      {item.label}
+                      {isActive && <span style={{ marginLeft: "auto", width: 3, height: 16, borderRadius: 2, background: "#6378ff", boxShadow: "0 0 8px rgba(99,120,255,0.7)" }} />}
+                    </button>
+                  );
+                })}
+              </nav>
             </div>
 
-            {/* Main */}
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+            {/* Main area */}
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "visible" }}>
+
               {/* Topbar */}
-              <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(10,10,20,0.60)" }}>
-                <div style={{ flex: 1 }}>
-                  {/* Tabs */}
-                  <div style={{ display: "flex", gap: 4 }}>
-                    {TABS.map(tab => (
-                      <Tab key={tab} label={tab} active={activeTab === tab} onClick={() => handleTabChange(tab)} />
-                    ))}
-                  </div>
+              <div style={{ display: "flex", alignItems: "center", padding: "10px 16px", borderBottom: "1px solid rgba(255,255,255,0.06)", background: "rgba(10,10,20,0.60)", gap: 10 }}>
+                <div style={{ flex: 1, fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.50)", fontFamily: "DM Mono, monospace", letterSpacing: 0.5 }}>
+                  {PAGE_TITLES[view]}
                 </div>
-                <div style={{ width: 26, height: 26, borderRadius: "50%", background: "linear-gradient(135deg,#6378ff,#4f63e8)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#fff", fontFamily: "DM Mono, monospace" }}>JD</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <NotifBell />
+                  <div style={{ width: 28, height: 28, borderRadius: "50%", background: "linear-gradient(135deg,#6378ff,#4f63e8)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, fontWeight: 700, color: "#fff", fontFamily: "DM Mono, monospace", flexShrink: 0 }}>JD</div>
+                </div>
               </div>
 
               {/* Content */}
-              <div style={{ flex: 1, padding: "16px", overflowY: "auto", opacity: visible ? 1 : 0, transition: "opacity 200ms ease" }}>
-                {activeTab === "Clients" && <TabClients onSelect={handleSelectClient} />}
-                {activeTab === "Fiche Client" && <TabFiche client={selectedClient} onBack={() => handleTabChange("Clients")} />}
-                {activeTab === "Relances" && <TabRelances />}
-                {activeTab === "Inventaire" && <TabInventaire />}
+              <div style={{ flex: 1, padding: "16px", overflowY: "auto", opacity: visible ? 1 : 0, transition: "opacity 180ms ease" }}>
+                {view === "clients"    && <TabClients onSelect={handleSelectClient} />}
+                {view === "fiche"      && <TabFiche client={selectedClient} onBack={handleBackToClients} />}
+                {view === "relances"   && <TabRelances />}
+                {view === "inventaire" && <TabInventaire />}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Caption */}
         <p style={{ textAlign: "center", marginTop: 20, fontSize: 12.5, color: "rgba(255,255,255,0.22)", fontFamily: "DM Mono, monospace" }}>
           Données fictives — interface identique à la version réelle
         </p>
