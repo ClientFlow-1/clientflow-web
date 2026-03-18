@@ -965,7 +965,7 @@ export default function LandingPage() {
 
           {/* Zone centre — liens nav */}
           <nav className="lp-nav-links" style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 44 }}>
-            {[["Fonctionnalités","#features"],["Comment ça marche","#how-it-works"],["Tarif","#pricing"],["Témoignages","#testimonials"]].map(([label, href]) => (
+            {[["Fonctionnalités","#features"],["Démo interactive","#demo-interactive"],["Comment ça marche","#how-it-works"],["Tarif","#pricing"],["Témoignages","#testimonials"]].map(([label, href]) => (
               <a key={href} href={href} style={{ fontSize: 14, fontWeight: 600, color: "rgba(255,255,255,0.58)", transition: "color 0.15s", whiteSpace: "nowrap" }}
                 onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.95)"; }}
                 onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.58)"; }}>
