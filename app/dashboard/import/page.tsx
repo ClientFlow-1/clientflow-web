@@ -1,8 +1,12 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useWorkspace } from "@/lib/workspaceContext";
+
+// ---------------------------------------------------------------------------
+// CSV utilities (preserved from original)
+// ---------------------------------------------------------------------------
 
 type ParsedRow = Record<string, string>;
 
@@ -117,234 +121,806 @@ function pickKey(obj: Record<string, any>, candidates: string[]): string {
   return "";
 }
 
-type StoredClient = { email: string; prenom: string; nom: string; total: number };
-const STORAGE_KEY = "clientflow_clients";
+// ---------------------------------------------------------------------------
+// Types & constants
+// ---------------------------------------------------------------------------
+
+type Step = "upload" | "detecting" | "mapping" | "importing" | "done";
+type CFField =
+  | "prenom"
+  | "nom"
+  | "email"
+  | "telephone"
+  | "date_naissance"
+  | "adresse"
+  | "montant_achat"
+  | "date_achat"
+  | "produit_achat"
+  | "notes"
+  | "ignorer";
+
+const CF_FIELDS: { value: CFField; label: string }[] = [
+  { value: "ignorer",        label: "— Ignorer" },
+  { value: "prenom",         label: "Prénom" },
+  { value: "nom",            label: "Nom" },
+  { value: "email",          label: "Email" },
+  { value: "telephone",      label: "Téléphone" },
+  { value: "date_naissance", label: "Date de naissance" },
+  { value: "adresse",        label: "Adresse" },
+  { value: "montant_achat",  label: "Montant achat (€)" },
+  { value: "date_achat",     label: "Date d'achat" },
+  { value: "produit_achat",  label: "Produit acheté" },
+  { value: "notes",          label: "Notes" },
+];
+
+interface ImportReport {
+  imported: number;
+  merged: number;
+  skipped: number;
+  errors: number;
+  errorDetails: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Helper functions
+// ---------------------------------------------------------------------------
+
+async function readFileText(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  const utf8 = new TextDecoder("utf-8").decode(buffer);
+  if (utf8.includes("\uFFFD")) {
+    return new TextDecoder("iso-8859-1").decode(buffer);
+  }
+  return utf8;
+}
+
+function parseDate(s: string): string | null {
+  if (!s?.trim()) return null;
+  const parts = s.trim().split(/[\/\-\.]/);
+  if (parts.length !== 3) return null;
+  let day: number, month: number, year: number;
+  if (parts[0].length === 4) {
+    [year, month, day] = parts.map(Number);
+  } else {
+    [day, month, year] = parts.map(Number);
+  }
+  if (year < 100) year += 2000;
+  const d = new Date(year, month - 1, day);
+  if (isNaN(d.getTime())) return null;
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function buildHeuristicMapping(hdrs: string[], sample: ParsedRow): Record<string, CFField> {
+  const result: Record<string, CFField> = {};
+  for (const h of hdrs) {
+    const norm = normalizeKey(h);
+    const val = sample[h] ?? "";
+    // Email: check both header name and sample content
+    if (
+      norm.includes("email") || norm.includes("mail") || norm.includes("courriel") ||
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)
+    ) {
+      result[h] = "email"; continue;
+    }
+    if (
+      norm === "prenom" || norm === "firstname" || norm.startsWith("prenom") ||
+      norm === "givenname" || norm === "first"
+    ) {
+      result[h] = "prenom"; continue;
+    }
+    if (
+      (norm === "nom" || norm === "lastname" || norm === "surname" || norm === "familyname") &&
+      !norm.includes("prenom")
+    ) {
+      result[h] = "nom"; continue;
+    }
+    if (norm.includes("tel") || norm.includes("phone") || norm.includes("mobile") || norm.includes("portable")) {
+      result[h] = "telephone"; continue;
+    }
+    if (norm.includes("naissance") || norm.includes("birth") || norm.includes("dob")) {
+      result[h] = "date_naissance"; continue;
+    }
+    if (norm.includes("adresse") || norm.includes("address") || norm.includes("ville") || norm.includes("city")) {
+      result[h] = "adresse"; continue;
+    }
+    if (
+      norm.includes("montant") || norm.includes("total") || norm.includes("amount") ||
+      norm.includes("ca") || norm.includes("spent") || norm.includes("prix")
+    ) {
+      result[h] = "montant_achat"; continue;
+    }
+    if (norm.includes("dateachat") || norm.includes("datecommande") || norm.includes("orderdate")) {
+      result[h] = "date_achat"; continue;
+    }
+    if (norm.includes("produit") || norm.includes("product") || norm.includes("article")) {
+      result[h] = "produit_achat"; continue;
+    }
+    if (norm.includes("note") || norm.includes("comment") || norm.includes("remarque")) {
+      result[h] = "notes"; continue;
+    }
+    result[h] = "ignorer";
+  }
+  return result;
+}
+
+// ---------------------------------------------------------------------------
+// Main component
+// ---------------------------------------------------------------------------
 
 export default function ImportPage() {
   const { activeWorkspace } = useWorkspace();
+  const [step, setStep] = useState<Step>("upload");
   const [fileName, setFileName] = useState("");
   const [rows, setRows] = useState<ParsedRow[]>([]);
-  const [pending, setPending] = useState(false);
-  const [saved, setSaved] = useState(false);
-  const [detectedKeys, setDetectedKeys] = useState<{ email: string; prenom: string; nom: string; total: string } | null>(null);
-
-  const stats = useMemo(() => {
-    const clients = rows.length;
-    const totalKey = detectedKeys?.total ?? pickKey(rows[0] ?? {}, ["total", "montant", "amount", "ca", "chiffre", "spent", "revenue", "prix"]);
-    const ca = totalKey ? rows.reduce((acc, r) => acc + moneyToNumber(r[totalKey] ?? ""), 0) : 0;
-    const panier = clients > 0 ? ca / clients : 0;
-    return { clients, ca, panier };
-  }, [rows, detectedKeys]);
+  const [headers, setHeaders] = useState<string[]>([]);
+  const [mapping, setMapping] = useState<Record<string, CFField>>({});
+  const [aiUsed, setAiUsed] = useState(false);
+  const [detectError, setDetectError] = useState("");
+  const [importProgress, setImportProgress] = useState({ done: 0, total: 0 });
+  const [report, setReport] = useState<ImportReport | null>(null);
+  const [fileInputKey, setFileInputKey] = useState(0);
 
   async function onPickFile(file: File | null) {
     if (!file) return;
-    setPending(true); setSaved(false);
+    setStep("detecting");
+    setDetectError("");
+    setAiUsed(false);
+    setReport(null);
+
     try {
-      const text = await file.text();
+      const text = await readFileText(file);
       const parsed = parseCSV(text);
-      setRows(parsed);
+      if (!parsed.length) {
+        setDetectError("Fichier vide ou format non reconnu.");
+        setStep("upload");
+        return;
+      }
+
+      const hdrs = Object.keys(parsed[0]);
+      const sample = parsed.slice(0, 3).map(r => hdrs.map(h => r[h] ?? ""));
+      const limitedRows = parsed.slice(0, 1000);
+
+      setRows(limitedRows);
+      setHeaders(hdrs);
       setFileName(file.name);
-      if (parsed.length > 0) {
-        const sample = parsed[0];
-        setDetectedKeys({
-          email:  pickKey(sample, ["email", "mail", "courriel"]),
-          prenom: pickKey(sample, ["prenom", "prénom", "firstname", "first_name", "first name", "givenname", "forename", "first"]),
-          nom:    pickKey(sample, ["nom", "lastname", "last_name", "last name", "surname", "familyname", "family_name", "last"]),
-          total:  pickKey(sample, ["total", "montant", "amount", "ca", "chiffre", "spent", "revenue", "prix"]),
+
+      let detectedMapping: Record<string, CFField> = {};
+
+      // Try AI detection
+      try {
+        const res = await fetch("/api/detect-columns", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ headers: hdrs, sample }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.mapping && typeof data.mapping === "object") {
+            detectedMapping = data.mapping as Record<string, CFField>;
+            setAiUsed(true);
+          }
+        }
+      } catch {}
+
+      // Fill unmapped columns with heuristics
+      const heuristic = buildHeuristicMapping(hdrs, parsed[0] ?? {});
+      for (const h of hdrs) {
+        if (!detectedMapping[h] || !CF_FIELDS.find(f => f.value === detectedMapping[h])) {
+          detectedMapping[h] = heuristic[h] ?? "ignorer";
+        }
+      }
+
+      setMapping(detectedMapping);
+      setStep("mapping");
+    } catch (e: any) {
+      setDetectError(e?.message ?? "Erreur de lecture du fichier.");
+      setStep("upload");
+    }
+  }
+
+  async function runImport() {
+    if (!activeWorkspace) return;
+    const { data: authData } = await supabase.auth.getUser();
+    const userId = authData?.user?.id;
+    if (!userId) { window.location.href = "/login"; return; }
+
+    setStep("importing");
+    setImportProgress({ done: 0, total: rows.length });
+
+    const rpt: ImportReport = { imported: 0, merged: 0, skipped: 0, errors: 0, errorDetails: [] };
+
+    // Helper: find first column mapped to a given CF field
+    const colFor = (field: CFField): string | undefined =>
+      Object.entries(mapping).find(([, v]) => v === field)?.[0];
+
+    const prenomCol    = colFor("prenom");
+    const nomCol       = colFor("nom");
+    const emailCol     = colFor("email");
+    const phoneCol     = colFor("telephone");
+    const dobCol       = colFor("date_naissance");
+    const adresseCol   = colFor("adresse");
+    const notesCol     = colFor("notes");
+    const montantCol   = colFor("montant_achat");
+    const dateAchatCol = colFor("date_achat");
+    const produitCol   = colFor("produit_achat");
+
+    // Fetch existing clients by email for dedup
+    const { data: existingClients } = await supabase
+      .from("clients").select("id, email").eq("workspace_id", activeWorkspace.id);
+    const existingEmailMap = new Map<string, string>();
+    for (const c of existingClients ?? []) {
+      if (c.email) existingEmailMap.set(c.email.toLowerCase().trim(), c.id);
+    }
+
+    // Separate rows: new clients vs merges
+    const newRows: { row: ParsedRow; payload: Record<string, any> }[] = [];
+    const mergedRows: { row: ParsedRow; clientId: string }[] = [];
+
+    for (const row of rows) {
+      const email = emailCol ? (row[emailCol] ?? "").trim().toLowerCase() || null : null;
+      if (email && existingEmailMap.has(email)) {
+        mergedRows.push({ row, clientId: existingEmailMap.get(email)! });
+        rpt.merged++;
+        continue;
+      }
+      const prenom = prenomCol ? (row[prenomCol] ?? "").trim() || null : null;
+      const nom = nomCol ? (row[nomCol] ?? "").trim() || null : null;
+      if (!prenom && !nom && !email) { rpt.skipped++; continue; }
+
+      const noteParts: string[] = [];
+      if (phoneCol && (row[phoneCol] ?? "").trim()) noteParts.push(`Tél : ${row[phoneCol].trim()}`);
+      if (adresseCol && (row[adresseCol] ?? "").trim()) noteParts.push(`Adresse : ${row[adresseCol].trim()}`);
+      if (notesCol && (row[notesCol] ?? "").trim()) noteParts.push(row[notesCol].trim());
+
+      const payload: Record<string, any> = {
+        user_id: userId,
+        workspace_id: activeWorkspace.id,
+        prenom,
+        nom,
+        email: email || null,
+      };
+      const dob = dobCol ? parseDate(row[dobCol] ?? "") : null;
+      if (dob) payload.birthdate = dob;
+      if (noteParts.length) payload.notes = noteParts.join(" · ");
+
+      newRows.push({ row, payload });
+    }
+
+    // Batch insert new clients (50 per batch)
+    const BATCH = 50;
+    const insertedIdMap = new Map<number, string>(); // index in newRows → client id
+
+    for (let i = 0; i < newRows.length; i += BATCH) {
+      const batch = newRows.slice(i, i + BATCH);
+      const { data, error } = await supabase
+        .from("clients")
+        .insert(batch.map(b => b.payload))
+        .select("id, email");
+
+      if (error) {
+        rpt.errors += batch.length;
+        if (!rpt.errorDetails.includes(error.message)) rpt.errorDetails.push(error.message);
+      } else {
+        rpt.imported += (data ?? []).length;
+        for (let j = 0; j < (data ?? []).length; j++) {
+          const id = data![j]?.id;
+          if (id) {
+            insertedIdMap.set(i + j, id);
+            const em = data![j]?.email;
+            if (em) existingEmailMap.set(em.toLowerCase(), id);
+          }
+        }
+      }
+      setImportProgress({ done: i + batch.length, total: rows.length });
+    }
+
+    // Insert sales if montant_achat is mapped
+    if (montantCol) {
+      const salesPayload: Record<string, any>[] = [];
+
+      for (let i = 0; i < newRows.length; i++) {
+        const amount = moneyToNumber(newRows[i].row[montantCol] ?? "");
+        if (!(amount > 0)) continue;
+        const clientId = insertedIdMap.get(i) ?? null;
+        const rawDate = dateAchatCol ? (newRows[i].row[dateAchatCol] ?? "").trim() : "";
+        const createdAt = rawDate
+          ? (parseDate(rawDate) ? new Date(parseDate(rawDate)!).toISOString() : new Date().toISOString())
+          : new Date().toISOString();
+        salesPayload.push({
+          user_id: userId,
+          workspace_id: activeWorkspace.id,
+          client_id: clientId,
+          amount,
+          created_at: createdAt,
+          product_name: produitCol ? (newRows[i].row[produitCol] ?? "").trim() || null : null,
         });
       }
-    } finally { setPending(false); }
-  }
 
-  function reset() { setRows([]); setFileName(""); setSaved(false); setDetectedKeys(null); }
+      for (const { row, clientId } of mergedRows) {
+        const amount = moneyToNumber(row[montantCol] ?? "");
+        if (!(amount > 0)) continue;
+        const rawDate = dateAchatCol ? (row[dateAchatCol] ?? "").trim() : "";
+        const createdAt = rawDate
+          ? (parseDate(rawDate) ? new Date(parseDate(rawDate)!).toISOString() : new Date().toISOString())
+          : new Date().toISOString();
+        salesPayload.push({
+          user_id: userId,
+          workspace_id: activeWorkspace.id,
+          client_id: clientId,
+          amount,
+          created_at: createdAt,
+          product_name: produitCol ? (row[produitCol] ?? "").trim() || null : null,
+        });
+      }
 
-  async function confirmImport() {
-    if (!rows.length) return;
-    if (!activeWorkspace) { alert("Aucun workspace sélectionné."); return; }
-
-    let { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
-    if (sessionErr) { alert("Erreur auth."); return; }
-    if (!sessionData.session) {
-      const { data: refreshed, error: refreshErr } = await supabase.auth.refreshSession();
-      if (refreshErr) { alert("Session expirée."); return; }
-      sessionData = refreshed;
-    }
-    const session = sessionData.session;
-    if (!session) { window.location.href = "/login"; return; }
-    const userId = session.user.id;
-    const workspaceId = activeWorkspace.id;
-
-    const sample = rows[0] ?? {};
-    const emailKey  = detectedKeys?.email  ?? pickKey(sample, ["email", "mail", "courriel"]);
-    const prenomKey = detectedKeys?.prenom ?? pickKey(sample, ["prenom", "prénom", "firstname", "first_name", "first name", "givenname", "forename", "first"]);
-    const nomKey    = detectedKeys?.nom    ?? pickKey(sample, ["nom", "lastname", "last_name", "last name", "surname", "familyname", "family_name", "last"]);
-    const totalKey  = detectedKeys?.total  ?? pickKey(sample, ["total", "montant", "amount", "ca", "chiffre", "spent", "revenue", "prix"]);
-
-    const clientsPayload = rows.map(r => ({
-      user_id: userId,
-      workspace_id: workspaceId,
-      email:  emailKey  ? (String(r[emailKey]  ?? "").trim() || null) : null,
-      prenom: prenomKey ? (String(r[prenomKey] ?? "").trim() || null) : null,
-      nom:    nomKey    ? (String(r[nomKey]    ?? "").trim() || null) : null,
-    }));
-
-    const { data: insertedClients, error: clientsError } = await supabase
-      .from("clients").insert(clientsPayload).select("id, email");
-    if (clientsError) { alert(`Erreur import clients: ${clientsError.message}`); return; }
-
-    if (totalKey && insertedClients && insertedClients.length > 0) {
-      const emailToId = new Map<string, string>();
-      for (const c of insertedClients) { if (c.email) emailToId.set(c.email.toLowerCase(), c.id); }
-      const salesPayload = rows.map(r => {
-        const amount = moneyToNumber(String(r[totalKey] ?? ""));
-        if (!(amount > 0)) return null;
-        const email = String(emailKey ? r[emailKey] ?? "" : "").toLowerCase().trim();
-        return { user_id: userId, workspace_id: workspaceId, client_id: emailToId.get(email) ?? null, amount, created_at: new Date().toISOString() };
-      }).filter(Boolean);
-      if (salesPayload.length > 0) {
-        const { error: salesError } = await supabase.from("sales").insert(salesPayload);
-        if (salesError) { alert(`Clients importés ✅ mais erreur ventes: ${salesError.message}`); setSaved(true); return; }
+      for (let i = 0; i < salesPayload.length; i += BATCH) {
+        const { error } = await supabase.from("sales").insert(salesPayload.slice(i, i + BATCH));
+        if (error && !rpt.errorDetails.includes(`Ventes: ${error.message}`)) {
+          rpt.errorDetails.push(`Ventes: ${error.message}`);
+        }
       }
     }
 
-    try {
-      const stored: StoredClient[] = rows.map(r => ({
-        email:  emailKey  ? String(r[emailKey]  ?? "") : "",
-        prenom: prenomKey ? String(r[prenomKey] ?? "") : "",
-        nom:    nomKey    ? String(r[nomKey]    ?? "") : "",
-        total:  totalKey  ? moneyToNumber(String(r[totalKey] ?? "")) : 0,
-      }));
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
-    } catch {}
-
-    setSaved(true);
+    setReport(rpt);
+    setStep("done");
   }
 
-  const canConfirm = rows.length > 0 && !pending && !!activeWorkspace;
+  function reset() {
+    setStep("upload");
+    setFileName("");
+    setRows([]);
+    setHeaders([]);
+    setMapping({});
+    setAiUsed(false);
+    setDetectError("");
+    setReport(null);
+    setFileInputKey(k => k + 1);
+  }
+
+  // Computed values for mapping step
+  const mappedCount = headers.filter(h => mapping[h] && mapping[h] !== "ignorer").length;
+  const progressPct = importProgress.total > 0
+    ? Math.round(importProgress.done / importProgress.total * 100)
+    : 0;
 
   return (
     <div className="ds-page">
+      {/* Header */}
       <div className="ds-topline">Dashboard / Import</div>
       <div className="ds-header">
         <div>
           <h1 className="ds-title">Import Clients</h1>
           <p className="ds-subtitle">
-            Importe un fichier CSV pour ajouter des clients et leurs ventes
+            Import intelligent CSV avec détection IA des colonnes
             {activeWorkspace
               ? <> — <strong style={{ color: "rgba(99,120,255,0.9)" }}>{activeWorkspace.name}</strong></>
-              : <span style={{ color: "rgba(255,120,80,0.8)" }}> — ⚠️ Aucun workspace sélectionné</span>}
+              : <span style={{ color: "rgba(255,120,80,0.8)" }}> — Aucun workspace</span>}
           </p>
         </div>
+        {step !== "upload" && (
+          <button className="ds-btn ds-btn-ghost" type="button" onClick={reset}>
+            Réinitialiser
+          </button>
+        )}
       </div>
 
-      <div className="ds-stats-grid">
-        <div className="ds-stat-card"><div className="ds-stat-label">CA Total</div><div className="ds-stat-value">{formatEUR(stats.ca)}</div></div>
-        <div className="ds-stat-card"><div className="ds-stat-label">Panier moyen</div><div className="ds-stat-value">{formatEUR(stats.panier)}</div></div>
-        <div className="ds-stat-card"><div className="ds-stat-label">Clients détectés</div><div className="ds-stat-value">{stats.clients}</div></div>
-      </div>
-
-      {!activeWorkspace && (
-        <div style={{ padding: "16px 20px", borderRadius: 14, background: "rgba(255,120,80,0.07)", border: "1px solid rgba(255,120,80,0.20)", color: "rgba(255,160,120,0.95)", fontWeight: 700, fontSize: 14 }}>
-          ⚠️ Sélectionne une boutique dans le menu à gauche avant d'importer.
+      {/* ------------------------------------------------------------------ */}
+      {/* Step: done — stats grid at top                                       */}
+      {/* ------------------------------------------------------------------ */}
+      {step === "done" && report && (
+        <div className="ds-stats-grid">
+          <div className="ds-stat-card">
+            <div className="ds-stat-label">Importés</div>
+            <div className="ds-stat-value" style={{ color: "rgba(120,220,120,0.95)" }}>{report.imported}</div>
+          </div>
+          <div className="ds-stat-card">
+            <div className="ds-stat-label">Fusionnés</div>
+            <div className="ds-stat-value" style={{ color: "rgba(99,120,255,0.95)" }}>{report.merged}</div>
+          </div>
+          <div className="ds-stat-card">
+            <div className="ds-stat-label">Ignorés</div>
+            <div className="ds-stat-value" style={{ color: "rgba(255,180,60,0.95)" }}>{report.skipped}</div>
+          </div>
+          <div className="ds-stat-card">
+            <div className="ds-stat-label">Erreurs</div>
+            <div className="ds-stat-value" style={{ color: report.errors > 0 ? "rgba(255,90,90,0.95)" : "rgba(255,255,255,0.4)" }}>{report.errors}</div>
+          </div>
         </div>
       )}
 
-      <div className="ds-card">
-        <div className="ds-card-head">
-          <div>
-            <div className="ds-card-title">Import CSV</div>
-            <div className="ds-card-sub">Colonnes détectées automatiquement — email, prénom, nom, montant.</div>
-          </div>
-        </div>
-
-        <div className="im-row">
-          <label className="im-upload-btn">
-            <span>📂 Choisir un CSV</span>
-            <input type="file" accept=".csv,text/csv" style={{ display: "none" }} onChange={e => onPickFile(e.target.files?.[0] ?? null)} />
-          </label>
-          <div className="im-file-pill">
-            {saved ? <div className="im-file-icon im-success">✓</div> : fileName ? <div className="im-file-icon">📄</div> : <div className="im-file-icon im-empty">—</div>}
-            <div className="im-file-info">
-              <div className="im-file-name">{fileName || "Aucun fichier sélectionné"}</div>
-              <div className="im-file-sub">
-                {pending ? "Analyse en cours…" : saved ? `${rows.length} clients importés avec succès ✅` : fileName ? `${rows.length} ligne(s) détectée(s) · prêt à importer` : "Sélectionne un fichier CSV pour commencer"}
-              </div>
+      {/* ------------------------------------------------------------------ */}
+      {/* Step: upload                                                         */}
+      {/* ------------------------------------------------------------------ */}
+      {step === "upload" && (
+        <div className="ds-card">
+          <div className="ds-card-head">
+            <div>
+              <div className="ds-card-title">Import CSV</div>
+              <div className="ds-card-sub">Détection automatique des colonnes par IA · UTF-8 et Latin-1 · séparateur , ou ;</div>
             </div>
           </div>
-          <div className="im-actions">
-            <button className="ds-btn ds-btn-ghost" type="button" onClick={reset} disabled={!fileName && rows.length === 0}>Réinitialiser</button>
-            <button className="im-confirm-btn" type="button" disabled={!canConfirm} onClick={confirmImport}>
-              {pending ? "Chargement…" : "Confirmer l'import"}
-            </button>
-          </div>
-        </div>
 
-        {/* Colonnes détectées */}
-        {detectedKeys && rows.length > 0 && !saved && (
-          <div style={{ marginTop: 16, padding: "12px 16px", borderRadius: 12, background: "rgba(120,160,255,0.06)", border: "1px solid rgba(120,160,255,0.15)" }}>
-            <div style={{ fontSize: 12, fontWeight: 800, color: "rgba(120,160,255,0.9)", marginBottom: 8, letterSpacing: 0.5 }}>COLONNES DÉTECTÉES</div>
-            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-              {[
-                { label: "Email",   val: detectedKeys.email },
-                { label: "Prénom",  val: detectedKeys.prenom },
-                { label: "Nom",     val: detectedKeys.nom },
-                { label: "Montant", val: detectedKeys.total },
-              ].map(({ label, val }) => (
-                <div key={label} style={{ display: "flex", alignItems: "center", gap: 6, padding: "4px 10px", borderRadius: 8, background: val ? "rgba(120,220,120,0.08)" : "rgba(255,120,80,0.08)", border: `1px solid ${val ? "rgba(120,220,120,0.20)" : "rgba(255,120,80,0.20)"}` }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: val ? "rgba(120,220,120,0.9)" : "rgba(255,120,80,0.9)" }}>{label}</span>
-                  <span style={{ fontSize: 11, color: "rgba(255,255,255,0.55)" }}>{val ? `→ "${val}"` : "non trouvé"}</span>
-                </div>
+          <label
+            className="im-upload-zone"
+            style={{
+              border: "2px dashed rgba(99,120,255,0.30)",
+              borderRadius: 18,
+              padding: "48px 32px",
+              textAlign: "center",
+              background: "rgba(99,120,255,0.03)",
+              cursor: "pointer",
+              transition: "border-color 150ms, background 150ms",
+              display: "block",
+              marginTop: 20,
+            }}
+          >
+            <div style={{ fontSize: 40, marginBottom: 12 }}>📂</div>
+            <div style={{ fontWeight: 800, fontSize: 18, color: "rgba(255,255,255,0.92)", marginBottom: 8 }}>
+              Importer un fichier CSV
+            </div>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginBottom: 20 }}>
+              Détection automatique des colonnes par IA · UTF-8 et Latin-1 · séparateur , ou ;
+            </div>
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "10px 24px",
+                borderRadius: 12,
+                background: "rgba(99,120,255,0.15)",
+                border: "1px solid rgba(99,120,255,0.35)",
+                color: "rgba(255,255,255,0.92)",
+                fontWeight: 800,
+                fontSize: 14,
+              }}
+            >
+              Choisir un fichier
+            </div>
+            <input
+              key={fileInputKey}
+              type="file"
+              accept=".csv,text/csv"
+              style={{ display: "none" }}
+              onChange={e => onPickFile(e.target.files?.[0] ?? null)}
+            />
+          </label>
+
+          {detectError && (
+            <div style={{
+              marginTop: 16,
+              padding: "12px 16px",
+              borderRadius: 12,
+              background: "rgba(255,80,80,0.07)",
+              border: "1px solid rgba(255,80,80,0.20)",
+              color: "rgba(255,120,120,0.95)",
+              fontWeight: 600,
+              fontSize: 13,
+            }}>
+              {detectError}
+            </div>
+          )}
+
+          <div style={{ marginTop: 24, padding: "14px 18px", borderRadius: 12, background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.07)" }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: "rgba(255,255,255,0.35)", letterSpacing: 0.8, marginBottom: 10 }}>
+              FORMATS ACCEPTÉS
+            </div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+              {CF_FIELDS.filter(f => f.value !== "ignorer").map(f => (
+                <span
+                  key={f.value}
+                  style={{
+                    padding: "3px 10px",
+                    borderRadius: 6,
+                    background: "rgba(99,120,255,0.08)",
+                    border: "1px solid rgba(99,120,255,0.18)",
+                    fontSize: 12,
+                    color: "rgba(160,180,255,0.85)",
+                    fontWeight: 600,
+                  }}
+                >
+                  {f.label}
+                </span>
               ))}
             </div>
           </div>
-        )}
+        </div>
+      )}
 
-        {rows.length > 0 && !saved && (
-          <div style={{ marginTop: 20 }}>
-            <div className="ds-card-sub" style={{ marginBottom: 10 }}>Aperçu — {Math.min(rows.length, 5)} première(s) ligne(s) sur {rows.length}</div>
-            <div className="ds-table-wrap">
-              <table className="ds-table">
-                <thead><tr>{Object.keys(rows[0]).map(k => <th key={k}>{k}</th>)}</tr></thead>
-                <tbody>
-                  {rows.slice(0, 5).map((r, i) => (
-                    <tr key={i}>{Object.values(r).map((v, j) => <td key={j} className="ds-mono">{v}</td>)}</tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+      {/* ------------------------------------------------------------------ */}
+      {/* Step: detecting                                                      */}
+      {/* ------------------------------------------------------------------ */}
+      {step === "detecting" && (
+        <div className="ds-card" style={{ textAlign: "center", padding: "56px 32px" }}>
+          <div className="im-spinner" />
+          <div style={{ fontWeight: 800, fontSize: 18, color: "rgba(255,255,255,0.92)", marginBottom: 10 }}>
+            Analyse IA en cours...
           </div>
-        )}
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)" }}>
+            Claude analyse vos colonnes pour mapper automatiquement les champs
+          </div>
+        </div>
+      )}
 
-        {saved && (
-          <div className="im-success-banner">
-            <span className="im-success-icon">✅</span>
+      {/* ------------------------------------------------------------------ */}
+      {/* Step: mapping                                                        */}
+      {/* ------------------------------------------------------------------ */}
+      {step === "mapping" && (
+        <div className="ds-card">
+          <div className="ds-card-head">
             <div>
-              <div className="im-success-title">Import réussi !</div>
-              <div className="im-success-sub">{rows.length} clients et leurs ventes ont été ajoutés à <strong>{activeWorkspace?.name}</strong>.</div>
+              <div className="ds-card-title" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                Colonnes détectées
+                {aiUsed && (
+                  <span style={{
+                    fontSize: 11,
+                    fontWeight: 800,
+                    padding: "2px 10px",
+                    borderRadius: 20,
+                    background: "rgba(99,120,255,0.15)",
+                    border: "1px solid rgba(99,120,255,0.35)",
+                    color: "rgba(160,180,255,0.95)",
+                    letterSpacing: 0.3,
+                  }}>
+                    IA
+                  </span>
+                )}
+              </div>
+              <div className="ds-card-sub">
+                {fileName} · {rows.length} ligne{rows.length !== 1 ? "s" : ""} · {mappedCount} colonne{mappedCount !== 1 ? "s" : ""} mappée{mappedCount !== 1 ? "s" : ""}
+              </div>
             </div>
           </div>
-        )}
-      </div>
+
+          <div className="ds-table-wrap" style={{ marginTop: 20 }}>
+            <table className="ds-table">
+              <thead>
+                <tr>
+                  <th>Colonne CSV</th>
+                  <th>Aperçu (2 exemples)</th>
+                  <th style={{ minWidth: 180 }}>Champ ClientFlow</th>
+                </tr>
+              </thead>
+              <tbody>
+                {headers.map(h => {
+                  const mapped = mapping[h] ?? "ignorer";
+                  const isIgnored = mapped === "ignorer";
+                  const isImportant = mapped === "email" || mapped === "prenom" || mapped === "nom";
+                  const sample1 = rows[0]?.[h] ?? "";
+                  const sample2 = rows[1]?.[h] ?? "";
+
+                  return (
+                    <tr
+                      key={h}
+                      style={{
+                        opacity: isIgnored ? 0.45 : 1,
+                        background: isImportant ? "rgba(99,120,255,0.05)" : undefined,
+                        transition: "opacity 150ms, background 150ms",
+                      }}
+                    >
+                      <td>
+                        <span style={{ fontWeight: 700, color: "rgba(255,255,255,0.88)", fontSize: 13 }}>{h}</span>
+                      </td>
+                      <td>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                          {sample1 && (
+                            <span className="ds-mono" style={{ fontSize: 11, color: "rgba(255,255,255,0.50)", padding: "1px 6px", borderRadius: 4, background: "rgba(255,255,255,0.04)" }}>
+                              {sample1.length > 30 ? sample1.slice(0, 30) + "…" : sample1}
+                            </span>
+                          )}
+                          {sample2 && (
+                            <span className="ds-mono" style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", padding: "1px 6px", borderRadius: 4, background: "rgba(255,255,255,0.03)" }}>
+                              {sample2.length > 30 ? sample2.slice(0, 30) + "…" : sample2}
+                            </span>
+                          )}
+                          {!sample1 && !sample2 && (
+                            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.20)" }}>—</span>
+                          )}
+                        </div>
+                      </td>
+                      <td>
+                        <select
+                          value={mapped}
+                          onChange={e => setMapping(prev => ({ ...prev, [h]: e.target.value as CFField }))}
+                          style={{
+                            height: 34,
+                            padding: "0 10px",
+                            borderRadius: 8,
+                            background: "rgba(10,11,14,0.80)",
+                            color: "rgba(255,255,255,0.92)",
+                            border: "1px solid rgba(255,255,255,0.12)",
+                            outline: "none",
+                            fontSize: 13,
+                            fontWeight: 700,
+                            cursor: "pointer",
+                            width: "100%",
+                          }}
+                        >
+                          {CF_FIELDS.map(f => (
+                            <option key={f.value} value={f.value}>{f.label}</option>
+                          ))}
+                        </select>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div style={{ marginTop: 24, display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12 }}>
+            <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)" }}>
+              {rows.length} ligne{rows.length !== 1 ? "s" : ""} seront importées
+              {rows.length === 1000 && (
+                <span style={{ marginLeft: 8, color: "rgba(255,180,60,0.8)", fontWeight: 600 }}>
+                  (limité à 1000)
+                </span>
+              )}
+            </div>
+            {activeWorkspace ? (
+              <button
+                type="button"
+                onClick={runImport}
+                style={{
+                  height: 48,
+                  padding: "0 32px",
+                  borderRadius: 14,
+                  background: "linear-gradient(135deg, rgba(99,120,255,0.30), rgba(99,120,255,0.18))",
+                  border: "1px solid rgba(99,120,255,0.50)",
+                  color: "rgba(255,255,255,0.95)",
+                  fontWeight: 800,
+                  fontSize: 15,
+                  cursor: "pointer",
+                  transition: "background 150ms, border-color 150ms",
+                  letterSpacing: 0.2,
+                }}
+              >
+                Importer {rows.length} lignes
+              </button>
+            ) : (
+              <div style={{
+                padding: "12px 20px",
+                borderRadius: 12,
+                background: "rgba(255,120,80,0.07)",
+                border: "1px solid rgba(255,120,80,0.20)",
+                color: "rgba(255,160,120,0.95)",
+                fontWeight: 700,
+                fontSize: 13,
+              }}>
+                Sélectionne un workspace pour importer
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Step: importing                                                      */}
+      {/* ------------------------------------------------------------------ */}
+      {step === "importing" && (
+        <div className="ds-card" style={{ padding: "40px 32px" }}>
+          <div style={{ fontWeight: 800, fontSize: 18, color: "rgba(255,255,255,0.92)", marginBottom: 8 }}>
+            Import en cours...
+          </div>
+          <div style={{ fontSize: 13, color: "rgba(255,255,255,0.45)", marginBottom: 4 }}>
+            {importProgress.done} / {importProgress.total} lignes traitées
+          </div>
+          <div
+            style={{
+              height: 12,
+              borderRadius: 999,
+              background: "rgba(255,255,255,0.06)",
+              overflow: "hidden",
+              marginTop: 16,
+            }}
+          >
+            <div
+              style={{
+                height: "100%",
+                width: `${progressPct}%`,
+                background: "linear-gradient(90deg, #6378ff, #818cf8)",
+                borderRadius: 999,
+                transition: "width 0.3s ease",
+              }}
+            />
+          </div>
+          <div style={{ marginTop: 10, fontSize: 12, color: "rgba(99,120,255,0.7)", fontWeight: 700 }}>
+            {progressPct}%
+          </div>
+        </div>
+      )}
+
+      {/* ------------------------------------------------------------------ */}
+      {/* Step: done                                                           */}
+      {/* ------------------------------------------------------------------ */}
+      {step === "done" && report && (
+        <div className="ds-card">
+          <div className="ds-card-head">
+            <div>
+              <div className="ds-card-title" style={{ color: "rgba(120,220,120,0.95)" }}>
+                Import terminé
+              </div>
+              <div className="ds-card-sub">{fileName}</div>
+            </div>
+          </div>
+
+          <div style={{ marginTop: 20 }}>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))", gap: 12 }}>
+              <div style={{ padding: "16px 20px", borderRadius: 14, background: "rgba(120,220,120,0.07)", border: "1px solid rgba(120,220,120,0.18)" }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: "rgba(120,220,120,0.7)", letterSpacing: 0.5, marginBottom: 6 }}>IMPORTÉS</div>
+                <div style={{ fontSize: 28, fontWeight: 900, color: "rgba(120,220,120,0.95)" }}>{report.imported}</div>
+              </div>
+              <div style={{ padding: "16px 20px", borderRadius: 14, background: "rgba(99,120,255,0.07)", border: "1px solid rgba(99,120,255,0.18)" }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: "rgba(120,160,255,0.7)", letterSpacing: 0.5, marginBottom: 6 }}>FUSIONNÉS</div>
+                <div style={{ fontSize: 28, fontWeight: 900, color: "rgba(120,160,255,0.95)" }}>{report.merged}</div>
+              </div>
+              <div style={{ padding: "16px 20px", borderRadius: 14, background: "rgba(255,180,60,0.06)", border: "1px solid rgba(255,180,60,0.18)" }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: "rgba(255,180,60,0.7)", letterSpacing: 0.5, marginBottom: 6 }}>IGNORÉS</div>
+                <div style={{ fontSize: 28, fontWeight: 900, color: "rgba(255,180,60,0.95)" }}>{report.skipped}</div>
+              </div>
+              <div style={{ padding: "16px 20px", borderRadius: 14, background: report.errors > 0 ? "rgba(255,80,80,0.07)" : "rgba(255,255,255,0.03)", border: `1px solid ${report.errors > 0 ? "rgba(255,80,80,0.20)" : "rgba(255,255,255,0.07)"}` }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: report.errors > 0 ? "rgba(255,120,120,0.7)" : "rgba(255,255,255,0.25)", letterSpacing: 0.5, marginBottom: 6 }}>ERREURS</div>
+                <div style={{ fontSize: 28, fontWeight: 900, color: report.errors > 0 ? "rgba(255,120,120,0.95)" : "rgba(255,255,255,0.25)" }}>{report.errors}</div>
+              </div>
+            </div>
+
+            {report.errorDetails.length > 0 && (
+              <div style={{ marginTop: 16, padding: "12px 16px", borderRadius: 12, background: "rgba(255,80,80,0.06)", border: "1px solid rgba(255,80,80,0.15)" }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: "rgba(255,120,120,0.8)", letterSpacing: 0.5, marginBottom: 8 }}>DÉTAILS DES ERREURS</div>
+                {report.errorDetails.map((err, i) => (
+                  <div key={i} style={{ fontSize: 12, color: "rgba(255,160,160,0.75)", marginBottom: 4, fontFamily: "monospace" }}>
+                    {err}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <div style={{ marginTop: 24 }}>
+              <button
+                type="button"
+                onClick={reset}
+                style={{
+                  height: 44,
+                  padding: "0 24px",
+                  borderRadius: 12,
+                  background: "rgba(99,120,255,0.15)",
+                  border: "1px solid rgba(99,120,255,0.35)",
+                  color: "rgba(255,255,255,0.92)",
+                  fontWeight: 800,
+                  fontSize: 14,
+                  cursor: "pointer",
+                  transition: "background 150ms",
+                }}
+              >
+                Importer un autre fichier
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <style jsx global>{`
-        .im-row { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 16px; }
-        .im-upload-btn { display: inline-flex; align-items: center; gap: 8px; height: 44px; padding: 0 18px; border-radius: 12px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.12); color: rgba(255,255,255,0.90); font-weight: 800; font-size: 14px; cursor: pointer; white-space: nowrap; transition: background 120ms, border-color 120ms; }
-        .im-upload-btn:hover { background: rgba(255,255,255,0.08); border-color: rgba(255,255,255,0.20); }
-        .im-file-pill { flex: 1; min-width: 200px; display: flex; align-items: center; gap: 12px; height: 56px; padding: 0 16px; border-radius: 14px; background: rgba(10,11,14,0.65); border: 1px solid rgba(255,255,255,0.08); }
-        .im-file-icon { width: 32px; height: 32px; border-radius: 8px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 16px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.08); }
-        .im-file-icon.im-empty { opacity: 0.35; }
-        .im-file-icon.im-success { background: rgba(120,220,120,0.12); border-color: rgba(120,220,120,0.25); color: rgba(120,220,120,0.95); font-weight: 900; }
-        .im-file-info { min-width: 0; }
-        .im-file-name { font-weight: 800; font-size: 14px; color: rgba(255,255,255,0.92); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .im-file-sub { font-size: 12px; opacity: 0.55; color: rgba(255,255,255,0.9); margin-top: 2px; }
-        .im-actions { display: flex; gap: 10px; align-items: center; flex-shrink: 0; }
-        .im-confirm-btn { height: 44px; padding: 0 20px; border-radius: 12px; background: rgba(120,160,255,0.16); border: 1px solid rgba(120,160,255,0.40); color: rgba(255,255,255,0.95); font-weight: 800; font-size: 14px; cursor: pointer; transition: background 120ms, border-color 120ms, opacity 120ms; white-space: nowrap; }
-        .im-confirm-btn:hover:not(:disabled) { background: rgba(120,160,255,0.22); border-color: rgba(120,160,255,0.55); }
-        .im-confirm-btn:disabled { opacity: 0.4; cursor: not-allowed; }
-        .im-success-banner { display: flex; align-items: center; gap: 14px; margin-top: 20px; padding: 16px 20px; border-radius: 14px; background: rgba(120,220,120,0.06); border: 1px solid rgba(120,220,120,0.18); }
-        .im-success-icon { font-size: 24px; flex-shrink: 0; }
-        .im-success-title { font-weight: 900; font-size: 15px; color: rgba(120,220,120,0.95); }
-        .im-success-sub { font-size: 13px; opacity: 0.7; color: rgba(255,255,255,0.9); margin-top: 2px; }
+        .im-upload-zone:hover {
+          border-color: rgba(99, 120, 255, 0.55) !important;
+          background: rgba(99, 120, 255, 0.06) !important;
+        }
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        .im-spinner {
+          width: 40px;
+          height: 40px;
+          border: 3px solid rgba(99, 120, 255, 0.2);
+          border-top-color: #6378ff;
+          border-radius: 50%;
+          animation: spin 0.8s linear infinite;
+          margin: 0 auto 20px;
+        }
+        @media (max-width: 640px) {
+          .ds-table-wrap {
+            overflow-x: auto;
+          }
+        }
       `}</style>
     </div>
   );
