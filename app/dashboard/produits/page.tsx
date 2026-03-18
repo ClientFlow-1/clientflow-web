@@ -234,9 +234,33 @@ export default function ProduitsPage() {
         user_id: user.id, workspace_id: activeWorkspace?.id,
       };
       if (editId) {
+        const oldProduct = products.find(p => p.id === editId);
         const { error } = await supabase.from("products").update(payload).eq("id", editId);
         if (error) throw error;
         setProducts(prev => prev.map(p => p.id === editId ? { ...p, ...payload } : p));
+        // Historique stock si le stock a changé
+        const oldStock = oldProduct?.stock ?? null;
+        if (stock !== null && oldStock !== null && stock !== oldStock) {
+          const delta = stock - oldStock;
+          await supabase.from("stock_movements").insert({
+            product_id: editId,
+            workspace_id: activeWorkspace?.id,
+            type: delta > 0 ? "in" : "out",
+            quantity: Math.abs(delta),
+            note: "Modification manuelle via la page Produits",
+            created_by: user.id,
+          });
+        } else if (stock !== null && oldStock === null) {
+          // Stock initialisé pour la première fois
+          await supabase.from("stock_movements").insert({
+            product_id: editId,
+            workspace_id: activeWorkspace?.id,
+            type: "adjustment",
+            quantity: stock,
+            note: "Initialisation du stock via la page Produits",
+            created_by: user.id,
+          });
+        }
       } else {
         const { data, error } = await supabase.from("products").insert(payload).select("id,name,category,price,stock,stock_alert,created_at").single();
         if (error) throw error;
