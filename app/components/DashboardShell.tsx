@@ -786,7 +786,7 @@ export default function DashboardShell({ children }: { children: React.ReactNode
           <div className="ds-topbar">
             <div className="ds-topbar-title">CLIENTFLOW</div>
             <WorkspacePicker />
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginLeft: "auto" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 14, marginLeft: "auto" }}>
               <NotificationBell />
               <ProfileMenu role={role} />
             </div>
