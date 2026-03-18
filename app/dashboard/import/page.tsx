@@ -572,52 +572,89 @@ export default function ImportPage() {
 
     try {
       // Step 1 — Parse file
+      console.log("[import] Parsing fichier:", file.name, file.size, "octets");
       const { headers, rows } = await parseFile(file);
+      console.log("[import] Parsing OK — headers:", headers, "| lignes:", rows.length);
+
       if (!headers.length || !rows.length) {
-        setErrorMsg("Fichier vide ou format non reconnu.");
+        setErrorMsg("Fichier vide ou format non reconnu. Vérifiez que le fichier contient bien des données.");
         setStep("upload");
         return;
       }
 
       // Step 2 — Ask Claude for column mapping only (headers + 3 sample rows)
       const today = new Date().toISOString().split("T")[0];
-      const apiRes = await fetch("/api/detect-columns", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ headers, sampleRows: rows.slice(0, 3) }),
-      });
-      if (!apiRes.ok) throw new Error("Erreur API mapping colonnes");
-      const { mapping } = await apiRes.json();
+      const sampleRows = rows.slice(0, 3);
+      console.log("[import] Envoi à Claude — headers:", headers, "| sample:", sampleRows);
+
+      let apiRes: Response;
+      try {
+        apiRes = await fetch("/api/detect-columns", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ headers, sampleRows }),
+        });
+      } catch (fetchErr: any) {
+        console.error("[import] Erreur réseau vers /api/detect-columns:", fetchErr);
+        throw new Error(`Impossible de joindre l'API de détection (erreur réseau) : ${fetchErr?.message}`);
+      }
+
+      const apiBody = await apiRes.json();
+      console.log("[import] Réponse /api/detect-columns status:", apiRes.status, "| body:", apiBody);
+
+      if (!apiRes.ok) {
+        throw new Error(`Erreur API (${apiRes.status}) : ${apiBody?.error ?? "inconnue"}`);
+      }
+
+      const { mapping, error: apiError, debug } = apiBody;
+      if (debug) console.log("[import] Debug depuis l'API:", debug);
 
       if (!mapping || Object.keys(mapping).length === 0) {
-        setErrorMsg("Impossible de détecter les colonnes du fichier. Vérifiez le format.");
+        const reason = apiError ?? "Réponse vide de Claude";
+        console.error("[import] Mapping vide. Raison:", reason);
+        setErrorMsg(`Impossible de détecter les colonnes : ${reason}`);
         setStep("upload");
         return;
       }
 
+      console.log("[import] Mapping reçu:", mapping);
+
       // Step 3 — Transform ALL rows client-side
+      console.log("[import] Transformation de", rows.length, "lignes...");
       const transformed: TransformedRow[] = [];
+      let parseErrors = 0;
       for (const row of rows) {
         try {
           transformed.push(applyMapping(mapping, headers, row, today));
-        } catch {
-          // skip broken row, count as ignored
+        } catch (rowErr) {
+          parseErrors++;
+          console.warn("[import] Erreur sur une ligne:", rowErr);
         }
       }
+      console.log("[import] Transformation terminée —", transformed.length, "lignes OK,", parseErrors, "erreurs");
 
       const validRows = transformed.filter(r => r.prenom || r.nom || r.email);
+      console.log("[import]", validRows.length, "lignes avec identifiant sur", transformed.length);
+
       if (validRows.length === 0) {
-        setErrorMsg("Aucun client trouvé dans ce fichier. Vérifiez que les colonnes contiennent des noms ou emails.");
+        setErrorMsg(
+          "Aucun client trouvé dans ce fichier. " +
+          "Vérifiez que les colonnes contiennent des noms ou emails reconnaissables. " +
+          `Mapping détecté : ${JSON.stringify(mapping)}`
+        );
         setStep("upload");
         return;
       }
 
       // Step 4 — Import to Supabase
+      console.log("[import] Import Supabase...");
       const rpt = await importRows(transformed, activeWorkspace.id);
+      console.log("[import] Rapport final:", rpt);
       setReport(rpt);
       setStep("done");
     } catch (e: any) {
-      setErrorMsg(e?.message ?? "Erreur inattendue.");
+      console.error("[import] Erreur globale:", e);
+      setErrorMsg(e?.message ?? "Erreur inattendue lors de l'import.");
       setStep("upload");
     }
   }
