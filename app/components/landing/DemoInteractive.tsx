@@ -14,71 +14,97 @@ interface Client {
 interface Product { name: string; stock: number; maxStock: number; price: number; category: string; }
 
 /* ── Data ── */
+// Règle : total = somme exacte des achats, visits = nombre d'achats
 const CLIENTS: Client[] = [
+  // Sophie Martin — VIP — 8 achats — total 1240€
   { id: 1, prenom: "Sophie", nom: "Martin", email: "sophie.martin@email.fr", tel: "06 12 34 56 78",
-    segment: "VIP", total: 1240, visits: 14, lastVisit: "15/03/2026",
+    segment: "VIP", total: 1240, visits: 8, lastVisit: "15/03/2026",
     purchases: [
-      { date: "15/03/2026", product: "Sac en cuir Milano", amount: 129 },
-      { date: "02/03/2026", product: "Écharpe cachemire", amount: 89 },
-      { date: "18/02/2026", product: "Perfume Rose Noire", amount: 74 },
-      { date: "05/01/2026", product: "Ceinture tressée", amount: 55 },
-    ] },
+      { date: "15/03/2026", product: "Robe florale",        amount: 89  },
+      { date: "10/01/2026", product: "Ceinture dorée",      amount: 45  },
+      { date: "20/11/2025", product: "Collier perles",      amount: 65  },
+      { date: "05/09/2025", product: "Écharpe cachemire",   amount: 89  },
+      { date: "15/06/2025", product: "Manteau laine",       amount: 312 },
+      { date: "10/03/2025", product: "Ensemble tailleur",   amount: 245 },
+      { date: "20/11/2024", product: "Sac bandoulière",     amount: 245 },
+      { date: "05/09/2024", product: "Robe soirée",         amount: 150 },
+    ] }, // 89+45+65+89+312+245+245+150 = 1240 ✓
+
+  // Chloé Petit — VIP — 12 achats — total 2100€
   { id: 2, prenom: "Chloé", nom: "Petit", email: "chloe.petit@email.fr", tel: "06 98 76 54 32",
-    segment: "VIP", total: 2100, visits: 22, lastVisit: "17/03/2026",
+    segment: "VIP", total: 2100, visits: 12, lastVisit: "17/03/2026",
     purchases: [
-      { date: "17/03/2026", product: "Chapeau de paille", amount: 42 },
-      { date: "10/03/2026", product: "Sac en cuir Milano", amount: 129 },
-      { date: "20/02/2026", product: "Perfume Rose Noire", amount: 74 },
-      { date: "01/02/2026", product: "Écharpe cachemire", amount: 89 },
-    ] },
+      { date: "17/03/2026", product: "Manteau laine",       amount: 312 },
+      { date: "15/01/2026", product: "Ensemble tailleur",   amount: 567 },
+      { date: "20/11/2025", product: "Robe soirée",         amount: 156 },
+      { date: "10/09/2025", product: "Sac bandoulière",     amount: 145 },
+      { date: "05/07/2025", product: "Robe florale",        amount: 89  },
+      { date: "20/04/2025", product: "Collier perles",      amount: 65  },
+      { date: "10/02/2025", product: "Veste cuir",          amount: 178 },
+      { date: "05/12/2024", product: "Ceinture dorée",      amount: 45  },
+      { date: "20/09/2024", product: "Écharpe cachemire",   amount: 89  },
+      { date: "15/07/2024", product: "Bijoux dorés",        amount: 115 },
+      { date: "10/05/2024", product: "Foulard soie",        amount: 89  },
+      { date: "20/03/2024", product: "Pull cachemire",      amount: 250 },
+    ] }, // 312+567+156+145+89+65+178+45+89+115+89+250 = 2100 ✓
+
+  // Thomas Leroy — Régulier — 4 achats — total 364€
   { id: 3, prenom: "Thomas", nom: "Leroy", email: "thomas.leroy@email.fr", tel: "07 11 22 33 44",
-    segment: "Régulier", total: 480, visits: 6, lastVisit: "28/02/2026",
+    segment: "Régulier", total: 364, visits: 4, lastVisit: "28/02/2026",
     purchases: [
-      { date: "28/02/2026", product: "Carnet moleskine", amount: 18 },
-      { date: "10/02/2026", product: "Ceinture tressée", amount: 55 },
-      { date: "15/01/2026", product: "Écharpe cachemire", amount: 89 },
-      { date: "20/12/2025", product: "Chapeau de paille", amount: 42 },
-    ] },
+      { date: "28/02/2026", product: "Veste cuir",          amount: 178 },
+      { date: "10/02/2026", product: "Ceinture cuir",       amount: 55  },
+      { date: "15/01/2026", product: "Écharpe laine",       amount: 89  },
+      { date: "20/12/2025", product: "Chapeau paille",      amount: 42  },
+    ] }, // 178+55+89+42 = 364 ✓
+
+  // Julien Laurent — Régulier — 3 achats — total 390€
   { id: 4, prenom: "Julien", nom: "Laurent", email: "julien.laurent@email.fr", tel: "06 55 44 33 22",
-    segment: "Régulier", total: 390, visits: 5, lastVisit: "20/02/2026",
+    segment: "Régulier", total: 390, visits: 3, lastVisit: "20/02/2026",
     purchases: [
-      { date: "20/02/2026", product: "Ceinture tressée", amount: 55 },
-      { date: "05/02/2026", product: "Carnet moleskine", amount: 18 },
-      { date: "10/01/2026", product: "Écharpe cachemire", amount: 89 },
-      { date: "01/12/2025", product: "Chapeau de paille", amount: 42 },
-    ] },
+      { date: "20/02/2026", product: "Veste blazer",        amount: 178 },
+      { date: "05/01/2026", product: "Pull cachemire",      amount: 145 },
+      { date: "15/11/2025", product: "Ceinture cuir",       amount: 67  },
+    ] }, // 178+145+67 = 390 ✓
+
+  // Emma Dubois — À relancer — 3 achats — total 181€
   { id: 5, prenom: "Emma", nom: "Dubois", email: "emma.dubois@email.fr", tel: "07 66 77 88 99",
-    segment: "À relancer", total: 220, visits: 3, lastVisit: "05/01/2026",
+    segment: "À relancer", total: 181, visits: 3, lastVisit: "05/01/2026",
     purchases: [
-      { date: "05/01/2026", product: "Parfum Rose Noire", amount: 74 },
-      { date: "10/11/2025", product: "Carnet moleskine", amount: 18 },
-      { date: "20/09/2025", product: "Écharpe cachemire", amount: 89 },
-    ] },
+      { date: "05/01/2026", product: "Parfum Rose Noire",   amount: 74  },
+      { date: "10/11/2025", product: "Carnet moleskine",    amount: 18  },
+      { date: "20/09/2025", product: "Écharpe cachemire",   amount: 89  },
+    ] }, // 74+18+89 = 181 ✓
+
+  // Léa Simon — À relancer — 4 achats — total 310€
   { id: 6, prenom: "Léa", nom: "Simon", email: "lea.simon@email.fr", tel: "06 44 55 66 77",
     segment: "À relancer", total: 310, visits: 4, lastVisit: "12/12/2025",
     purchases: [
-      { date: "12/12/2025", product: "Sac en cuir Milano", amount: 129 },
-      { date: "01/10/2025", product: "Ceinture tressée", amount: 55 },
-      { date: "15/07/2025", product: "Chapeau de paille", amount: 42 },
-      { date: "20/04/2025", product: "Carnet moleskine", amount: 18 },
-    ] },
+      { date: "12/12/2025", product: "Sac bandoulière",     amount: 129 },
+      { date: "01/10/2025", product: "Foulard soie",        amount: 89  },
+      { date: "15/07/2025", product: "Ceinture tressée",    amount: 55  },
+      { date: "20/04/2025", product: "Porte-monnaie",       amount: 37  },
+    ] }, // 129+89+55+37 = 310 ✓
+
+  // Lucas Bernard — Inactif — 1 achat — total 95€
   { id: 7, prenom: "Lucas", nom: "Bernard", email: "lucas.bernard@email.fr", tel: "07 33 22 11 00",
-    segment: "Inactif", total: 95, visits: 2, lastVisit: "10/08/2025",
+    segment: "Inactif", total: 95, visits: 1, lastVisit: "10/08/2025",
     purchases: [
-      { date: "10/08/2025", product: "Carnet moleskine", amount: 18 },
-      { date: "20/03/2025", product: "Ceinture tressée", amount: 55 },
-    ] },
+      { date: "10/08/2025", product: "Ceinture cuir",       amount: 95  },
+    ] }, // 95 ✓
+
+  // Nicolas Moreau — Nouveau — 0 achat — total 0€
   { id: 8, prenom: "Nicolas", nom: "Moreau", email: "nicolas.moreau@email.fr", tel: "06 77 88 99 00",
     segment: "Nouveau", total: 0, visits: 0, lastVisit: "—", purchases: [] },
 ];
 
 const PRODUCTS: Product[] = [
-  { name: "Sac en cuir Milano", stock: 2, maxStock: 30, price: 129, category: "Maroquinerie" },
-  { name: "Écharpe cachemire", stock: 12, maxStock: 40, price: 89, category: "Accessoires" },
-  { name: "Perfume Rose Noire", stock: 4, maxStock: 25, price: 74, category: "Beauté" },
-  { name: "Ceinture tressée", stock: 8, maxStock: 35, price: 55, category: "Accessoires" },
-  { name: "Chapeau de paille", stock: 1, maxStock: 20, price: 42, category: "Mode" },
-  { name: "Carnet moleskine", stock: 24, maxStock: 50, price: 18, category: "Papeterie" },
+  { name: "Manteau laine",     stock: 3,  maxStock: 15, price: 312, category: "Mode" },
+  { name: "Sac bandoulière",   stock: 5,  maxStock: 20, price: 145, category: "Maroquinerie" },
+  { name: "Veste cuir",        stock: 4,  maxStock: 18, price: 178, category: "Mode" },
+  { name: "Écharpe cachemire", stock: 12, maxStock: 40, price: 89,  category: "Accessoires" },
+  { name: "Parfum Rose Noire", stock: 4,  maxStock: 25, price: 74,  category: "Beauté" },
+  { name: "Carnet moleskine",  stock: 24, maxStock: 50, price: 18,  category: "Papeterie" },
 ];
 
 const RELANCE_SEGMENTS = [
