@@ -512,19 +512,26 @@ function TabInventaire() {
 
 /* ── Produits tab ── */
 const DEMO_PRODUCTS = [
-  { name: "Robe florale été",        category: "Mode",         price: 89,  stock: 18, active: true },
-  { name: "Sac bandoulière cuir",    category: "Maroquinerie", price: 145, stock: 5,  active: true },
-  { name: "Escarpins daim noir",     category: "Chaussures",   price: 119, stock: 8,  active: true },
-  { name: "Collier perles dorées",   category: "Bijoux",       price: 59,  stock: 22, active: true },
-  { name: "Veste en jean vintage",   category: "Mode",         price: 98,  stock: 3,  active: true },
-  { name: "Pochette velours bordeaux", category: "Maroquinerie", price: 49, stock: 0, active: false },
+  { name: "Robe florale été",    category: "Mode",         price: 89,  stock: 18, active: true  },
+  { name: "Ceinture dorée",      category: "Accessoires",  price: 45,  stock: 12, active: true  },
+  { name: "Collier perles",      category: "Bijoux",       price: 65,  stock: 22, active: true  },
+  { name: "Écharpe cachemire",   category: "Accessoires",  price: 89,  stock: 5,  active: true  },
+  { name: "Manteau laine",       category: "Mode",         price: 312, stock: 3,  active: true  },
+  { name: "Ensemble tailleur",   category: "Mode",         price: 567, stock: 8,  active: true  },
+  { name: "Robe de soirée",      category: "Mode",         price: 156, stock: 6,  active: true  },
+  { name: "Sac bandoulière",     category: "Maroquinerie", price: 145, stock: 2,  active: true  },
+  { name: "Veste cuir",          category: "Mode",         price: 178, stock: 4,  active: true  },
+  { name: "Ceinture cuir",       category: "Accessoires",  price: 55,  stock: 15, active: true  },
+  { name: "Écharpe laine",       category: "Accessoires",  price: 42,  stock: 9,  active: true  },
+  { name: "Parfum Rose Noire",   category: "Beauté",       price: 74,  stock: 7,  active: true  },
+  { name: "Carnet moleskine",    category: "Papeterie",    price: 18,  stock: 0,  active: false },
 ];
 
 function TabProduits({ isMobile }: { isMobile: boolean }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.40)" }}>6 produits dans votre catalogue</div>
+        <div style={{ fontSize: 13, color: "rgba(255,255,255,0.40)" }}>{DEMO_PRODUCTS.length} produits dans votre catalogue</div>
         <button type="button" style={{ padding: "7px 14px", borderRadius: 8, border: "1px solid rgba(99,120,255,0.35)", background: "rgba(99,120,255,0.12)", color: "rgba(165,180,255,0.90)", fontSize: 12, fontWeight: 700, cursor: "pointer", fontFamily: "inherit" }}>
           + Ajouter un produit
         </button>
@@ -544,7 +551,7 @@ function TabProduits({ isMobile }: { isMobile: boolean }) {
                 <td style={{ padding: "10px 14px", fontWeight: 600, color: "rgba(255,255,255,0.85)", whiteSpace: "nowrap" }}>{p.name}</td>
                 <td style={{ padding: "10px 14px", fontSize: 12, color: "rgba(255,255,255,0.40)", whiteSpace: "nowrap" }}>{p.category}</td>
                 <td style={{ padding: "10px 14px", fontWeight: 700, color: "rgba(255,255,255,0.75)", fontFamily: "DM Mono, monospace", whiteSpace: "nowrap" }}>{p.price} €</td>
-                <td style={{ padding: "10px 14px", fontFamily: "DM Mono, monospace", fontSize: 12, color: p.stock === 0 ? "#ef4444" : p.stock <= 5 ? "#f97316" : "rgba(255,255,255,0.55)", whiteSpace: "nowrap" }}>{p.stock}</td>
+                <td style={{ padding: "10px 14px", fontFamily: "DM Mono, monospace", fontSize: 12, color: p.stock <= 3 ? "#ef4444" : p.stock <= 5 ? "#f97316" : "rgba(255,255,255,0.55)", whiteSpace: "nowrap" }}>{p.stock}</td>
                 <td style={{ padding: "10px 14px" }}>
                   <span style={{ fontSize: 11, fontWeight: 700, padding: "2px 8px", borderRadius: 999, background: p.active ? "rgba(16,185,129,0.12)" : "rgba(255,255,255,0.05)", border: `1px solid ${p.active ? "rgba(16,185,129,0.30)" : "rgba(255,255,255,0.10)"}`, color: p.active ? "#10b981" : "rgba(255,255,255,0.30)" }}>
                     {p.active ? "Actif" : "Inactif"}
