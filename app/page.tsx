@@ -203,7 +203,8 @@ const CSS = `
   .lp-section-faq        { padding:80px 24px; }
   .lp-section-cta        { padding:0 24px 100px; }
 
-  .lp-pricing-inner { width:100%; max-width:560px; border-radius:28px; padding:48px 44px; position:relative; overflow:hidden; }
+  .lp-pricing-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; align-items:stretch; }
+  .lp-pricing-inner { width:100%; border-radius:28px; padding:48px 44px; position:relative; overflow:hidden; display:flex; flex-direction:column; }
   .lp-pricing-check-item {
     display:flex; align-items:center; gap:12px; padding:10px 14px; border-radius:10px;
     background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.04);
@@ -334,6 +335,7 @@ const CSS = `
 
     /* Pricing */
     .lp-section-pricing { padding:56px 20px; }
+    .lp-pricing-grid    { grid-template-columns:1fr !important; }
     .lp-pricing-inner   { padding:28px 20px !important; border-radius:20px !important; max-width:100% !important; }
 
     /* Testimonials carousel */
@@ -1166,17 +1168,19 @@ export default function LandingPage() {
           <div className="lp-reveal" style={{ textAlign: "center", marginBottom: 72 }}>
             <span className="lp-tag" style={{ marginBottom: 20, display: "inline-flex" }}>{Icons.spark} Tarif</span>
             <h2 style={{ fontSize: "clamp(28px,4vw,46px)", fontWeight: 900, letterSpacing: "-1px", color: "rgba(255,255,255,0.95)", marginTop: 16, marginBottom: 16 }}>Simple et transparent</h2>
-            <p style={{ fontSize: 16, color: "rgba(255,255,255,0.45)", maxWidth: 460, margin: "0 auto", lineHeight: 1.7 }}>Une seule offre — tout inclus. Pas de surprises, pas de niveaux à déchiffrer.</p>
+            <p style={{ fontSize: 16, color: "rgba(255,255,255,0.45)", maxWidth: 520, margin: "0 auto", lineHeight: 1.7 }}>Choisissez l'offre adaptée à votre projet. Tout inclus, sans surprises.</p>
           </div>
-          <div style={{ display: "flex", justifyContent: "center" }}>
-            <div style={{ position: "relative", paddingTop: 20 }} className="lp-reveal">
-              <div className="lp-popular-badge">{Icons.spark} Le plus populaire</div>
+          <div className="lp-pricing-grid lp-reveal">
+
+            {/* ── Offre 1 : CRM Solo ── */}
+            <div style={{ position: "relative", paddingTop: 20 }}>
+              <div className="lp-popular-badge">{Icons.spark} Offre de lancement</div>
               <div className="lp-pricing-card lp-pricing-inner" style={{ background: "linear-gradient(145deg,rgba(22,24,44,0.98),rgba(10,11,22,0.99))", border: "1px solid rgba(99,120,255,0.38)" }}>
                 <div style={{ position: "absolute", top: -100, right: -100, width: 360, height: 360, borderRadius: "50%", background: "radial-gradient(circle,rgba(99,120,255,0.18) 0%,transparent 70%)", pointerEvents: "none" }} />
                 <div style={{ position: "absolute", bottom: -80, left: -80, width: 280, height: 280, borderRadius: "50%", background: "radial-gradient(circle,rgba(192,132,252,0.12) 0%,transparent 70%)", pointerEvents: "none" }} />
                 <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg,transparent,rgba(99,120,255,0.50),transparent)", pointerEvents: "none" }} />
 
-                <div style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 28, padding: "0 14px", borderRadius: 999, background: "rgba(99,120,255,0.16)", border: "1px solid rgba(99,120,255,0.35)", color: "rgba(160,180,255,0.95)", fontSize: 11, fontWeight: 800, letterSpacing: 0.5, marginBottom: 16, fontFamily: "'DM Mono',monospace" }}>⚡ OFFRE UNIQUE</div>
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 28, padding: "0 14px", borderRadius: 999, background: "rgba(99,120,255,0.16)", border: "1px solid rgba(99,120,255,0.35)", color: "rgba(160,180,255,0.95)", fontSize: 11, fontWeight: 800, letterSpacing: 0.5, marginBottom: 16, fontFamily: "'DM Mono',monospace" }}>CRM SOLO</div>
 
                 {/* Urgency social proof */}
                 <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24, padding: "8px 12px", borderRadius: 10, background: "rgba(80,210,140,0.06)", border: "1px solid rgba(80,210,140,0.14)" }}>
@@ -1202,7 +1206,7 @@ export default function LandingPage() {
 
                 <div style={{ height: 1, background: "linear-gradient(90deg,transparent,rgba(99,120,255,0.25),transparent)", marginBottom: 28 }} />
 
-                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 36 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 36, flex: 1 }}>
                   {["Clients & ventes illimités","Boutiques multiples illimitées","Relances email HTML (Resend)","Gestion des stocks & alertes","Analytiques & rapports complets","Système de rôles & équipe","Support prioritaire","Mises à jour incluses à vie"].map(item => (
                     <div key={item} className="lp-pricing-check-item">
                       <span style={{ color: "rgba(80,210,140,0.9)", flexShrink: 0 }}>{Icons.checkCircle}</span>
@@ -1211,7 +1215,7 @@ export default function LandingPage() {
                   ))}
                 </div>
 
-                <a href="#stripe-placeholder" className="lp-btn-primary lp-btn-pulse" style={{ width: "100%", justifyContent: "center", height: 56, fontSize: 16 }}>Commencer maintenant →</a>
+                <a href="#stripe-placeholder" className="lp-btn-primary lp-btn-pulse" style={{ width: "100%", justifyContent: "center", height: 56, fontSize: 16 }}>Démarrer maintenant →</a>
                 <p style={{ textAlign: "center", fontSize: 13, color: "rgba(80,210,140,0.80)", marginTop: 16, fontWeight: 700 }}>Abonnement sans engagement — annulable à tout moment</p>
                 <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 9 }}>
                   {[["🔒","Paiement sécurisé Stripe"],["⚡","Accès immédiat après paiement"],["💬","Support réactif sous 24h"]].map(([icon, text]) => (
@@ -1223,6 +1227,58 @@ export default function LandingPage() {
                 </div>
               </div>
             </div>
+
+            {/* ── Offre 2 : CRM + Site vitrine ── */}
+            <div style={{ position: "relative", paddingTop: 20 }}>
+              <div className="lp-popular-badge" style={{ background: "linear-gradient(135deg,rgba(20,184,166,0.35),rgba(99,120,255,0.25))", borderColor: "rgba(20,184,166,0.45)", color: "rgba(150,240,230,0.95)" }}>✦ Nouveau</div>
+              <div className="lp-pricing-inner" style={{ background: "linear-gradient(145deg,rgba(14,28,34,0.98),rgba(8,16,22,0.99))", border: "1px solid rgba(20,184,166,0.45)", boxShadow: "0 0 48px rgba(20,184,166,0.08), inset 0 0 80px rgba(20,184,166,0.03)" }}>
+                <div style={{ position: "absolute", top: -100, right: -100, width: 360, height: 360, borderRadius: "50%", background: "radial-gradient(circle,rgba(20,184,166,0.14) 0%,transparent 70%)", pointerEvents: "none" }} />
+                <div style={{ position: "absolute", bottom: -80, left: -80, width: 280, height: 280, borderRadius: "50%", background: "radial-gradient(circle,rgba(99,120,255,0.10) 0%,transparent 70%)", pointerEvents: "none" }} />
+                <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg,transparent,rgba(20,184,166,0.55),transparent)", pointerEvents: "none" }} />
+
+                <div style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 28, padding: "0 14px", borderRadius: 999, background: "rgba(20,184,166,0.14)", border: "1px solid rgba(20,184,166,0.35)", color: "rgba(150,240,230,0.95)", fontSize: 11, fontWeight: 800, letterSpacing: 0.5, marginBottom: 16, fontFamily: "'DM Mono',monospace" }}>CRM + SITE VITRINE</div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24, padding: "8px 12px", borderRadius: 10, background: "rgba(20,184,166,0.06)", border: "1px solid rgba(20,184,166,0.14)" }}>
+                  <span style={{ fontSize: 18 }}>🌐</span>
+                  <span style={{ fontSize: 12.5, color: "rgba(255,255,255,0.50)", lineHeight: 1.3 }}>
+                    CRM complet <span style={{ color: "rgba(20,184,166,0.95)", fontWeight: 800 }}>+ votre boutique en ligne</span>
+                  </span>
+                </div>
+
+                <div style={{ marginBottom: 8 }}>
+                  <span style={{ fontSize: 62, fontWeight: 900, color: "rgba(255,255,255,0.97)", letterSpacing: "-2px", fontFamily: "'DM Mono',monospace" }}>600€</span>
+                  <span style={{ fontSize: 16, color: "rgba(255,255,255,0.45)", marginLeft: 8, fontWeight: 500 }}>une fois</span>
+                </div>
+                <div style={{ display: "flex", alignItems: "baseline", gap: 6, marginBottom: 12 }}>
+                  <span style={{ fontSize: 30, fontWeight: 900, color: "rgba(20,184,166,0.95)", fontFamily: "'DM Mono',monospace" }}>+ 20€</span>
+                  <span style={{ fontSize: 14, color: "rgba(255,255,255,0.40)", fontWeight: 500 }}>/mois ensuite</span>
+                </div>
+                <p style={{ fontSize: 14, color: "rgba(255,255,255,0.38)", marginBottom: 36, lineHeight: 1.65 }}>Tout ce qu'inclut l'offre CRM Solo, plus un site vitrine professionnel clé en main pour votre boutique.</p>
+
+                <div style={{ height: 1, background: "linear-gradient(90deg,transparent,rgba(20,184,166,0.25),transparent)", marginBottom: 28 }} />
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 36, flex: 1 }}>
+                  {["Clients & ventes illimités","Boutiques multiples illimitées","Relances email HTML (Resend)","Gestion des stocks & alertes","Analytiques & rapports complets","Système de rôles & équipe","Support prioritaire","Mises à jour incluses à vie","Site vitrine personnalisé","Nom de domaine inclus 1 an","Design adapté à votre boutique","Référencement local (SEO)"].map((item, idx) => (
+                    <div key={item} className="lp-pricing-check-item" style={idx >= 8 ? { borderColor: "rgba(20,184,166,0.20)", background: "rgba(20,184,166,0.04)" } : {}}>
+                      <span style={{ color: idx >= 8 ? "rgba(20,184,166,0.9)" : "rgba(80,210,140,0.9)", flexShrink: 0 }}>{Icons.checkCircle}</span>
+                      <span style={{ fontSize: 14, color: idx >= 8 ? "rgba(150,240,230,0.88)" : "rgba(255,255,255,0.78)", fontWeight: idx >= 8 ? 600 : 500, lineHeight: 1.4 }}>{item}</span>
+                    </div>
+                  ))}
+                </div>
+
+                <a href="#stripe-placeholder" className="lp-btn-primary lp-btn-pulse" style={{ width: "100%", justifyContent: "center", height: 56, fontSize: 16, background: "linear-gradient(135deg,rgba(20,184,166,0.90),rgba(16,150,136,0.85))", boxShadow: "0 4px 24px rgba(20,184,166,0.30)" }}>Démarrer maintenant →</a>
+                <p style={{ textAlign: "center", fontSize: 13, color: "rgba(20,184,166,0.80)", marginTop: 16, fontWeight: 700 }}>Abonnement sans engagement — annulable à tout moment</p>
+                <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 9 }}>
+                  {[["🔒","Paiement sécurisé Stripe"],["⚡","Accès immédiat après paiement"],["💬","Support réactif sous 24h"]].map(([icon, text]) => (
+                    <div key={text} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <span style={{ fontSize: 15, flexShrink: 0 }}>{icon}</span>
+                      <span style={{ fontSize: 13, color: "rgba(255,255,255,0.42)", fontWeight: 500 }}>{text}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       </section>
