@@ -729,6 +729,7 @@ button {
     padding-left: 16px !important;
     padding-right: 16px !important;
     scroll-padding-left: 16px;
+    align-items: stretch !important;
   }
 
   /* Largeur des slides : laisse dépasser le bord de la carte suivante */
