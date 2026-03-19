@@ -342,10 +342,10 @@ const CSS = `
     .lp-hiw-connector svg { display:none !important; }
 
     /* Pricing carousel */
-    .lp-section-pricing { padding:56px 0; background:linear-gradient(to bottom,transparent 0%,rgba(10,10,20,0.3) 15%,rgba(10,10,20,0.8) 40%,#0a0a14 100%); }
-    .lp-pricing-grid { display:flex !important; overflow-x:scroll; scroll-snap-type:x mandatory; scrollbar-width:none; -webkit-overflow-scrolling:touch; padding:8px 6% 20px 20px; column-gap:0 !important; align-items:stretch !important; }
+    .lp-section-pricing { padding:56px 0; overflow-x:hidden; }
+    .lp-pricing-grid { display:flex !important; overflow-x:scroll; scroll-snap-type:x mandatory; scrollbar-width:none; -webkit-overflow-scrolling:touch; padding:8px 20px 20px 20px; column-gap:0 !important; align-items:stretch !important; }
     .lp-pricing-grid::-webkit-scrollbar { display:none; }
-    .lp-pricing-slide { flex:none !important; width:88% !important; padding-right:16px; scroll-snap-align:start; display:flex !important; flex-direction:column !important; }
+    .lp-pricing-slide { flex:none !important; width:calc(85vw) !important; flex-shrink:0 !important; padding-right:16px; scroll-snap-align:start; display:flex !important; flex-direction:column !important; }
     .lp-pricing-inner { padding:28px 20px !important; border-radius:20px !important; flex:1 !important; }
     .lp-pricing-dots  { display:flex !important; }
     .lp-pricing-hint-arrow { display:flex !important; }
@@ -1178,8 +1178,10 @@ export default function LandingPage() {
       <div className="lp-divider" />
 
       {/* ══════════ PRICING ══════════ */}
-      <section id="pricing" className="lp-section-pricing">
-        <div style={{ maxWidth: 1140, margin: "0 auto" }}>
+      <section id="pricing" className="lp-section-pricing" style={{ position: "relative" }}>
+        {/* Decorative top gradient */}
+        <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 120, background: "linear-gradient(to bottom, rgba(99,120,255,0.08) 0%, rgba(20,184,166,0.05) 40%, transparent 100%)", pointerEvents: "none", zIndex: 0 }} />
+        <div style={{ maxWidth: 1140, margin: "0 auto", position: "relative", zIndex: 1 }}>
           <div className="lp-reveal" style={{ textAlign: "center", marginBottom: 72 }}>
             <span className="lp-tag" style={{ marginBottom: 20, display: "inline-flex" }}>{Icons.spark} Tarif</span>
             <h2 style={{ fontSize: "clamp(28px,4vw,46px)", fontWeight: 900, letterSpacing: "-1px", color: "rgba(255,255,255,0.95)", marginTop: 16, marginBottom: 16 }}>Simple et transparent</h2>
