@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     cancel_at_period_end: true,
   });
 
-  const endsAt = new Date(subscription.current_period_end * 1000).toISOString();
+  const endsAt = new Date((subscription as any).current_period_end * 1000).toISOString();
 
   // 5. Update workspaces table
   const { error: updateError } = await supabase
