@@ -204,9 +204,6 @@ export default function ParametresPage() {
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [isActuallyOwner, setIsActuallyOwner] = useState(false);
 
-  // Subscription
-  const [subscriptionStatus, setSubscriptionStatus] = useState<string>("active");
-  const [subscriptionEndsAt, setSubscriptionEndsAt] = useState<string | null>(null);
   // Resend
   const [resendApiKey, setResendApiKey] = useState("");
   const [resendApiKeyInput, setResendApiKeyInput] = useState("");
@@ -236,15 +233,13 @@ export default function ParametresPage() {
 
       const { data: wsData } = await supabase
         .from("workspaces")
-        .select("is_open,user_id,resend_api_key,subscription_status,subscription_ends_at")
+        .select("is_open,user_id,resend_api_key")
         .eq("id", activeWorkspace!.id)
         .single();
       setIsOpen(wsData?.is_open !== false);
       const savedKey = wsData?.resend_api_key ?? "";
       setResendApiKey(savedKey);
       setResendApiKeyInput(savedKey);
-      setSubscriptionStatus(wsData?.subscription_status ?? "active");
-      setSubscriptionEndsAt(wsData?.subscription_ends_at ?? null);
 
       const ownerCheck = wsData?.user_id === auth.user.id;
       setIsActuallyOwner(ownerCheck);
@@ -434,50 +429,6 @@ ${link}
   }
   const isExpired = (iso: string) => new Date(iso) < new Date();
 
-  const SubscriptionBlock = () => {
-    const isCancelled = subscriptionStatus === "cancelled";
-    const endsDate = subscriptionEndsAt ? new Date(subscriptionEndsAt) : null;
-    const isExpiredSub = isCancelled && endsDate && endsDate < new Date();
-    return (
-      <div className="ds-card">
-        <div className="ds-card-head">
-          <div>
-            <div className="ds-card-title">💳 Abonnement</div>
-            <div className="ds-card-sub">Gérez votre abonnement ClientFlow pour ce workspace.</div>
-          </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 32, padding: "0 14px", borderRadius: 999, background: isCancelled ? "rgba(239,68,68,0.10)" : "rgba(80,200,120,0.10)", border: `1px solid ${isCancelled ? "rgba(239,68,68,0.28)" : "rgba(80,200,120,0.28)"}`, color: isCancelled ? "rgba(255,130,130,0.90)" : "rgba(100,220,140,0.95)", fontSize: 12, fontWeight: 800 }}>
-              <span style={{ width: 7, height: 7, borderRadius: "50%", background: isCancelled ? "rgba(239,68,68,0.90)" : "rgba(80,220,120,0.90)", flexShrink: 0, boxShadow: isCancelled ? "0 0 6px rgba(239,68,68,0.5)" : "0 0 6px rgba(80,220,120,0.5)" }} />
-              {isCancelled ? (isExpiredSub ? "Expiré" : "Résilié") : "Actif"}
-            </div>
-            {isCancelled && endsDate && (
-              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.40)", fontWeight: 500 }}>
-                {isExpiredSub ? "Accès expiré le" : "Accès jusqu'au"}{" "}
-                <span style={{ color: "rgba(255,255,255,0.65)", fontWeight: 700 }}>
-                  {String(endsDate.getDate()).padStart(2,"0")}/{String(endsDate.getMonth()+1).padStart(2,"0")}/{endsDate.getFullYear()}
-                </span>
-              </div>
-            )}
-          </div>
-          {!isCancelled && (
-            <a href="mailto:client.flow@outlook.com?subject=Demande%20de%20r%C3%A9siliation%20d'abonnement%20ClientFlow&body=Bonjour%2C%0A%0AJe%20souhaite%20r%C3%A9silier%20mon%20abonnement%20ClientFlow.%0A%0ANom%20du%20workspace%20%3A%20%5B%C3%A0%20compl%C3%A9ter%5D%0AEmail%20du%20compte%20%3A%20%5B%C3%A0%20compl%C3%A9ter%5D%0A%0ACordialement"
-              style={{ height: 40, padding: "0 18px", borderRadius: 10, border: "1px solid rgba(239,68,68,0.28)", background: "rgba(239,68,68,0.08)", color: "rgba(255,120,120,0.90)", fontSize: 13, fontWeight: 700, display: "inline-flex", alignItems: "center", textDecoration: "none", whiteSpace: "nowrap" }}>
-              Résilier mon abonnement
-            </a>
-          )}
-          {isCancelled && (
-            <a href="https://clientflow-web-3.vercel.app/#pricing"
-              style={{ height: 40, padding: "0 18px", borderRadius: 10, border: "1px solid rgba(99,120,255,0.35)", background: "rgba(99,120,255,0.12)", color: "rgba(160,180,255,0.95)", fontSize: 13, fontWeight: 700, display: "inline-flex", alignItems: "center", textDecoration: "none", whiteSpace: "nowrap" }}>
-              Renouveler →
-            </a>
-          )}
-        </div>
-      </div>
-    );
-  };
-
   const ToggleShopBlock = () => (
     <div className="ds-card">
       <div className="ds-card-head">
@@ -595,7 +546,6 @@ ${link}
       {errorMsg && <div style={{ padding: "12px 16px", borderRadius: 12, background: "rgba(255,80,80,0.08)", border: "1px solid rgba(255,80,80,0.20)", color: "rgba(255,120,120,0.95)", fontWeight: 700, fontSize: 13 }}>{errorMsg}</div>}
       {successMsg && <div style={{ padding: "12px 16px", borderRadius: 12, background: "rgba(80,200,120,0.08)", border: "1px solid rgba(80,200,120,0.20)", color: "rgba(100,220,140,0.95)", fontWeight: 700, fontSize: 13, wordBreak: "break-all" }}>{successMsg}</div>}
 
-      <SubscriptionBlock />
       <ToggleShopBlock />
 
       {/* ── Envoi d'emails Resend ── */}
