@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
   const subscription = event.data.object as Stripe.Subscription;
 
   if (event.type === "customer.subscription.deleted") {
-    const endsAt = new Date(subscription.current_period_end * 1000).toISOString();
+    const endsAt = new Date((subscription as any).current_period_end * 1000).toISOString();
     await supabase
       .from("workspaces")
       .update({
