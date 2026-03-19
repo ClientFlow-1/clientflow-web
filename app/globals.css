@@ -736,12 +736,15 @@ button {
   .lp-pricing-slide {
     width: calc(100% - 32px) !important;
     align-self: stretch;
+    display: flex !important;
+    flex-direction: column !important;
+    height: 100% !important;
   }
 
   /* Hauteur égale des cartes sur mobile */
   .lp-pricing-slide > .lp-pricing-inner {
+    flex: 1 !important;
     height: 100% !important;
-    min-height: 760px !important;
   }
 
   /* Supprime le glow/halo autour des cartes pricing */
