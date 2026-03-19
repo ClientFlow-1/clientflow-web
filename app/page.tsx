@@ -1174,7 +1174,7 @@ export default function LandingPage() {
 
             {/* ── Offre 1 : CRM Solo ── */}
             <div style={{ position: "relative", paddingTop: 20 }}>
-              <div className="lp-popular-badge">{Icons.spark} Offre de lancement</div>
+              <div className="lp-popular-badge">{Icons.spark} Offre de base</div>
               <div className="lp-pricing-card lp-pricing-inner" style={{ background: "linear-gradient(145deg,rgba(22,24,44,0.98),rgba(10,11,22,0.99))", border: "1px solid rgba(99,120,255,0.38)" }}>
                 <div style={{ position: "absolute", top: -100, right: -100, width: 360, height: 360, borderRadius: "50%", background: "radial-gradient(circle,rgba(99,120,255,0.18) 0%,transparent 70%)", pointerEvents: "none" }} />
                 <div style={{ position: "absolute", bottom: -80, left: -80, width: 280, height: 280, borderRadius: "50%", background: "radial-gradient(circle,rgba(192,132,252,0.12) 0%,transparent 70%)", pointerEvents: "none" }} />
@@ -1230,7 +1230,7 @@ export default function LandingPage() {
 
             {/* ── Offre 2 : CRM + Site vitrine ── */}
             <div style={{ position: "relative", paddingTop: 20 }}>
-              <div className="lp-popular-badge" style={{ background: "linear-gradient(135deg,rgba(20,184,166,0.35),rgba(99,120,255,0.25))", borderColor: "rgba(20,184,166,0.45)", color: "rgba(150,240,230,0.95)" }}>✦ Nouveau</div>
+              <div className="lp-popular-badge" style={{ background: "linear-gradient(135deg,rgba(20,184,166,0.35),rgba(99,120,255,0.25))", borderColor: "rgba(20,184,166,0.45)", color: "rgba(150,240,230,0.95)" }}>⭐ La plus populaire</div>
               <div className="lp-pricing-inner" style={{ background: "linear-gradient(145deg,rgba(14,28,34,0.98),rgba(8,16,22,0.99))", border: "1px solid rgba(20,184,166,0.45)", boxShadow: "0 0 48px rgba(20,184,166,0.08), inset 0 0 80px rgba(20,184,166,0.03)" }}>
                 <div style={{ position: "absolute", top: -100, right: -100, width: 360, height: 360, borderRadius: "50%", background: "radial-gradient(circle,rgba(20,184,166,0.14) 0%,transparent 70%)", pointerEvents: "none" }} />
                 <div style={{ position: "absolute", bottom: -80, left: -80, width: 280, height: 280, borderRadius: "50%", background: "radial-gradient(circle,rgba(99,120,255,0.10) 0%,transparent 70%)", pointerEvents: "none" }} />
