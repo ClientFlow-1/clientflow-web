@@ -204,6 +204,12 @@ export default function ParametresPage() {
   const [currentUserId, setCurrentUserId] = useState<string>("");
   const [isActuallyOwner, setIsActuallyOwner] = useState(false);
 
+  // Subscription
+  const [subscriptionStatus, setSubscriptionStatus] = useState<string>("active");
+  const [subscriptionEndsAt, setSubscriptionEndsAt] = useState<string | null>(null);
+  const [cancellingSubscription, setCancellingSubscription] = useState(false);
+  const [cancelConfirmOpen, setCancelConfirmOpen] = useState(false);
+
   // Resend
   const [resendApiKey, setResendApiKey] = useState("");
   const [resendApiKeyInput, setResendApiKeyInput] = useState("");
@@ -233,13 +239,15 @@ export default function ParametresPage() {
 
       const { data: wsData } = await supabase
         .from("workspaces")
-        .select("is_open,user_id,resend_api_key")
+        .select("is_open,user_id,resend_api_key,subscription_status,subscription_ends_at")
         .eq("id", activeWorkspace!.id)
         .single();
       setIsOpen(wsData?.is_open !== false);
       const savedKey = wsData?.resend_api_key ?? "";
       setResendApiKey(savedKey);
       setResendApiKeyInput(savedKey);
+      setSubscriptionStatus(wsData?.subscription_status ?? "active");
+      setSubscriptionEndsAt(wsData?.subscription_ends_at ?? null);
 
       const ownerCheck = wsData?.user_id === auth.user.id;
       setIsActuallyOwner(ownerCheck);
@@ -414,6 +422,23 @@ ${link}
     } catch (e: any) { setErrorMsg(e?.message ?? "Erreur"); }
   }
 
+  async function cancelSubscription() {
+    setCancellingSubscription(true); setErrorMsg("");
+    try {
+      const res = await fetch("/api/cancel-subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspaceId: activeWorkspace!.id }),
+      });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error ?? "Erreur résiliation");
+      setSubscriptionStatus("cancelled");
+      setSuccessMsg("✅ Résiliation prise en compte. Votre accès reste actif jusqu'à la fin de la période en cours.");
+      setTimeout(() => setSuccessMsg(""), 6000);
+    } catch (e: any) { setErrorMsg(e?.message ?? "Erreur lors de la résiliation"); }
+    finally { setCancellingSubscription(false); }
+  }
+
   function copyLink(token: string) {
     navigator.clipboard.writeText(`${window.location.origin}/invite/${token}`);
     setSuccessMsg("📋 Lien copié !"); setTimeout(() => setSuccessMsg(""), 3000);
@@ -428,6 +453,81 @@ ${link}
     return `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`;
   }
   const isExpired = (iso: string) => new Date(iso) < new Date();
+
+  const CancelSubscriptionModal = () => cancelConfirmOpen && mounted ? createPortal(
+    <div style={{ position: "fixed", inset: 0, zIndex: 99999, display: "flex", alignItems: "center", justifyContent: "center", padding: 18, background: "rgba(0,0,0,0.65)", backdropFilter: "blur(12px)" }}
+      onMouseDown={e => { if (e.target === e.currentTarget) setCancelConfirmOpen(false); }}>
+      <div style={{ width: 440, maxWidth: "100%", borderRadius: 20, padding: "28px 28px 24px", background: "linear-gradient(180deg, rgba(20,22,28,0.99), rgba(12,13,16,0.99))", border: "1px solid rgba(255,80,80,0.18)", boxShadow: "0 30px 80px rgba(0,0,0,0.7)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
+          <div style={{ width: 40, height: 40, borderRadius: "50%", background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.30)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(239,68,68,0.90)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <div style={{ fontSize: 17, fontWeight: 900, color: "rgba(255,255,255,0.95)" }}>Résilier l'abonnement</div>
+        </div>
+        <div style={{ fontSize: 14, color: "rgba(255,255,255,0.60)", marginBottom: 8, lineHeight: 1.65 }}>
+          Votre accès restera actif jusqu'à la fin de la période en cours. Cette action est irréversible.
+        </div>
+        <div style={{ padding: "10px 14px", borderRadius: 10, background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.15)", fontSize: 13, color: "rgba(255,140,140,0.80)", fontWeight: 600, marginBottom: 24, lineHeight: 1.5 }}>
+          ⚠️ Pour renouveler votre abonnement après résiliation, rendez-vous sur la page tarifs.
+        </div>
+        <div style={{ display: "flex", gap: 10, justifyContent: "flex-end" }}>
+          <button type="button" onClick={() => setCancelConfirmOpen(false)}
+            style={{ height: 42, padding: "0 20px", borderRadius: 10, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(255,255,255,0.04)", color: "rgba(255,255,255,0.70)", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+            Annuler
+          </button>
+          <button type="button" disabled={cancellingSubscription} onClick={() => { setCancelConfirmOpen(false); cancelSubscription(); }}
+            style={{ height: 42, padding: "0 20px", borderRadius: 10, border: "1px solid rgba(239,68,68,0.35)", background: "rgba(239,68,68,0.14)", color: "rgba(255,120,120,0.95)", fontWeight: 800, fontSize: 14, cursor: cancellingSubscription ? "not-allowed" : "pointer", opacity: cancellingSubscription ? 0.6 : 1 }}>
+            {cancellingSubscription ? "Résiliation…" : "Confirmer la résiliation"}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  ) : null;
+
+  const SubscriptionBlock = () => {
+    const isCancelled = subscriptionStatus === "cancelled";
+    const endsDate = subscriptionEndsAt ? new Date(subscriptionEndsAt) : null;
+    const isExpiredSub = isCancelled && endsDate && endsDate < new Date();
+    return (
+      <div className="ds-card">
+        <div className="ds-card-head">
+          <div>
+            <div className="ds-card-title">💳 Abonnement</div>
+            <div className="ds-card-sub">Gérez votre abonnement ClientFlow pour ce workspace.</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 32, padding: "0 14px", borderRadius: 999, background: isCancelled ? "rgba(239,68,68,0.10)" : "rgba(80,200,120,0.10)", border: `1px solid ${isCancelled ? "rgba(239,68,68,0.28)" : "rgba(80,200,120,0.28)"}`, color: isCancelled ? "rgba(255,130,130,0.90)" : "rgba(100,220,140,0.95)", fontSize: 12, fontWeight: 800 }}>
+              <span style={{ width: 7, height: 7, borderRadius: "50%", background: isCancelled ? "rgba(239,68,68,0.90)" : "rgba(80,220,120,0.90)", flexShrink: 0, boxShadow: isCancelled ? "0 0 6px rgba(239,68,68,0.5)" : "0 0 6px rgba(80,220,120,0.5)" }} />
+              {isCancelled ? (isExpiredSub ? "Expiré" : "Résilié") : "Actif"}
+            </div>
+            {isCancelled && endsDate && (
+              <div style={{ fontSize: 13, color: "rgba(255,255,255,0.40)", fontWeight: 500 }}>
+                {isExpiredSub ? "Accès expiré le" : "Accès jusqu'au"}{" "}
+                <span style={{ color: "rgba(255,255,255,0.65)", fontWeight: 700 }}>
+                  {String(endsDate.getDate()).padStart(2,"0")}/{String(endsDate.getMonth()+1).padStart(2,"0")}/{endsDate.getFullYear()}
+                </span>
+              </div>
+            )}
+          </div>
+          {!isCancelled && (
+            <button type="button" onClick={() => setCancelConfirmOpen(true)} disabled={cancellingSubscription}
+              style={{ height: 40, padding: "0 18px", borderRadius: 10, border: "1px solid rgba(239,68,68,0.28)", background: "rgba(239,68,68,0.08)", color: "rgba(255,120,120,0.90)", fontSize: 13, fontWeight: 700, cursor: cancellingSubscription ? "not-allowed" : "pointer", opacity: cancellingSubscription ? 0.6 : 1, whiteSpace: "nowrap" }}>
+              Résilier mon abonnement
+            </button>
+          )}
+          {isCancelled && (
+            <a href="https://clientflow-web-3.vercel.app/#pricing"
+              style={{ height: 40, padding: "0 18px", borderRadius: 10, border: "1px solid rgba(99,120,255,0.35)", background: "rgba(99,120,255,0.12)", color: "rgba(160,180,255,0.95)", fontSize: 13, fontWeight: 700, display: "inline-flex", alignItems: "center", textDecoration: "none", whiteSpace: "nowrap" }}>
+              Renouveler →
+            </a>
+          )}
+        </div>
+      </div>
+    );
+  };
 
   const ToggleShopBlock = () => (
     <div className="ds-card">
@@ -546,6 +646,7 @@ ${link}
       {errorMsg && <div style={{ padding: "12px 16px", borderRadius: 12, background: "rgba(255,80,80,0.08)", border: "1px solid rgba(255,80,80,0.20)", color: "rgba(255,120,120,0.95)", fontWeight: 700, fontSize: 13 }}>{errorMsg}</div>}
       {successMsg && <div style={{ padding: "12px 16px", borderRadius: 12, background: "rgba(80,200,120,0.08)", border: "1px solid rgba(80,200,120,0.20)", color: "rgba(100,220,140,0.95)", fontWeight: 700, fontSize: 13, wordBreak: "break-all" }}>{successMsg}</div>}
 
+      <SubscriptionBlock />
       <ToggleShopBlock />
 
       {/* ── Envoi d'emails Resend ── */}
@@ -705,6 +806,7 @@ ${link}
       )}
 
       <ConfirmModal />
+      <CancelSubscriptionModal />
     </div>
   );
 }
