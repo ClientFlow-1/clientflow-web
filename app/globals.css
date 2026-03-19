@@ -710,3 +710,17 @@ button {
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   }
 }
+
+/* Neutralise le radial-gradient du body derrière la section pricing sur mobile */
+@media (max-width: 768px) {
+  .lp-section-pricing {
+    position: relative;
+  }
+  .lp-section-pricing::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: #0a0a0f;
+    z-index: -1;
+  }
+}
