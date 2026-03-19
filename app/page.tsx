@@ -1001,7 +1001,7 @@ export default function LandingPage() {
           {/* Zone droite — boutons */}
           <div className="lp-nav-right" style={{ flex: "0 0 auto", display: "flex", alignItems: "center", gap: 12, paddingRight: 8 }}>
             <Link href="/login" className="lp-nav-btn-connect">Connexion</Link>
-            <a href="#stripe-placeholder" className="lp-nav-btn-start">Démarrer</a>
+            <a href="#pricing" className="lp-nav-btn-start">Démarrer</a>
           </div>
 
         </div>
@@ -1042,7 +1042,7 @@ export default function LandingPage() {
         {/* Bottom buttons */}
         <div style={{ padding: "20px", borderTop: "1px solid rgba(255,255,255,0.07)", display: "flex", flexDirection: "column", gap: 10, flexShrink: 0 }}>
           <Link href="/login" onClick={() => setDrawerOpen(false)} style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 46, borderRadius: 10, border: "1px solid rgba(255,255,255,0.18)", color: "rgba(255,255,255,0.78)", fontWeight: 700, fontSize: 14, textDecoration: "none" }}>Connexion</Link>
-          <a href="#stripe-placeholder" className="lp-btn-primary" onClick={() => setDrawerOpen(false)} style={{ height: 46, fontSize: 14, borderRadius: 10, justifyContent: "center" }}>Démarrer →</a>
+          <a href="#pricing" className="lp-btn-primary" onClick={() => setDrawerOpen(false)} style={{ height: 46, fontSize: 14, borderRadius: 10, justifyContent: "center" }}>Démarrer →</a>
         </div>
 
       </div>
@@ -1074,7 +1074,7 @@ export default function LandingPage() {
                 ClientFlow est le CRM tout-en-un pensé pour les boutiques physiques — gestion clients, relances email automatiques, suivi des stocks et analytiques en temps réel.
               </p>
               <div className="lp-hero-fadeup lp-delay-4 lp-hero-ctas" style={{ display: "flex", gap: 14, flexWrap: "wrap", alignItems: "center" }}>
-                <a href="#stripe-placeholder" className="lp-btn-primary lp-btn-pulse">Commencer maintenant →</a>
+                <a href="#pricing" className="lp-btn-primary lp-btn-pulse">Commencer maintenant →</a>
                 <a href="#features" className="lp-btn-ghost">{Icons.play} Voir les fonctionnalités</a>
               </div>
               <HeroStats />
@@ -1242,7 +1242,7 @@ export default function LandingPage() {
                   ))}
                 </div>
 
-                <a href="#stripe-placeholder" className="lp-btn-primary lp-btn-pulse" style={{ width: "100%", justifyContent: "center", height: 56, fontSize: 16 }}>Démarrer maintenant →</a>
+                <a href="https://buy.stripe.com/5kQfZi3qp0dXbQPaT17Zu02" className="lp-btn-primary lp-btn-pulse" style={{ width: "100%", justifyContent: "center", height: 56, fontSize: 16 }}>Démarrer maintenant →</a>
                 <p style={{ textAlign: "center", fontSize: 13, color: "rgba(80,210,140,0.80)", marginTop: 16, fontWeight: 700 }}>Abonnement sans engagement — annulable à tout moment</p>
                 <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 9 }}>
                   {[["🔒","Paiement sécurisé Stripe"],["⚡","Accès immédiat après paiement"],["💬","Support réactif sous 24h"]].map(([icon, text]) => (
@@ -1298,7 +1298,7 @@ export default function LandingPage() {
                   ))}
                 </div>
 
-                <a href="#stripe-placeholder" className="lp-btn-primary lp-btn-pulse" style={{ width: "100%", justifyContent: "center", height: 56, fontSize: 16, background: "linear-gradient(135deg,rgba(20,184,166,0.90),rgba(16,150,136,0.85))", boxShadow: "0 4px 24px rgba(20,184,166,0.30)" }}>Démarrer maintenant →</a>
+                <a href="https://buy.stripe.com/3cIdRaf975yh4on2mv7Zu03" className="lp-btn-primary lp-btn-pulse" style={{ width: "100%", justifyContent: "center", height: 56, fontSize: 16, background: "linear-gradient(135deg,rgba(20,184,166,0.90),rgba(16,150,136,0.85))", boxShadow: "0 4px 24px rgba(20,184,166,0.30)" }}>Démarrer maintenant →</a>
                 <p style={{ textAlign: "center", fontSize: 13, color: "rgba(20,184,166,0.80)", marginTop: 16, fontWeight: 700 }}>Abonnement sans engagement — annulable à tout moment</p>
                 <div style={{ marginTop: 20, display: "flex", flexDirection: "column", gap: 9 }}>
                   {[["🔒","Paiement sécurisé Stripe"],["⚡","Accès immédiat après paiement"],["💬","Support réactif sous 24h"]].map(([icon, text]) => (
@@ -1352,7 +1352,7 @@ export default function LandingPage() {
             <h2 style={{ fontSize: "clamp(24px,3.5vw,38px)", fontWeight: 900, letterSpacing: "-0.8px", color: "rgba(255,255,255,0.97)", marginBottom: 14 }}>Prêt à moderniser votre boutique ?</h2>
             <p style={{ fontSize: 16, color: "rgba(255,255,255,0.45)", marginBottom: 36, maxWidth: 440, margin: "0 auto 36px", lineHeight: 1.65 }}>Rejoignez les commerçants qui ont déjà optimisé leur relation client avec ClientFlow.</p>
             <div style={{ display: "flex", gap: 14, justifyContent: "center", flexWrap: "wrap" }}>
-              <a href="#stripe-placeholder" className="lp-btn-primary">Commencer maintenant →</a>
+              <a href="#pricing" className="lp-btn-primary">Commencer maintenant →</a>
               <Link href="/login" className="lp-btn-ghost">Se connecter</Link>
             </div>
           </div>
@@ -1432,7 +1432,7 @@ export default function LandingPage() {
 
       {/* ══════════ MOBILE STICKY CTA ══════════ */}
       <div className="lp-sticky-cta" style={{ flexDirection: "column", gap: 0 }}>
-        <a href="#stripe-placeholder" className="lp-btn-primary" style={{ width: "100%", height: 48, fontSize: 15, borderRadius: 12, justifyContent: "center" }}>Démarrer maintenant →</a>
+        <a href="#pricing" className="lp-btn-primary" style={{ width: "100%", height: 48, fontSize: 15, borderRadius: 12, justifyContent: "center" }}>Démarrer maintenant →</a>
         <div style={{ textAlign: "center", marginTop: 8, fontSize: 11, color: "rgba(255,255,255,0.30)", fontFamily: "'DM Mono',monospace" }}>Abonnement sans engagement — annulable à tout moment</div>
       </div>
     </div>
