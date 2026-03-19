@@ -704,6 +704,20 @@ ${link}
         </div>
       )}
 
+      <div className="ds-card">
+        <div className="ds-card-head">
+          <div>
+            <div className="ds-card-title">💳 Abonnement</div>
+            <div className="ds-card-sub">Pour résilier votre abonnement ClientFlow, contactez-nous par email.</div>
+          </div>
+        </div>
+        <a
+          href="mailto:client.flow@outlook.com?subject=Demande%20de%20r%C3%A9siliation%20d'abonnement%20ClientFlow&body=Bonjour%2C%0A%0AJe%20souhaite%20r%C3%A9silier%20mon%20abonnement%20ClientFlow.%0A%0ANom%20du%20workspace%20%3A%20%5B%C3%A0%20compl%C3%A9ter%5D%0AEmail%20du%20compte%20%3A%20%5B%C3%A0%20compl%C3%A9ter%5D%0A%0ACordialement"
+          style={{ display: "inline-flex", alignItems: "center", gap: 8, height: 42, padding: "0 20px", borderRadius: 10, border: "1px solid rgba(239,68,68,0.28)", background: "rgba(239,68,68,0.08)", color: "rgba(255,120,120,0.90)", fontSize: 13, fontWeight: 700, textDecoration: "none", whiteSpace: "nowrap" }}>
+          Résilier mon abonnement
+        </a>
+      </div>
+
       <ConfirmModal />
     </div>
   );
