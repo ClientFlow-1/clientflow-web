@@ -1269,11 +1269,12 @@ export default function LandingPage() {
 
                 <div style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 28, padding: "0 14px", borderRadius: 999, background: "rgba(20,184,166,0.14)", border: "1px solid rgba(20,184,166,0.35)", color: "rgba(150,240,230,0.95)", fontSize: 11, fontWeight: 800, letterSpacing: 0.5, marginBottom: 16, fontFamily: "'DM Mono',monospace" }}>CRM + SITE VITRINE</div>
 
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 24, padding: "8px 12px", borderRadius: 10, background: "rgba(20,184,166,0.06)", border: "1px solid rgba(20,184,166,0.14)" }}>
-                  <span style={{ fontSize: 18 }}>🌐</span>
-                  <span style={{ fontSize: 12.5, color: "rgba(255,255,255,0.50)", lineHeight: 1.3 }}>
-                    CRM complet <span style={{ color: "rgba(20,184,166,0.95)", fontWeight: 800 }}>+ votre boutique en ligne</span>
-                  </span>
+                <div style={{ marginBottom: 24, padding: "16px 20px", borderRadius: 14, background: "linear-gradient(135deg,rgba(20,184,166,0.18),rgba(20,184,166,0.08))", border: "1px solid rgba(20,184,166,0.55)", boxShadow: "0 0 24px rgba(20,184,166,0.15), inset 0 1px 0 rgba(20,184,166,0.25)", display: "flex", alignItems: "center", gap: 14 }}>
+                  <span style={{ fontSize: 28, lineHeight: 1 }}>🌐</span>
+                  <div>
+                    <div style={{ fontSize: 16, fontWeight: 900, color: "rgba(150,240,230,1)", letterSpacing: "-0.2px", lineHeight: 1.2 }}>Site vitrine inclus</div>
+                    <div style={{ fontSize: 12, color: "rgba(150,240,230,0.60)", marginTop: 3, fontWeight: 500 }}>Clé en main, prêt à lancer</div>
+                  </div>
                 </div>
 
                 <div style={{ marginBottom: 8 }}>
@@ -1284,15 +1285,15 @@ export default function LandingPage() {
                   <span style={{ fontSize: 30, fontWeight: 900, color: "rgba(20,184,166,0.95)", fontFamily: "'DM Mono',monospace" }}>+ 20€</span>
                   <span style={{ fontSize: 14, color: "rgba(255,255,255,0.40)", fontWeight: 500 }}>/mois ensuite</span>
                 </div>
-                <p style={{ fontSize: 14, color: "rgba(255,255,255,0.38)", marginBottom: 36, lineHeight: 1.65 }}>Tout ce qu'inclut l'offre CRM Solo, plus un site vitrine professionnel clé en main pour votre boutique.</p>
+                <p style={{ fontSize: 14, color: "rgba(255,255,255,0.38)", marginBottom: 36, lineHeight: 1.65 }}>Tout ce qu'il faut pour exister en ligne — CRM complet et site vitrine professionnel, livrés ensemble.</p>
 
                 <div style={{ height: 1, background: "linear-gradient(90deg,transparent,rgba(20,184,166,0.25),transparent)", marginBottom: 28 }} />
 
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 36, flex: 1 }}>
                   {["Clients & ventes illimités","Boutiques multiples illimitées","Relances email HTML (Resend)","Gestion des stocks & alertes","Analytiques & rapports complets","Système de rôles & équipe","Support prioritaire","Mises à jour incluses à vie","Site vitrine personnalisé","Nom de domaine inclus 1 an","Design adapté à votre boutique","Référencement local (SEO)"].map((item, idx) => (
-                    <div key={item} className="lp-pricing-check-item" style={idx >= 8 ? { borderColor: "rgba(20,184,166,0.20)", background: "rgba(20,184,166,0.04)" } : {}}>
-                      <span style={{ color: idx >= 8 ? "rgba(20,184,166,0.9)" : "rgba(80,210,140,0.9)", flexShrink: 0 }}>{Icons.checkCircle}</span>
-                      <span style={{ fontSize: 14, color: idx >= 8 ? "rgba(150,240,230,0.88)" : "rgba(255,255,255,0.78)", fontWeight: idx >= 8 ? 600 : 500, lineHeight: 1.4 }}>{item}</span>
+                    <div key={item} className="lp-pricing-check-item" style={idx >= 8 ? { borderColor: "rgba(20,184,166,0.28)", background: "rgba(20,184,166,0.08)" } : {}}>
+                      <span style={{ flexShrink: 0, fontSize: idx >= 8 ? 15 : undefined, color: idx >= 8 ? undefined : "rgba(80,210,140,0.9)" }}>{idx >= 8 ? "🌟" : Icons.checkCircle}</span>
+                      <span style={{ fontSize: 14, color: idx >= 8 ? "rgba(150,240,230,0.92)" : "rgba(255,255,255,0.78)", fontWeight: idx >= 8 ? 700 : 500, lineHeight: 1.4 }}>{item}</span>
                     </div>
                   ))}
                 </div>
