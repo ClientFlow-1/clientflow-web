@@ -346,7 +346,8 @@ const CSS = `
     .lp-pricing-grid { display:flex !important; overflow-x:scroll; scroll-snap-type:x mandatory; scrollbar-width:none; -webkit-overflow-scrolling:touch; padding:8px 20px 20px 20px; column-gap:0 !important; align-items:stretch !important; }
     .lp-pricing-grid::-webkit-scrollbar { display:none; }
     .lp-pricing-slide { flex:none !important; width:calc(85vw) !important; flex-shrink:0 !important; padding-right:16px; scroll-snap-align:start; display:flex !important; flex-direction:column !important; }
-    .lp-pricing-inner { padding:28px 20px !important; border-radius:20px !important; flex:1 !important; }
+    .lp-pricing-inner { padding:28px 20px !important; border-radius:20px !important; flex:1 !important; background:rgba(15,15,25,0.95) !important; box-shadow:none !important; }
+    .lp-pricing-card  { animation:none !important; }
     .lp-pricing-dots  { display:flex !important; }
     .lp-pricing-hint-arrow { display:flex !important; }
 

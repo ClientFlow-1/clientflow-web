@@ -723,4 +723,13 @@ button {
     background: #0a0a0f;
     z-index: -1;
   }
+
+  /* Supprime le glow/halo autour des cartes pricing */
+  .lp-pricing-slide > div {
+    box-shadow: none !important;
+  }
+  .lp-pricing-slide::before,
+  .lp-pricing-slide::after {
+    display: none !important;
+  }
 }
