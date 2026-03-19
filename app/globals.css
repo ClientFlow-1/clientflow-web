@@ -724,6 +724,18 @@ button {
     z-index: -1;
   }
 
+  /* Espace symétrique du carousel pricing */
+  .lp-pricing-grid {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+    scroll-padding-left: 16px;
+  }
+
+  /* Largeur des slides : laisse dépasser le bord de la carte suivante */
+  .lp-pricing-slide {
+    width: calc(100% - 32px) !important;
+  }
+
   /* Supprime le glow/halo autour des cartes pricing */
   .lp-pricing-slide > div {
     box-shadow: none !important;
