@@ -203,7 +203,8 @@ const CSS = `
   .lp-section-faq        { padding:80px 24px; }
   .lp-section-cta        { padding:0 24px 100px; }
 
-  .lp-pricing-grid { display:grid; grid-template-columns:1fr 1fr; gap:24px; align-items:stretch; }
+  .lp-pricing-grid { display:grid; grid-template-columns:1fr 1fr; column-gap:24px; align-items:stretch; }
+  .lp-pricing-badge-cell { display:flex; justify-content:center; align-items:center; padding-bottom:8px; }
   .lp-pricing-inner { width:100%; border-radius:28px; padding:48px 44px; position:relative; overflow:hidden; display:flex; flex-direction:column; }
   .lp-pricing-check-item {
     display:flex; align-items:center; gap:12px; padding:10px 14px; border-radius:10px;
@@ -1172,10 +1173,16 @@ export default function LandingPage() {
           </div>
           <div className="lp-pricing-grid lp-reveal">
 
+            {/* ── Badges row ── */}
+            <div className="lp-pricing-badge-cell">
+              <div className="lp-popular-badge" style={{ position: "static", transform: "none" }}>{Icons.spark} Offre de base</div>
+            </div>
+            <div className="lp-pricing-badge-cell">
+              <div className="lp-popular-badge" style={{ position: "static", transform: "none", background: "linear-gradient(135deg,rgba(20,184,166,0.35),rgba(99,120,255,0.25))", borderColor: "rgba(20,184,166,0.45)", color: "rgba(150,240,230,0.95)" }}>⭐ La plus populaire</div>
+            </div>
+
             {/* ── Offre 1 : CRM Solo ── */}
-            <div style={{ position: "relative", paddingTop: 20 }}>
-              <div className="lp-popular-badge">{Icons.spark} Offre de base</div>
-              <div className="lp-pricing-card lp-pricing-inner" style={{ background: "linear-gradient(145deg,rgba(22,24,44,0.98),rgba(10,11,22,0.99))", border: "1px solid rgba(99,120,255,0.38)" }}>
+            <div className="lp-pricing-card lp-pricing-inner" style={{ background: "linear-gradient(145deg,rgba(22,24,44,0.98),rgba(10,11,22,0.99))", border: "1px solid rgba(99,120,255,0.38)" }}>
                 <div style={{ position: "absolute", top: -100, right: -100, width: 360, height: 360, borderRadius: "50%", background: "radial-gradient(circle,rgba(99,120,255,0.18) 0%,transparent 70%)", pointerEvents: "none" }} />
                 <div style={{ position: "absolute", bottom: -80, left: -80, width: 280, height: 280, borderRadius: "50%", background: "radial-gradient(circle,rgba(192,132,252,0.12) 0%,transparent 70%)", pointerEvents: "none" }} />
                 <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg,transparent,rgba(99,120,255,0.50),transparent)", pointerEvents: "none" }} />
@@ -1226,12 +1233,9 @@ export default function LandingPage() {
                   ))}
                 </div>
               </div>
-            </div>
 
             {/* ── Offre 2 : CRM + Site vitrine ── */}
-            <div style={{ position: "relative", paddingTop: 20 }}>
-              <div className="lp-popular-badge" style={{ background: "linear-gradient(135deg,rgba(20,184,166,0.35),rgba(99,120,255,0.25))", borderColor: "rgba(20,184,166,0.45)", color: "rgba(150,240,230,0.95)" }}>⭐ La plus populaire</div>
-              <div className="lp-pricing-inner" style={{ background: "linear-gradient(145deg,rgba(14,28,34,0.98),rgba(8,16,22,0.99))", border: "1px solid rgba(20,184,166,0.45)", boxShadow: "0 0 48px rgba(20,184,166,0.08), inset 0 0 80px rgba(20,184,166,0.03)" }}>
+            <div className="lp-pricing-inner" style={{ background: "linear-gradient(145deg,rgba(14,28,34,0.98),rgba(8,16,22,0.99))", border: "1px solid rgba(20,184,166,0.45)", boxShadow: "0 0 48px rgba(20,184,166,0.08), inset 0 0 80px rgba(20,184,166,0.03)" }}>
                 <div style={{ position: "absolute", top: -100, right: -100, width: 360, height: 360, borderRadius: "50%", background: "radial-gradient(circle,rgba(20,184,166,0.14) 0%,transparent 70%)", pointerEvents: "none" }} />
                 <div style={{ position: "absolute", bottom: -80, left: -80, width: 280, height: 280, borderRadius: "50%", background: "radial-gradient(circle,rgba(99,120,255,0.10) 0%,transparent 70%)", pointerEvents: "none" }} />
                 <div style={{ position: "absolute", top: 0, left: 0, right: 0, height: 1, background: "linear-gradient(90deg,transparent,rgba(20,184,166,0.55),transparent)", pointerEvents: "none" }} />
@@ -1277,7 +1281,6 @@ export default function LandingPage() {
                   ))}
                 </div>
               </div>
-            </div>
 
           </div>
         </div>
