@@ -632,8 +632,18 @@ function NotificationBell() {
                     {n.message}
                   </div>
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 5 }}>
-                    <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.22)", fontFamily: "DM Mono, monospace" }}>
-                      {relativeTime(n.created_at)}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.22)", fontFamily: "DM Mono, monospace" }}>
+                        {relativeTime(n.created_at)}
+                      </div>
+                      {!n.read && (
+                        <button type="button" onClick={async () => { await markOneRead(n.id); }}
+                          style={{ fontSize: 10.5, color: "rgba(255,255,255,0.28)", background: "none", border: "none", cursor: "pointer", padding: "0 4px", fontFamily: "inherit", transition: "color 150ms" }}
+                          onMouseEnter={e => { e.currentTarget.style.color = "rgba(255,255,255,0.55)"; }}
+                          onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.28)"; }}>
+                          Marquer comme lu
+                        </button>
+                      )}
                     </div>
                     {getNotifAction(n) && (
                       <button
