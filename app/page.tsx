@@ -205,7 +205,7 @@ const CSS = `
 
   .lp-pricing-grid { display:grid; grid-template-columns:1fr 1fr; column-gap:24px; align-items:stretch; }
   .lp-pricing-badge-cell { display:flex; justify-content:center; align-items:center; padding-bottom:8px; }
-  .lp-pricing-inner { width:100%; border-radius:28px; padding:48px 44px; position:relative; overflow:hidden; display:flex; flex-direction:column; }
+  .lp-pricing-inner { width:100%; border-radius:28px; padding:48px 44px; position:relative; overflow:hidden; display:flex; flex-direction:column; flex:1; }
   .lp-pricing-check-item {
     display:flex; align-items:center; gap:12px; padding:10px 14px; border-radius:10px;
     background:rgba(255,255,255,0.02); border:1px solid rgba(255,255,255,0.04);
@@ -213,7 +213,7 @@ const CSS = `
   }
   .lp-pricing-check-item:hover { background:rgba(99,120,255,0.06); border-color:rgba(99,120,255,0.14); }
 
-  .lp-pricing-slide { display:flex; flex-direction:column; }
+  .lp-pricing-slide { display:flex; flex-direction:column; height:100%; }
   .lp-pricing-dots  { display:none; justify-content:center; align-items:center; gap:8px; padding-top:20px; }
   .lp-pricing-hint-arrow { display:none; position:absolute; right:0; top:0; bottom:0; width:52px; background:linear-gradient(to right,transparent,rgba(10,11,22,0.88)); align-items:center; justify-content:flex-end; padding-right:14px; z-index:5; pointer-events:none; border-radius:0 20px 20px 0; animation:lp-hint-fade 2.6s ease forwards; }
   .lp-pricing-hint-arrow span { animation:lp-hint-bounce 0.75s ease-in-out infinite; font-size:18px; color:rgba(255,255,255,0.85); font-weight:700; }
