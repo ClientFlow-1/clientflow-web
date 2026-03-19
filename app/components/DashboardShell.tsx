@@ -636,14 +636,6 @@ function NotificationBell() {
                       <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.22)", fontFamily: "DM Mono, monospace" }}>
                         {relativeTime(n.created_at)}
                       </div>
-                      {!n.read && (
-                        <button type="button" onClick={async () => { await markOneRead(n.id); }}
-                          style={{ fontSize: 10.5, color: "rgba(255,255,255,0.28)", background: "none", border: "none", cursor: "pointer", padding: "0 4px", fontFamily: "inherit", transition: "color 150ms" }}
-                          onMouseEnter={e => { e.currentTarget.style.color = "rgba(255,255,255,0.55)"; }}
-                          onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.28)"; }}>
-                          Marquer comme lu
-                        </button>
-                      )}
                     </div>
                     {getNotifAction(n) && (
                       <button
@@ -659,7 +651,15 @@ function NotificationBell() {
                   </div>
                 </div>
                 {!n.read && (
-                  <div style={{ width: 7, height: 7, borderRadius: "50%", background: "rgba(99,120,255,0.9)", flexShrink: 0, marginTop: 4, boxShadow: "0 0 6px rgba(99,120,255,0.6)" }} />
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                    <div style={{ width: 7, height: 7, borderRadius: "50%", background: "rgba(99,120,255,0.9)", boxShadow: "0 0 6px rgba(99,120,255,0.6)" }} />
+                    <button type="button" onClick={async () => { await markOneRead(n.id); }}
+                      style={{ fontSize: 9.5, fontWeight: 700, color: "rgba(255,255,255,0.30)", background: "none", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 999, padding: "1px 6px", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", transition: "color 150ms, border-color 150ms" }}
+                      onMouseEnter={e => { e.currentTarget.style.color = "rgba(255,255,255,0.65)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.30)"; }}
+                      onMouseLeave={e => { e.currentTarget.style.color = "rgba(255,255,255,0.30)"; e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)"; }}>
+                      Lu
+                    </button>
+                  </div>
                 )}
               </div>
             ))}
