@@ -734,6 +734,12 @@ button {
   /* Largeur des slides : laisse dépasser le bord de la carte suivante */
   .lp-pricing-slide {
     width: calc(100% - 32px) !important;
+    align-self: stretch;
+  }
+
+  /* Hauteur égale des cartes sur mobile */
+  .lp-pricing-slide > .lp-pricing-inner {
+    height: 100% !important;
   }
 
   /* Supprime le glow/halo autour des cartes pricing */
