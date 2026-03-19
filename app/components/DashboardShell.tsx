@@ -633,7 +633,7 @@ function NotificationBell() {
                     {getNotifAction(n) && (
                       <button
                         type="button"
-                        onClick={() => { setOpen(false); router.push(getNotifAction(n)!); }}
+                        onClick={() => { setOpen(false); window.location.href = getNotifAction(n)!; }}
                         style={{ fontSize: 11, fontWeight: 700, color: "rgba(99,120,255,0.80)", background: "none", border: "1px solid rgba(99,120,255,0.20)", borderRadius: 6, padding: "2px 8px", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", transition: "border-color 150ms, color 150ms" }}
                         onMouseEnter={e => { e.currentTarget.style.color = "rgba(99,120,255,1)"; e.currentTarget.style.borderColor = "rgba(99,120,255,0.45)"; }}
                         onMouseLeave={e => { e.currentTarget.style.color = "rgba(99,120,255,0.80)"; e.currentTarget.style.borderColor = "rgba(99,120,255,0.20)"; }}
