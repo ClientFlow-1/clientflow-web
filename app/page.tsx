@@ -928,7 +928,12 @@ export default function LandingPage() {
   const [showPricingHint,    setShowPricingHint]    = useState(true);
 
   useReveal();
-  useEffect(() => { window.scrollTo(0, 0); }, []);
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.history.scrollRestoration = 'manual';
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  }, []);
   useEffect(() => { const t = setTimeout(() => setShowPricingHint(false), 2600); return () => clearTimeout(t); }, []);
 
   useEffect(() => {
