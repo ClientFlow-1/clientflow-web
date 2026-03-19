@@ -457,7 +457,23 @@ function relativeTime(dateStr: string): string {
   return `il y a ${Math.floor(hrs / 24)}j`;
 }
 
+function getNotifAction(n: DBNotification): string | null {
+  if (n.type === "stock") {
+    const match = n.title.match(/:\s*(.+)$/);
+    const produit = match ? match[1].trim() : n.title;
+    return `/dashboard/inventaire?produit=${encodeURIComponent(produit)}`;
+  }
+  if (n.type === "relance") {
+    if (n.title.includes("30 j")) return "/dashboard/relances?segment=30";
+    if (n.title.includes("60 j")) return "/dashboard/relances?segment=60";
+    if (n.title.includes("90 j")) return "/dashboard/relances?segment=90";
+  }
+  if (n.type === "inactif") return "/dashboard/relances?segment=180";
+  return null;
+}
+
 function NotificationBell() {
+  const router = useRouter();
   const { activeWorkspace } = useWorkspace();
   const [open, setOpen] = useState(false);
   const [notifs, setNotifs] = useState<DBNotification[]>([]);
@@ -605,8 +621,21 @@ function NotificationBell() {
                   <div style={{ fontSize: 12, color: "rgba(255,255,255,0.42)", lineHeight: 1.55 }}>
                     {n.message}
                   </div>
-                  <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.22)", marginTop: 5, fontFamily: "DM Mono, monospace" }}>
-                    {relativeTime(n.created_at)}
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 5 }}>
+                    <div style={{ fontSize: 10.5, color: "rgba(255,255,255,0.22)", fontFamily: "DM Mono, monospace" }}>
+                      {relativeTime(n.created_at)}
+                    </div>
+                    {getNotifAction(n) && (
+                      <button
+                        type="button"
+                        onClick={() => { setOpen(false); router.push(getNotifAction(n)!); }}
+                        style={{ fontSize: 11, fontWeight: 700, color: "rgba(99,120,255,0.80)", background: "none", border: "1px solid rgba(99,120,255,0.20)", borderRadius: 6, padding: "2px 8px", cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", transition: "border-color 150ms, color 150ms" }}
+                        onMouseEnter={e => { e.currentTarget.style.color = "rgba(99,120,255,1)"; e.currentTarget.style.borderColor = "rgba(99,120,255,0.45)"; }}
+                        onMouseLeave={e => { e.currentTarget.style.color = "rgba(99,120,255,0.80)"; e.currentTarget.style.borderColor = "rgba(99,120,255,0.20)"; }}
+                      >
+                        {n.type === "stock" ? "Voir le stock →" : "Voir les clients →"}
+                      </button>
+                    )}
                   </div>
                 </div>
                 {!n.read && (
