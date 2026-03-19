@@ -1049,6 +1049,7 @@ function RelancesPageInner() {
   const searchParams = useSearchParams();
   const autoOpenComposerDone = useRef(false);
   const [activeSegment, setActiveSegment] = useState<Segment | "all">("all");
+  const [notifClientNames, setNotifClientNames] = useState<string[]>([]);
   const [searchQ, setSearchQ] = useState("");
   const [mounted, setMounted] = useState(false);
   const [inactifDays, setInactifDays] = useState(60);
@@ -1138,6 +1139,11 @@ function RelancesPageInner() {
     const segKey = SEG_MAP[segParam];
     if (segKey) {
       setActiveSegment(segKey);
+      const clientsParam = searchParams.get("clients");
+      if (clientsParam) {
+        const names = clientsParam.split(",").map(s => s.trim()).filter(Boolean);
+        if (names.length > 0) setNotifClientNames(names);
+      }
       setEmailModalOpen(true);
     }
   }, [clientStats]);
@@ -1148,8 +1154,14 @@ function RelancesPageInner() {
       const q = searchQ.trim().toLowerCase();
       list = list.filter(c => `${c.client.prenom ?? ""} ${c.client.nom ?? ""} ${c.client.email ?? ""}`.toLowerCase().includes(q));
     }
+    if (notifClientNames.length > 0) {
+      list = list.filter(c => {
+        const fullName = `${c.client.prenom ?? ""} ${c.client.nom ?? ""}`.trim().toLowerCase();
+        return notifClientNames.some(n => n.toLowerCase() === fullName);
+      });
+    }
     return list.sort((a, b) => b.caTotal - a.caTotal);
-  }, [clientStats, activeSegment, searchQ]);
+  }, [clientStats, activeSegment, searchQ, notifClientNames]);
 
   // Emails du segment actif (filtrés)
   const segmentEmails = useMemo(

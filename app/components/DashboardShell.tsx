@@ -463,12 +463,17 @@ function getNotifAction(n: DBNotification): string | null {
     const produit = match ? match[1].trim() : n.title;
     return `/dashboard/inventaire?produit=${encodeURIComponent(produit)}&openStock=true`;
   }
-  if (n.type === "relance") {
-    if (n.title.includes("30 j")) return "/dashboard/relances?segment=30&openComposer=true";
-    if (n.title.includes("60 j")) return "/dashboard/relances?segment=60&openComposer=true";
-    if (n.title.includes("90 j")) return "/dashboard/relances?segment=90&openComposer=true";
+  if (n.type === "relance" || n.type === "inactif") {
+    const seg = n.type === "inactif" ? "180"
+      : n.title.includes("30 j") ? "30"
+      : n.title.includes("60 j") ? "60"
+      : n.title.includes("90 j") ? "90"
+      : null;
+    if (!seg) return null;
+    const names = n.message.split(",").map(s => s.trim()).filter(Boolean);
+    const clientsParam = names.length > 0 ? `&clients=${encodeURIComponent(names.join(","))}` : "";
+    return `/dashboard/relances?segment=${seg}&openComposer=true${clientsParam}`;
   }
-  if (n.type === "inactif") return "/dashboard/relances?segment=180&openComposer=true";
   return null;
 }
 
