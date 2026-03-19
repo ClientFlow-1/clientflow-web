@@ -1357,11 +1357,11 @@ export default function LandingPage() {
           </div>
           <div>
             <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", marginBottom: 16 }}>Produit</div>
-            {[["Fonctionnalités","#features"],["Comment ça marche","#how-it-works"],["Tarif","#pricing"],["Connexion","/login"]].map(([label, href]) => (
+            {[["Démo interactive","/#demo-interactive"],["Transformations","/#transformations"],["Fonctionnalités","/#features"],["Comment ça marche","/#how-it-works"],["Tarif","/#pricing"],["Témoignages","/#testimonials"],["FAQ","/#faq"],["Connexion","/login"]].map(([label, href]) => (
               <div key={label} style={{ marginBottom: 10 }}>
-                <Link href={href} style={{ fontSize: 14, color: "rgba(255,255,255,0.50)", fontWeight: 500, transition: "color 0.15s" }}
+                <a href={href} style={{ fontSize: 14, color: "rgba(255,255,255,0.50)", fontWeight: 500, textDecoration: "none", transition: "color 0.15s" }}
                   onMouseEnter={e => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.85)"; }}
-                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.50)"; }}>{label}</Link>
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = "rgba(255,255,255,0.50)"; }}>{label}</a>
               </div>
             ))}
           </div>
