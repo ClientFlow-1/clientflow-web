@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabaseClient";
@@ -1040,7 +1040,7 @@ function PopupRow({ label, value, accent, alert, children }: { label: string; va
 }
 
 // ── Page principale ───────────────────────────────────────────────────────────
-export default function RelancesPage() {
+function RelancesPageInner() {
   const { activeWorkspace } = useWorkspace();
   const [clients, setClients] = useState<ClientRow[]>([]);
   const [sales, setSales] = useState<SaleRow[]>([]);
@@ -1452,5 +1452,12 @@ export default function RelancesPage() {
         }
       `}</style>
     </div>
+  );
+}
+export default function RelancesPage() {
+  return (
+    <Suspense fallback={null}>
+      <RelancesPageInner />
+    </Suspense>
   );
 }

@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Suspense, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabaseClient";
@@ -58,7 +58,7 @@ function MovementTypeBadge({ type }: { type: MovementType }) {
   );
 }
 
-export default function InventairePage() {
+function InventairePageInner() {
   const { activeWorkspace } = useWorkspace();
   const [products, setProducts] = useState<Product[]>([]);
   const [movements, setMovements] = useState<StockMovement[]>([]);
@@ -635,5 +635,13 @@ export default function InventairePage() {
         document.body
       )}
     </div>
+  );
+}
+
+export default function InventairePage() {
+  return (
+    <Suspense fallback={null}>
+      <InventairePageInner />
+    </Suspense>
   );
 }
