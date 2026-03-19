@@ -550,7 +550,7 @@ ${link}
         </div>
         <div className="ds-right-tools">
           <div style={{ display: "inline-flex", alignItems: "center", gap: 8, height: 34, padding: "0 14px", borderRadius: 999, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.10)", fontSize: 13, fontWeight: 700, color: "rgba(255,255,255,0.65)" }}>
-            Mon rôle : <RoleBadge role="admin" />
+            Mon rôle : <RoleBadge role={role ?? "—"} />
           </div>
         </div>
       </div>
