@@ -213,6 +213,13 @@ const CSS = `
   }
   .lp-pricing-check-item:hover { background:rgba(99,120,255,0.06); border-color:rgba(99,120,255,0.14); }
 
+  .lp-pricing-slide { display:flex; flex-direction:column; }
+  .lp-pricing-dots  { display:none; justify-content:center; align-items:center; gap:8px; padding-top:20px; }
+  .lp-pricing-hint-arrow { display:none; position:absolute; right:0; top:0; bottom:0; width:52px; background:linear-gradient(to right,transparent,rgba(10,11,22,0.88)); align-items:center; justify-content:flex-end; padding-right:14px; z-index:5; pointer-events:none; border-radius:0 20px 20px 0; animation:lp-hint-fade 2.6s ease forwards; }
+  .lp-pricing-hint-arrow span { animation:lp-hint-bounce 0.75s ease-in-out infinite; font-size:18px; color:rgba(255,255,255,0.85); font-weight:700; }
+  @keyframes lp-hint-bounce { 0%,100%{transform:translateX(0)} 50%{transform:translateX(5px)} }
+  @keyframes lp-hint-fade   { 0%,65%{opacity:1} 100%{opacity:0} }
+
   .lp-cta-inner { border-radius:24px; padding:60px 48px; text-align:center; position:relative; overflow:hidden; }
 
   .lp-footer-grid { display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:40px; margin-bottom:48px; }
@@ -334,10 +341,14 @@ const CSS = `
     .lp-hiw-connector { display:block !important; flex:none !important; width:2px !important; height:44px !important; margin:4px auto !important; background:repeating-linear-gradient(to bottom,rgba(99,120,255,0.60) 0,rgba(99,120,255,0.60) 4px,transparent 4px,transparent 9px) !important; }
     .lp-hiw-connector svg { display:none !important; }
 
-    /* Pricing */
-    .lp-section-pricing { padding:56px 20px; }
-    .lp-pricing-grid    { grid-template-columns:1fr !important; }
-    .lp-pricing-inner   { padding:28px 20px !important; border-radius:20px !important; max-width:100% !important; }
+    /* Pricing carousel */
+    .lp-section-pricing { padding:56px 0; }
+    .lp-pricing-grid { display:flex !important; overflow-x:scroll; scroll-snap-type:x mandatory; scrollbar-width:none; -webkit-overflow-scrolling:touch; padding:8px 6% 20px; column-gap:0 !important; }
+    .lp-pricing-grid::-webkit-scrollbar { display:none; }
+    .lp-pricing-slide { flex:none !important; width:88% !important; padding-right:16px; scroll-snap-align:start; }
+    .lp-pricing-inner { padding:28px 20px !important; border-radius:20px !important; }
+    .lp-pricing-dots  { display:flex !important; }
+    .lp-pricing-hint-arrow { display:flex !important; }
 
     /* Testimonials carousel */
     .lp-testimonials-grid { display:none !important; }
@@ -912,8 +923,11 @@ export default function LandingPage() {
   const [demoEmail,          setDemoEmail]          = useState("");
   const [demoSubmitted,      setDemoSubmitted]      = useState(false);
   const [drawerOpen,         setDrawerOpen]         = useState(false);
+  const [pricingDot,         setPricingDot]         = useState(0);
+  const [showPricingHint,    setShowPricingHint]    = useState(true);
 
   useReveal();
+  useEffect(() => { const t = setTimeout(() => setShowPricingHint(false), 2600); return () => clearTimeout(t); }, []);
 
   useEffect(() => {
     setUrgencyCount(Math.floor(Math.random() * 9) + 7);
@@ -1171,17 +1185,16 @@ export default function LandingPage() {
             <h2 style={{ fontSize: "clamp(28px,4vw,46px)", fontWeight: 900, letterSpacing: "-1px", color: "rgba(255,255,255,0.95)", marginTop: 16, marginBottom: 16 }}>Simple et transparent</h2>
             <p style={{ fontSize: 16, color: "rgba(255,255,255,0.45)", maxWidth: 520, margin: "0 auto", lineHeight: 1.7 }}>Choisissez l'offre adaptée à votre projet. Tout inclus, sans surprises.</p>
           </div>
-          <div className="lp-pricing-grid lp-reveal">
+          <div
+            className="lp-pricing-grid lp-reveal"
+            onScroll={e => setPricingDot(e.currentTarget.scrollLeft > (e.currentTarget.scrollWidth - e.currentTarget.clientWidth) / 2 ? 1 : 0)}
+          >
 
-            {/* ── Badges row ── */}
-            <div className="lp-pricing-badge-cell">
-              <div className="lp-popular-badge" style={{ position: "static", transform: "none" }}>{Icons.spark} Offre de base</div>
-            </div>
-            <div className="lp-pricing-badge-cell">
-              <div className="lp-popular-badge" style={{ position: "static", transform: "none", background: "linear-gradient(135deg,rgba(20,184,166,0.35),rgba(99,120,255,0.25))", borderColor: "rgba(20,184,166,0.45)", color: "rgba(150,240,230,0.95)" }}>⭐ La plus populaire</div>
-            </div>
-
-            {/* ── Offre 1 : CRM Solo ── */}
+            {/* ── Slide 1 : CRM Solo ── */}
+            <div className="lp-pricing-slide">
+              <div className="lp-pricing-badge-cell">
+                <div className="lp-popular-badge" style={{ position: "static", transform: "none" }}>{Icons.spark} Offre de base</div>
+              </div>
             <div className="lp-pricing-card lp-pricing-inner" style={{ background: "linear-gradient(145deg,rgba(22,24,44,0.98),rgba(10,11,22,0.99))", border: "1px solid rgba(99,120,255,0.38)" }}>
                 <div style={{ position: "absolute", top: -100, right: -100, width: 360, height: 360, borderRadius: "50%", background: "radial-gradient(circle,rgba(99,120,255,0.18) 0%,transparent 70%)", pointerEvents: "none" }} />
                 <div style={{ position: "absolute", bottom: -80, left: -80, width: 280, height: 280, borderRadius: "50%", background: "radial-gradient(circle,rgba(192,132,252,0.12) 0%,transparent 70%)", pointerEvents: "none" }} />
@@ -1232,9 +1245,16 @@ export default function LandingPage() {
                     </div>
                   ))}
                 </div>
+                {/* Hint arrow — mobile only, auto-hides after 2.6s */}
+                {showPricingHint && <div className="lp-pricing-hint-arrow"><span>→</span></div>}
               </div>
+            </div>{/* end slide 1 */}
 
-            {/* ── Offre 2 : CRM + Site vitrine ── */}
+            {/* ── Slide 2 : CRM + Site vitrine ── */}
+            <div className="lp-pricing-slide">
+              <div className="lp-pricing-badge-cell">
+                <div className="lp-popular-badge" style={{ position: "static", transform: "none", background: "linear-gradient(135deg,rgba(20,184,166,0.35),rgba(99,120,255,0.25))", borderColor: "rgba(20,184,166,0.45)", color: "rgba(150,240,230,0.95)" }}>⭐ La plus populaire</div>
+              </div>
             <div className="lp-pricing-inner" style={{ background: "linear-gradient(145deg,rgba(14,28,34,0.98),rgba(8,16,22,0.99))", border: "1px solid rgba(20,184,166,0.45)", boxShadow: "0 0 48px rgba(20,184,166,0.08), inset 0 0 80px rgba(20,184,166,0.03)" }}>
                 <div style={{ position: "absolute", top: -100, right: -100, width: 360, height: 360, borderRadius: "50%", background: "radial-gradient(circle,rgba(20,184,166,0.14) 0%,transparent 70%)", pointerEvents: "none" }} />
                 <div style={{ position: "absolute", bottom: -80, left: -80, width: 280, height: 280, borderRadius: "50%", background: "radial-gradient(circle,rgba(99,120,255,0.10) 0%,transparent 70%)", pointerEvents: "none" }} />
@@ -1281,8 +1301,17 @@ export default function LandingPage() {
                   ))}
                 </div>
               </div>
+            </div>{/* end slide 2 */}
 
+          </div>{/* end lp-pricing-grid */}
+
+          {/* Dots indicator — mobile only */}
+          <div className="lp-pricing-dots">
+            {[0, 1].map(i => (
+              <div key={i} style={{ width: 7, height: 7, borderRadius: "50%", background: pricingDot === i ? "rgba(255,255,255,0.90)" : "rgba(255,255,255,0.22)", transition: "background 0.25s ease" }} />
+            ))}
           </div>
+
         </div>
       </section>
 
