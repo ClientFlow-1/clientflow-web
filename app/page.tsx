@@ -1367,13 +1367,13 @@ export default function LandingPage() {
           </div>
           <div>
             <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", marginBottom: 16 }}>Légal</div>
-            {["Mentions légales","CGU","Politique de confidentialité"].map(label => (
-              <div key={label} style={{ marginBottom: 10 }}><span style={{ fontSize: 14, color: "rgba(255,255,255,0.50)", fontWeight: 500, cursor: "pointer" }}>{label}</span></div>
+            {[["Mentions légales","/legal/mentions-legales"],["CGV","/legal/cgv"],["Politique de confidentialité","/legal/politique-confidentialite"]].map(([label, href]) => (
+              <div key={label} style={{ marginBottom: 10 }}><a href={href} style={{ fontSize: 14, color: "rgba(255,255,255,0.50)", fontWeight: 500, textDecoration: "none" }}>{label}</a></div>
             ))}
           </div>
           <div>
             <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: 1.5, color: "rgba(255,255,255,0.35)", textTransform: "uppercase", marginBottom: 16 }}>Contact</div>
-            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.50)", fontWeight: 500, marginBottom: 10 }}>contact@clientflow.fr</div>
+            <div style={{ fontSize: 14, color: "rgba(255,255,255,0.50)", fontWeight: 500, marginBottom: 10 }}>client.flow@outlook.com</div>
             <div style={{ display: "flex", gap: 10, marginTop: 16 }}>
               {["𝕏","in","ig"].map(s => (
                 <div key={s} style={{ width: 32, height: 32, borderRadius: 8, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, color: "rgba(255,255,255,0.40)", cursor: "pointer" }}>{s}</div>
