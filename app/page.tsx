@@ -343,7 +343,7 @@ const CSS = `
 
     /* Pricing carousel */
     .lp-section-pricing { padding:56px 0; }
-    .lp-pricing-grid { display:flex !important; overflow-x:scroll; scroll-snap-type:x mandatory; scrollbar-width:none; -webkit-overflow-scrolling:touch; padding:8px 6% 20px; column-gap:0 !important; }
+    .lp-pricing-grid { display:flex !important; overflow-x:scroll; scroll-snap-type:x mandatory; scrollbar-width:none; -webkit-overflow-scrolling:touch; padding:8px 6% 20px 16px; column-gap:0 !important; }
     .lp-pricing-grid::-webkit-scrollbar { display:none; }
     .lp-pricing-slide { flex:none !important; width:88% !important; padding-right:16px; scroll-snap-align:start; }
     .lp-pricing-inner { padding:28px 20px !important; border-radius:20px !important; }
