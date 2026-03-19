@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { useWorkspace } from "@/lib/workspaceContext";
@@ -1045,6 +1046,8 @@ export default function RelancesPage() {
   const [sales, setSales] = useState<SaleRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState("");
+  const searchParams = useSearchParams();
+  const autoOpenComposerDone = useRef(false);
   const [activeSegment, setActiveSegment] = useState<Segment | "all">("all");
   const [searchQ, setSearchQ] = useState("");
   const [mounted, setMounted] = useState(false);
@@ -1122,6 +1125,21 @@ export default function RelancesPage() {
     const caPotentiel = inactifs.length * panierMoyenInactif;
     const countBySegment = Object.fromEntries(SEGMENTS.map(s => [s.key, clientStats.filter(c => c.segment === s.key).length])) as Record<Segment, number>;
     return { caInactifs, caPotentiel, countBySegment };
+  }, [clientStats]);
+
+  // Auto-open email composer from notification deep-link
+  useEffect(() => {
+    if (autoOpenComposerDone.current || !clientStats.length) return;
+    const segParam = searchParams.get("segment");
+    const openComposer = searchParams.get("openComposer");
+    if (!segParam || !openComposer) return;
+    autoOpenComposerDone.current = true;
+    const SEG_MAP: Record<string, Segment> = { "30": "regulier", "60": "inactif", "90": "inactif", "180": "inactif" };
+    const segKey = SEG_MAP[segParam];
+    if (segKey) {
+      setActiveSegment(segKey);
+      setEmailModalOpen(true);
+    }
   }, [clientStats]);
 
   const filtered = useMemo(() => {

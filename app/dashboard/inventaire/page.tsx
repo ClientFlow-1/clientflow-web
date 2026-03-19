@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { createPortal } from "react-dom";
 import { supabase } from "@/lib/supabaseClient";
 import { useWorkspace } from "@/lib/workspaceContext";
@@ -93,6 +94,9 @@ export default function InventairePage() {
   const [alertSaving, setAlertSaving] = useState(false);
   const [alertError, setAlertError] = useState("");
 
+  const searchParams = useSearchParams();
+  const autoOpenStockDone = useRef(false);
+
   useEffect(() => { setMounted(true); }, []);
   useEffect(() => { fetchAll(); }, [activeWorkspace?.id]);
 
@@ -155,6 +159,17 @@ export default function InventairePage() {
     }
     return list;
   }, [movements, histFilter, histSearch]);
+
+  // Auto-open stock modal from notification deep-link
+  useEffect(() => {
+    if (autoOpenStockDone.current || !products.length) return;
+    const produitParam = searchParams.get("produit");
+    const openStock = searchParams.get("openStock");
+    if (!produitParam || !openStock) return;
+    autoOpenStockDone.current = true;
+    const product = products.find(p => p.name.toLowerCase() === produitParam.toLowerCase());
+    if (product) openMovementModal(product, "in");
+  }, [products]);
 
   function openMovementModal(product: Product, type: MovementType = "in") {
     setModalProduct(product);

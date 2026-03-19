@@ -461,14 +461,14 @@ function getNotifAction(n: DBNotification): string | null {
   if (n.type === "stock") {
     const match = n.title.match(/:\s*(.+)$/);
     const produit = match ? match[1].trim() : n.title;
-    return `/dashboard/inventaire?produit=${encodeURIComponent(produit)}`;
+    return `/dashboard/inventaire?produit=${encodeURIComponent(produit)}&openStock=true`;
   }
   if (n.type === "relance") {
-    if (n.title.includes("30 j")) return "/dashboard/relances?segment=30";
-    if (n.title.includes("60 j")) return "/dashboard/relances?segment=60";
-    if (n.title.includes("90 j")) return "/dashboard/relances?segment=90";
+    if (n.title.includes("30 j")) return "/dashboard/relances?segment=30&openComposer=true";
+    if (n.title.includes("60 j")) return "/dashboard/relances?segment=60&openComposer=true";
+    if (n.title.includes("90 j")) return "/dashboard/relances?segment=90&openComposer=true";
   }
-  if (n.type === "inactif") return "/dashboard/relances?segment=180";
+  if (n.type === "inactif") return "/dashboard/relances?segment=180&openComposer=true";
   return null;
 }
 
@@ -633,7 +633,7 @@ function NotificationBell() {
                         onMouseEnter={e => { e.currentTarget.style.color = "rgba(99,120,255,1)"; e.currentTarget.style.borderColor = "rgba(99,120,255,0.45)"; }}
                         onMouseLeave={e => { e.currentTarget.style.color = "rgba(99,120,255,0.80)"; e.currentTarget.style.borderColor = "rgba(99,120,255,0.20)"; }}
                       >
-                        {n.type === "stock" ? "Voir le stock →" : "Voir les clients →"}
+                        {n.type === "stock" ? "Réapprovisionner →" : "Relancer →"}
                       </button>
                     )}
                   </div>
