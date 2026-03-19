@@ -741,6 +741,7 @@ button {
   /* Hauteur égale des cartes sur mobile */
   .lp-pricing-slide > .lp-pricing-inner {
     height: 100% !important;
+    min-height: 760px !important;
   }
 
   /* Supprime le glow/halo autour des cartes pricing */
